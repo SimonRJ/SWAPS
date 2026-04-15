@@ -105,7 +105,35 @@ npm run dev
 npm run build
 ```
 
-## 6) PWA support
+## 6) Netlify deployment
+
+This is the recommended way to host SWAPS so data is retained and synced across every device (iPhone Safari, Chrome, Brave, another phone, etc). Firestore handles the real-time sync; Netlify just serves the app.
+
+### Steps
+
+1. Push this repo to GitHub (or fork it).
+2. Log in to [netlify.com](https://netlify.com) and click **Add new site → Import an existing project**.
+3. Connect your GitHub account and select this repository.
+4. Netlify auto-detects the settings from `netlify.toml`:
+   - **Build command:** `npm run build`
+   - **Publish directory:** `dist`
+5. Before deploying, add your Firebase environment variables under **Site configuration → Environment variables**:
+
+   | Key | Value |
+   |---|---|
+   | `VITE_FIREBASE_API_KEY` | your Firebase API key |
+   | `VITE_FIREBASE_AUTH_DOMAIN` | `<project>.firebaseapp.com` |
+   | `VITE_FIREBASE_PROJECT_ID` | your project ID |
+   | `VITE_FIREBASE_STORAGE_BUCKET` | `<project>.firebasestorage.app` |
+   | `VITE_FIREBASE_MESSAGING_SENDER_ID` | your sender ID |
+   | `VITE_FIREBASE_APP_ID` | your app ID |
+
+6. Click **Deploy site**. Netlify builds the project and gives you a public URL.
+7. In Firebase Console → **Authentication → Settings → Authorized domains**, add your Netlify domain (e.g. `your-site.netlify.app`) so Firebase accepts requests from it.
+
+> **Cross-device sync:** all data lives in Firestore. As long as every device opens the same Netlify URL and joins with the same team code + passcode, everything stays in sync in real time regardless of browser or device.
+
+## 7) PWA support
 
 Implemented via `vite-plugin-pwa` in `vite.config.js`.
 
