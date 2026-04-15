@@ -1,180 +1,38 @@
-# SWAPS (Synced Soccer Subs)
+# ⚽ Soccer Subs
 
-A brand-new cloud-synced rebuild of Soccer-Subs using **React + Vite + Tailwind + Firestore** with real-time updates, offline caching, and team-code/passcode onboarding.
+A mobile-friendly web app for managing soccer substitutions throughout a season, ensuring every player gets equal time in every position.
 
-## 1) Analysis of the original app
+Works on iPhone, iPad, and any mobile browser. Add it to your home screen for a full-screen experience.
 
-The original Soccer-Subs app is a mobile-friendly React/Tailwind app with localStorage persistence and these core flows:
+## Features
 
-- Team setup/login
-- Player management
-- Game-day setup
-- Live substitutions and timer flow
-- Season stats
+- **Team login** – Secure passcode-protected team account
+- **Player management** – Add/remove players, configure team size, game duration, and season length
+- **Game day wizard** – Select available players, pick a formation, and get an auto-balanced lineup
+- **Live game timer** – Counts down to the next sub (every 10 minutes), shows who comes on/off and in what position
+- **Injury subs** – Replace an injured player without breaking the 10-minute sub rhythm
+- **Season stats** – Cumulative minutes per player per position (GK / DEF / MID / ATK) with visual bars
+- **Cloud save on Netlify** – Team data is stored in Netlify Blobs and shared across devices through team code + passcode
 
-This new app keeps those same core features, but replaces localStorage with Firestore so multiple devices stay in sync in real-time.
-
-## 2) New architecture proposal
-
-### Frontend
-
-- React + Vite SPA
-- React Router for route-based screens:
-  - `/onboarding`
-  - `/team`
-  - `/game`
-  - `/stats`
-- Team context provider wraps Firestore subscriptions
-- TailwindCSS for UI
-
-### Data layer
-
-- Firebase SDK v9+ modular APIs
-- Firestore listeners via `onSnapshot`
-- Offline persistence enabled with `persistentLocalCache + persistentMultipleTabManager`
-- Local storage keeps active `teamId` so users auto-reconnect
-
-### Security model (no accounts)
-
-- Team join is gated by `teamId + passcode`
-- Passcode is hashed client-side (`SHA-256`) before storage
-- Firestore Rules and app checks are in `firestore.rules` (see note in docs about no-auth tradeoffs)
-
-## 3) Firestore schema
-
-Detailed schema and rules rationale: **`/docs/firestore-schema.md`**
-
-Collections:
-
-- `teams/{teamId}`
-  - metadata + hashed passcode
-- `teams/{teamId}/players/{playerId}`
-- `teams/{teamId}/games/{gameId}`
-- `teams/{teamId}/games/{gameId}/substitutions/{substitutionId}`
-- `teams/{teamId}/stats/{playerId}`
-
-## 4) Project structure
-
-```text
-.
-├─ docs/
-│  └─ firestore-schema.md
-├─ public/
-│  ├─ manifest.webmanifest
-│  └─ icons/
-├─ src/
-│  ├─ components/
-│  ├─ context/
-│  ├─ firebase/
-│  ├─ hooks/
-│  ├─ lib/
-│  ├─ screens/
-│  └─ services/
-├─ firestore.rules
-└─ ...vite/tailwind config files
-```
-
-## 5) Setup guide
-
-1. Install deps
+## Getting Started
 
 ```bash
 npm install
-```
-
-2. Create `.env` with Firebase config:
-
-```bash
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-```
-
-3. Run app
-
-```bash
 npm run dev
 ```
 
-4. Build production bundle
+Open [http://localhost:5173](http://localhost:5173) on your phone or browser.
+
+## Build for Production
 
 ```bash
 npm run build
 ```
 
-## 6) Netlify deployment
+The output goes to `dist/`. Deploy to any static host (Netlify, Vercel, GitHub Pages, etc.).
 
-This is the recommended way to host SWAPS so data is retained and synced across every device (iPhone Safari, Chrome, Brave, another phone, etc). Firestore handles the real-time sync; Netlify just serves the app.
+## Tech Stack
 
-### Steps
-
-1. Push this repo to GitHub (or fork it).
-2. Log in to [netlify.com](https://netlify.com) and click **Add new site → Import an existing project**.
-3. Connect your GitHub account and select this repository.
-4. Netlify auto-detects the settings from `netlify.toml`:
-   - **Build command:** `npm run build`
-   - **Publish directory:** `dist`
-5. Before deploying, add your Firebase environment variables under **Site configuration → Environment variables**:
-
-   | Key | Value |
-   |---|---|
-   | `VITE_FIREBASE_API_KEY` | your Firebase API key |
-   | `VITE_FIREBASE_AUTH_DOMAIN` | `<project>.firebaseapp.com` |
-   | `VITE_FIREBASE_PROJECT_ID` | your project ID |
-   | `VITE_FIREBASE_STORAGE_BUCKET` | `<project>.firebasestorage.app` |
-   | `VITE_FIREBASE_MESSAGING_SENDER_ID` | your sender ID |
-   | `VITE_FIREBASE_APP_ID` | your app ID |
-
-6. Click **Deploy site**. Netlify builds the project and gives you a public URL.
-7. In Firebase Console → **Authentication → Settings → Authorized domains**, add your Netlify domain (e.g. `your-site.netlify.app`) so Firebase accepts requests from it.
-
-> **Cross-device sync:** all data lives in Firestore. As long as every device opens the same Netlify URL and joins with the same team code + passcode, everything stays in sync in real time regardless of browser or device.
-
-## 7) PWA support
-
-Implemented via `vite-plugin-pwa` in `vite.config.js`.
-
-Included:
-
-- `public/manifest.webmanifest`
-- auto-updating service worker registration (`virtual:pwa-register`)
-- icon set in `/public/icons`
-
-## 7) Capacitor preparation (iOS/Android)
-
-1. Build web assets: `npm run build`
-2. Initialize Capacitor in this project
-3. Set Capacitor `webDir` to `dist`
-4. Add iOS and Android platforms
-5. Run `npx cap sync`
-
-Firestore in WebView notes:
-
-- keep HTTPS-capable Firebase config
-- offline cache works in Capacitor WebView, but test multi-tab assumptions per platform
-- use the same passcode/team onboarding flow for all platforms
-
-## 8) Migration guide (old local app → new synced app)
-
-1. In the old app, capture team/player/game stats snapshot.
-2. In SWAPS, create a new team (gets team code + passcode).
-3. Recreate team players in Team screen.
-4. Start a game and continue live substitutions in synced mode.
-5. Share team code + passcode with other devices to join same dataset.
-
-## 9) Current implementation status
-
-Implemented now:
-
-- Team creation and join by team code/passcode
-- Player management
-- Game creation
-- Live substitution logging
-- Stats document model and rendering
-- Real-time Firestore subscriptions
-- Offline persistence
-- PWA configuration
-
+- [React](https://react.dev/) + [Vite](https://vite.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- Netlify Functions + Netlify Blobs
