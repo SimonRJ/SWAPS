@@ -2,10 +2,13 @@
   command = "npm run build"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA fallback – sends all routes to index.html so React Router works
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
