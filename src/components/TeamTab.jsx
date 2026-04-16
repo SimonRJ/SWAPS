@@ -262,7 +262,6 @@ export default function TeamTab({ data, onUpdate }) {
                           opponentName: next.name,
                           opponentLogoUrl: next.logoUrl || '',
                         })}
-                        showLogoInput={false}
                       />
                       <div className="relative w-full min-w-0">
                         <input
