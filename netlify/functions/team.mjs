@@ -6,6 +6,7 @@ const store = BLOBS_SITE_ID && BLOBS_TOKEN
   ? getStore({ name: 'swaps-teams', siteID: BLOBS_SITE_ID, token: BLOBS_TOKEN })
   : getStore('swaps-teams');
 const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD;
+const ADMIN_TEAM_PASSWORD_CODE = process.env.ADMIN_TEAM_PASSWORD_CODE || ADMIN_DELETE_PASSWORD;
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -107,6 +108,21 @@ export default async (req) => {
     if (!validateDataShape(data)) {
       return jsonResponse({ error: 'Invalid team data.' }, 400);
     }
+
+    const isPasscodeChange = data.team.passcodeHash !== existing?.team?.passcodeHash;
+    if (isPasscodeChange) {
+      if (!ADMIN_TEAM_PASSWORD_CODE) {
+        return jsonResponse({ error: 'Administrator code is not configured.', code: 'ADMIN_CODE_NOT_CONFIGURED' }, 500);
+      }
+      const adminCode = String(payload?.adminCode || '');
+      if (!adminCode) {
+        return jsonResponse({ error: 'Administrator code is required to change the team passcode.', code: 'ADMIN_CODE_REQUIRED' }, 401);
+      }
+      if (adminCode !== ADMIN_TEAM_PASSWORD_CODE) {
+        return jsonResponse({ error: 'Invalid administrator code.', code: 'INVALID_ADMIN_CODE' }, 401);
+      }
+    }
+
     await store.setJSON(key, data);
     return jsonResponse({ ok: true, passcodeHash: data.team.passcodeHash });
   }
