@@ -57,8 +57,54 @@ function formatRoundDateLabel(dateValue) {
   });
 }
 
+function getPlayedMinutes(player) {
+  return (player.minutesGK || 0) + (player.minutesDEF || 0) + (player.minutesMID || 0) + (player.minutesATK || 0);
+}
+
+function getGameMinutesForPlayer(game, playerId) {
+  const delta = Array.isArray(game.playerMinuteDeltas)
+    ? game.playerMinuteDeltas.find(item => item.playerId === playerId)
+    : null;
+  if (delta) {
+    return (delta.minutesGK || 0) + (delta.minutesDEF || 0) + (delta.minutesMID || 0) + (delta.minutesATK || 0);
+  }
+
+  const timer = game.playerTimers?.[playerId];
+  const positionSeconds = timer?.positionSeconds || {};
+  return Math.round(
+    ((positionSeconds.GK || 0) + (positionSeconds.DEF || 0) + (positionSeconds.MID || 0) + (positionSeconds.ATK || 0)) / 60,
+  );
+}
+
+function buildSquadPreviewStats(players, gameHistory) {
+  const goalsByPlayer = {};
+  const gamesByPlayer = {};
+
+  for (const game of gameHistory || []) {
+    for (const goal of (game.goals || [])) {
+      if (!goal.playerId) continue;
+      goalsByPlayer[goal.playerId] = (goalsByPlayer[goal.playerId] || 0) + 1;
+    }
+
+    for (const player of players || []) {
+      if (getGameMinutesForPlayer(game, player.id) <= 0) continue;
+      gamesByPlayer[player.id] = (gamesByPlayer[player.id] || 0) + 1;
+    }
+  }
+
+  return Object.fromEntries((players || []).map(player => [
+    player.id,
+    {
+      gamesPlayed: gamesByPlayer[player.id] || 0,
+      minutesPlayed: getPlayedMinutes(player),
+      goals: goalsByPlayer[player.id] || 0,
+      saves: player.saves || 0,
+    },
+  ]));
+}
+
 export default function TeamTab({ data, onUpdate }) {
-  const { team, players } = data;
+  const { team, players, gameHistory } = data;
   const [newName, setNewName] = useState('');
   const [newShirtNumber, setNewShirtNumber] = useState('');
   const [editingTeam, setEditingTeam] = useState(false);
@@ -219,6 +265,12 @@ export default function TeamTab({ data, onUpdate }) {
     }
     return scheduleForm;
   }, [scheduleFilter, scheduleForm]);
+
+  const squadPreviewStats = useMemo(
+    () => buildSquadPreviewStats(players, gameHistory),
+    [players, gameHistory],
+  );
+  const isScrollableEditorSection = editingTeam && (activeSection === 'schedule' || activeSection === 'players');
 
   useEffect(() => {
     if (focusedRound > teamForm.gamesPerSeason) {
@@ -454,34 +506,58 @@ export default function TeamTab({ data, onUpdate }) {
           </div>
 
           <div className="card">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 mb-3">Squad Preview</h3>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Squad Preview</h3>
+              <span className="text-xs font-medium text-gray-500">{players.length} players</span>
+            </div>
             {players.length === 0 ? (
               <p className="text-sm text-gray-500">No players yet.</p>
             ) : (
-              <ul className="space-y-2">
-                {players.slice(0, 6).map(player => (
-                  <li key={player.id} className="flex items-center gap-2 text-sm">
-                    <PlayerAvatar
-                      player={player}
-                      sizeClass="w-7 h-7"
-                      className={player.isActive ? 'bg-pitch-100 text-pitch-700' : 'bg-gray-100 text-gray-400'}
-                      textClassName="text-xs"
-                    />
-                    <span className={player.isActive ? 'text-gray-800 font-medium' : 'text-gray-400 line-through'}>
-                      {player.name}
-                    </span>
-                    <span className="ml-auto text-xs text-gray-500">{player.shirtNumber || '-'}</span>
-                  </li>
-                ))}
+              <ul className="divide-y divide-gray-100">
+                {players.map(player => {
+                  const stats = squadPreviewStats[player.id] || {
+                    gamesPlayed: 0,
+                    minutesPlayed: 0,
+                    goals: 0,
+                    saves: 0,
+                  };
+
+                  return (
+                    <li key={player.id} className="flex items-center gap-3 py-3 text-sm">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border text-sm font-semibold ${player.isActive
+                          ? 'border-gray-200 bg-gray-50 text-gray-700'
+                          : 'border-gray-200 bg-gray-100 text-gray-400'}`}
+                        >
+                          {player.shirtNumber || '—'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className={`truncate font-medium ${player.isActive ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                            {player.name}
+                          </p>
+                          {!player.isActive && (
+                            <p className="text-xs text-gray-400">Inactive</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid min-w-[11rem] grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-4 text-right text-gray-500 sm:min-w-[14rem]">
+                        <span>{stats.gamesPlayed > 0 ? `Played ${stats.gamesPlayed}` : '\u00A0'}</span>
+                        <span>{stats.minutesPlayed > 0 ? `Minutes ${stats.minutesPlayed}` : '\u00A0'}</span>
+                        <span>{stats.goals > 0 ? `Goals ${stats.goals}` : '\u00A0'}</span>
+                        <span>{stats.saves > 0 ? `Saves ${stats.saves}` : '\u00A0'}</span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
-            )}
-            {players.length > 6 && (
-              <p className="mt-3 text-xs text-gray-500">+ {players.length - 6} more players</p>
             )}
           </div>
         </>
       ) : (
-        <div className="card space-y-4">
+        <div className={`card ${isScrollableEditorSection
+          ? 'flex max-h-[calc(100dvh-var(--app-header-height)-var(--app-tabbar-height)-7rem)] min-h-0 flex-col gap-4 overflow-hidden'
+          : 'space-y-4'}`}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Team Edit</h2>
@@ -632,7 +708,7 @@ export default function TeamTab({ data, onUpdate }) {
           {activeSection === 'schedule' && (
             <form
               onSubmit={saveSchedule}
-            className="space-y-3 rounded-xl border border-gray-200 p-4"
+              className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden rounded-xl border border-gray-200 p-4"
             >
               <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3 space-y-3">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -719,7 +795,7 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-200 p-2">
+              <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 p-2">
                 <div className="mb-2 flex items-center gap-2">
                   <button
                     type="button"
@@ -749,7 +825,7 @@ export default function TeamTab({ data, onUpdate }) {
                     Next
                   </button>
                 </div>
-                <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
+                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                   {visibleScheduleRounds.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
                       No rounds match this filter.
@@ -902,7 +978,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'players' && (
-            <form onSubmit={savePlayers} className="space-y-3 rounded-xl border border-gray-200 p-4">
+            <form onSubmit={savePlayers} className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden rounded-xl border border-gray-200 p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">
                   Squad ({playerForm.length})
@@ -941,7 +1017,7 @@ export default function TeamTab({ data, onUpdate }) {
               {playerForm.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center py-3">No players yet. Add your squad.</p>
               ) : (
-                <ul className="divide-y divide-gray-100 max-h-[52vh] overflow-y-auto pr-1">
+                <ul className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto pr-1">
                   {playerForm.map(player => (
                     <li key={player.id} className="flex items-center gap-3 py-3">
                       <PlayerAvatar
