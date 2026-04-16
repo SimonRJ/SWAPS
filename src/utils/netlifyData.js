@@ -76,3 +76,12 @@ export async function listTeamCodes() {
   });
   return Array.isArray(result.teamCodes) ? result.teamCodes : [];
 }
+
+export async function deleteTeamByAdmin(teamId, adminPassword) {
+  const result = await callTeamFunction({
+    action: 'delete',
+    teamId,
+    adminPassword,
+  });
+  return Boolean(result.ok);
+}
