@@ -4,6 +4,7 @@ import LogoImageInput from './LogoImageInput.jsx';
 import TeamAvatar from './TeamAvatar.jsx';
 import { FOOTBALL_WEST_CLUBS, getClubById } from '../utils/clubLogos.js';
 import { createTeam, loginWithPasscode } from '../utils/netlifyData.js';
+import wizardHero from '../assets/wizard-hero.svg';
 
 function createTeamId() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -94,7 +95,20 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="min-h-[100svh] bg-gradient-to-br from-pitch-900 via-pitch-800 to-pitch-700 flex items-center justify-center px-4 py-4 sm:py-8">
-      <div className="w-full max-w-6xl grid gap-4 sm:gap-6 lg:grid-cols-1">
+      <div className="w-full max-w-6xl grid gap-4 sm:gap-6 lg:grid-cols-[1.1fr_1fr] items-center">
+        <div className="rounded-3xl border border-white/20 bg-white/10 backdrop-blur-sm p-4 sm:p-6 text-white">
+          <img
+            src={wizardHero}
+            alt="Wizard holding a soccer ball and wizard staff"
+            className="w-full rounded-2xl border border-white/20 shadow-2xl"
+          />
+          <p className="mt-4 text-xs uppercase tracking-[0.2em] text-pitch-100 font-semibold">
+            Soccer Team Planner
+          </p>
+          <h1 className="mt-1 text-3xl sm:text-4xl font-black leading-tight">
+            Substitute Wizardry and Planning
+          </h1>
+        </div>
         <div className="w-full max-w-xl mx-auto bg-white rounded-3xl shadow-2xl p-5 sm:p-8 border border-white/40">
           <div className="mb-5 flex items-center justify-center">
             <TeamAvatar
