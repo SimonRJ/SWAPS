@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDefaultData } from '../utils/storage.js';
 import LogoImageInput from './LogoImageInput.jsx';
 import { FOOTBALL_WEST_CLUBS, getClubById } from '../utils/clubLogos.js';
-import { createTeam, deleteTeamByAdmin, listTeamCodes } from '../utils/netlifyData.js';
+import {
+  createTeam,
+  deleteTeamByAdmin,
+  listSecurityLogs,
+  listTeamCodes,
+  restoreFromSecurityLog,
+} from '../utils/netlifyData.js';
 
 const MIN_TEAM_CODE_LENGTH = 3;
 const MAX_TEAM_CODE_LENGTH = 24;
@@ -12,6 +18,12 @@ function normalizeTeamCode(value) {
     .toUpperCase()
     .replace(/[^A-Z0-9-]/g, '')
     .slice(0, MAX_TEAM_CODE_LENGTH);
+}
+
+function formatLogTime(timestamp) {
+  const value = new Date(timestamp || '');
+  if (Number.isNaN(value.getTime())) return 'Unknown time';
+  return value.toLocaleString();
 }
 
 export default function AdminPanel({ onBack }) {
@@ -31,6 +43,13 @@ export default function AdminPanel({ onBack }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState('');
   const [deleteSucceeded, setDeleteSucceeded] = useState(false);
+  const [securityTeamId, setSecurityTeamId] = useState('');
+  const [securityPassword, setSecurityPassword] = useState('');
+  const [securityLogs, setSecurityLogs] = useState([]);
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState('');
+  const [securityError, setSecurityError] = useState('');
+  const [restoringLogId, setRestoringLogId] = useState('');
 
   const refreshTeamCodes = useCallback(async () => {
     setLoadingTeamCodes(true);
@@ -39,6 +58,7 @@ export default function AdminPanel({ onBack }) {
       const nextCodes = Array.isArray(codes) ? codes : [];
       setTeamCodes(nextCodes);
       setDeleteTeamId(prev => (prev ? prev : nextCodes[0] || ''));
+      setSecurityTeamId(prev => (prev ? prev : nextCodes[0] || ''));
     } catch {
       setTeamCodes([]);
     } finally {
@@ -156,6 +176,61 @@ export default function AdminPanel({ onBack }) {
       setDeleteSucceeded(false);
     } finally {
       setDeleteLoading(false);
+    }
+  }
+
+  async function handleLoadSecurityLogs(e) {
+    e.preventDefault();
+    const normalizedTeamId = normalizeTeamCode(securityTeamId);
+    if (!normalizedTeamId) {
+      setSecurityError('Select a team code.');
+      setSecurityStatus('');
+      setSecurityLogs([]);
+      return;
+    }
+    if (!securityPassword.trim()) {
+      setSecurityError('Enter the administrator password.');
+      setSecurityStatus('');
+      setSecurityLogs([]);
+      return;
+    }
+
+    setSecurityLoading(true);
+    setSecurityError('');
+    setSecurityStatus('');
+    try {
+      const entries = await listSecurityLogs(normalizedTeamId, securityPassword.trim());
+      setSecurityLogs(entries);
+      setSecurityStatus(entries.length > 0 ? `Loaded ${entries.length} log entries.` : 'No security log entries yet.');
+    } catch (loadError) {
+      setSecurityLogs([]);
+      setSecurityError(loadError.message || 'Unable to load security logs.');
+    } finally {
+      setSecurityLoading(false);
+    }
+  }
+
+  async function handleRestoreLog(logId) {
+    const normalizedTeamId = normalizeTeamCode(securityTeamId);
+    if (!normalizedTeamId || !logId) return;
+    if (!securityPassword.trim()) {
+      setSecurityError('Enter the administrator password before restoring.');
+      return;
+    }
+    if (!window.confirm('Restore this snapshot? Current team data will be overwritten.')) return;
+
+    setRestoringLogId(logId);
+    setSecurityError('');
+    setSecurityStatus('');
+    try {
+      await restoreFromSecurityLog(normalizedTeamId, logId, securityPassword.trim());
+      const refreshed = await listSecurityLogs(normalizedTeamId, securityPassword.trim());
+      setSecurityLogs(refreshed);
+      setSecurityStatus('Snapshot restored successfully.');
+    } catch (restoreError) {
+      setSecurityError(restoreError.message || 'Unable to restore from security log.');
+    } finally {
+      setRestoringLogId('');
     }
   }
 
@@ -300,6 +375,79 @@ export default function AdminPanel({ onBack }) {
           >
             {deleteLoading ? 'Removing...' : 'Delete Team'}
           </button>
+        </form>
+
+        <form onSubmit={handleLoadSecurityLogs} className="mt-6 border-t border-gray-200 pt-5 space-y-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">Security Log</p>
+          <p className="text-xs text-gray-500">
+            Tracks key team changes and lets an admin restore earlier snapshots.
+          </p>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Team Code</label>
+            <select
+              className="input-field uppercase"
+              value={securityTeamId}
+              onChange={e => setSecurityTeamId(normalizeTeamCode(e.target.value))}
+              disabled={loadingTeamCodes || securityLoading || restoringLogId}
+            >
+              <option value="">
+                {loadingTeamCodes ? 'Loading team codes...' : 'Select team code'}
+              </option>
+              {sortedTeamCodes.map(code => (
+                <option key={`security-${code}`} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Official Password</label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Administrator password"
+              value={securityPassword}
+              onChange={e => setSecurityPassword(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={securityLoading}
+            className="btn-primary w-full"
+          >
+            {securityLoading ? 'Loading Logs...' : 'Load Security Log'}
+          </button>
+
+          {securityError && <p className="text-sm text-red-600">{securityError}</p>}
+          {securityStatus && <p className="text-sm text-green-700">{securityStatus}</p>}
+
+          {securityLogs.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
+              {securityLogs.map(log => (
+                <div key={log.id} className="rounded-lg border border-gray-200 bg-white p-3">
+                  <p className="text-xs font-semibold text-gray-500">{formatLogTime(log.timestamp)}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">{log.summary || 'Team update'}</p>
+                  {Array.isArray(log.details) && log.details.length > 0 && (
+                    <p className="mt-1 text-xs text-gray-600">{log.details.join(' · ')}</p>
+                  )}
+                  {log.snapshotKey && (
+                    <button
+                      type="button"
+                      onClick={() => handleRestoreLog(log.id)}
+                      disabled={restoringLogId === log.id}
+                      className="mt-2 rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      {restoringLogId === log.id ? 'Restoring...' : 'Restore This Snapshot'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </form>
       </div>
     </div>

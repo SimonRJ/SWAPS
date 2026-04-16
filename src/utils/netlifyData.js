@@ -87,3 +87,22 @@ export async function deleteTeamByAdmin(teamId, adminPassword) {
   });
   return Boolean(result.ok);
 }
+
+export async function listSecurityLogs(teamId, adminPassword) {
+  const result = await callTeamFunction({
+    action: 'securityLogList',
+    teamId,
+    adminPassword,
+  });
+  return Array.isArray(result.entries) ? result.entries : [];
+}
+
+export async function restoreFromSecurityLog(teamId, logId, adminPassword) {
+  const result = await callTeamFunction({
+    action: 'securityRestore',
+    teamId,
+    logId,
+    adminPassword,
+  });
+  return Boolean(result.ok);
+}

@@ -544,6 +544,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   const nextSubs = hasNextBlock
     ? getSubsBetween(fieldAssignments, plan[nextBlockIndex]?.onField || [])
     : [];
+  const nextSubCountdownColor = !hasNextBlock
+    ? 'text-slate-300'
+    : nextBlockSecondsRemaining <= PRE_SUB_ALERT_SECONDS_1MIN
+      ? 'text-red-500'
+      : nextBlockSecondsRemaining <= PRE_SUB_ALERT_SECONDS_2MIN
+        ? 'text-orange-400'
+        : 'text-emerald-400';
   const nextSubProgressPct = hasNextBlock
     ? Math.min(100, Math.max(0, ((subIntervalSeconds - nextBlockSecondsRemaining) / subIntervalSeconds) * 100))
     : 100;
@@ -867,6 +874,34 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
       {/* Soccer Field */}
       <div className="game-pitch-area px-1 py-0 flex-1 min-h-0 flex items-center justify-center">
         <div className="relative bg-gradient-to-b from-emerald-700 via-emerald-600 to-emerald-800 rounded-xl overflow-hidden w-full max-w-[470px] md:max-w-[600px] max-h-full aspect-[68/105] border border-emerald-900/60 shadow-2xl touch-none">
+          <div className="absolute top-2.5 left-2.5 z-30 flex flex-col items-start gap-1.5">
+            <div className="h-20 w-20 rounded-full bg-black/90 border border-white/25 shadow-xl flex flex-col items-center justify-center">
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/75">Next Sub</span>
+              <span className={`text-2xl font-black tabular-nums ${nextSubCountdownColor}`}>
+                {hasNextBlock ? formatTime(nextBlockSecondsRemaining) : '--:--'}
+              </span>
+            </div>
+            <div className="min-w-[160px] max-w-[230px] rounded-xl bg-black/90 border border-white/20 px-2.5 py-2 text-[10px] text-white shadow-lg">
+              {hasNextBlock ? (
+                nextSubs.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {nextSubs.map(sub => (
+                      <div key={`${sub.off || 'none'}-${sub.on}`} className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold text-red-400">{getPlayer(sub.off)?.name || '—'}</span>
+                        <span className="shrink-0 text-slate-300 text-xs">→</span>
+                        <span className="truncate font-semibold text-emerald-400">{getPlayer(sub.on)?.name || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="font-semibold text-slate-300">No player changes scheduled</p>
+                )
+              ) : (
+                <p className="font-semibold text-slate-300">Final block: no more subs</p>
+              )}
+            </div>
+          </div>
+
           {/* Field markings */}
           <div className="absolute inset-0">
             {/* Center line */}
