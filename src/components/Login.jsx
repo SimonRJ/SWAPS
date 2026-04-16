@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getDefaultData } from '../utils/storage.js';
 import LogoImageInput from './LogoImageInput.jsx';
 import TeamAvatar from './TeamAvatar.jsx';
 import { FOOTBALL_WEST_CLUBS, getClubById } from '../utils/clubLogos.js';
-import { createTeam, loginWithPasscode } from '../utils/netlifyData.js';
+import { createTeam, listTeamCodes, loginWithPasscode } from '../utils/netlifyData.js';
 import wizardHero from '../assets/wizard-hero.svg';
 
 function createTeamId() {
@@ -19,8 +19,33 @@ export default function Login({ onLogin }) {
   const [teamLogoUrl, setTeamLogoUrl] = useState('');
   const [autoClubLogoUrl, setAutoClubLogoUrl] = useState('');
   const [passcode, setPasscode] = useState('');
+  const [teamCodes, setTeamCodes] = useState([]);
+  const [loadingTeamCodes, setLoadingTeamCodes] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const codes = await listTeamCodes();
+        if (!cancelled) {
+          setTeamCodes(codes);
+        }
+      } catch {
+        if (!cancelled) {
+          setTeamCodes([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingTeamCodes(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -139,14 +164,24 @@ export default function Login({ onLogin }) {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Team Code</label>
-                <input
-                  type="text"
+                <select
                   className="input-field uppercase"
-                  placeholder="Enter team code"
                   value={teamId}
-                  onChange={e => setTeamId(e.target.value.replace(/\s+/g, '').toUpperCase())}
-                  autoComplete="off"
-                />
+                  onChange={e => setTeamId(e.target.value.toUpperCase())}
+                  disabled={loadingTeamCodes}
+                >
+                  <option value="">
+                    {loadingTeamCodes ? 'Loading team codes...' : 'Select your team code'}
+                  </option>
+                  {teamCodes.map(code => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+                {!loadingTeamCodes && teamCodes.length === 0 && (
+                  <p className="mt-1 text-xs text-gray-500">No teams found yet. Create a new team first.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Team Passcode</label>

@@ -69,3 +69,10 @@ export async function saveTeamData(session, data) {
     passcodeHash: result.passcodeHash || session.passcodeHash,
   };
 }
+
+export async function listTeamCodes() {
+  const result = await callTeamFunction({
+    action: 'list',
+  });
+  return Array.isArray(result.teamCodes) ? result.teamCodes : [];
+}
