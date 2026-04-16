@@ -28,7 +28,7 @@ const EDIT_SECTIONS = [
   },
 ];
 
-const SCROLLABLE_EDITOR_MAX_HEIGHT = 'calc(100dvh - var(--app-header-height) - var(--app-tabbar-height) - 7rem)';
+const SCROLLABLE_EDITOR_MAX_HEIGHT = 'calc(100vh - var(--app-header-height) - var(--app-tabbar-height) - 2rem)';
 const SQUAD_PREVIEW_STATS_MIN_WIDTH = 'clamp(11rem, 35vw, 14rem)';
 
 function normalizeTeamForm(team) {
@@ -573,7 +573,7 @@ export default function TeamTab({ data, onUpdate }) {
         <div
           className={`card ${isScrollableEditorSection
             ? 'flex min-h-0 flex-col gap-4 overflow-hidden'
-            : 'space-y-4'}`}
+            : 'space-y-4'} min-h-0'}
           style={isScrollableEditorSection ? { maxHeight: SCROLLABLE_EDITOR_MAX_HEIGHT } : undefined}
         >
           <div className="flex items-start justify-between gap-3">
