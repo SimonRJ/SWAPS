@@ -1,6 +1,7 @@
 import { getStore } from '@netlify/blobs';
 
 const store = getStore('swaps-teams');
+const ADMIN_DELETE_PASSWORD = '2248';
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -74,6 +75,15 @@ export default async (req) => {
   const existing = await store.get(key, { type: 'json' });
   if (!existing) {
     return jsonResponse({ error: 'Team not found.' }, 404);
+  }
+
+  if (action === 'delete') {
+    const adminPassword = String(payload?.adminPassword || '');
+    if (adminPassword !== ADMIN_DELETE_PASSWORD) {
+      return jsonResponse({ error: 'Invalid administrator password.', code: 'INVALID_ADMIN_PASSWORD' }, 401);
+    }
+    await store.delete(key);
+    return jsonResponse({ ok: true });
   }
 
   const passcodeHash = String(payload?.passcodeHash || '');
