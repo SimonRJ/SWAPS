@@ -94,6 +94,7 @@ export async function getDefaultData(teamInput, passcode) {
     },
     players: [],
     currentGame: null,
+    pendingGameSetup: null,
     gameHistory: [],
     cancelledGames: 0,
     cancelledGameDetails: [],
@@ -161,6 +162,23 @@ export function migrateData(data) {
     }));
   }
   migrated.cancelledGames = migrated.cancelledGameDetails.length;
+
+  // Ensure pending pre-game setup shape exists
+  const pendingSetup = migrated.pendingGameSetup;
+  if (
+    pendingSetup
+    && Number.isFinite(Number(pendingSetup.roundNumber))
+    && Array.isArray(pendingSetup.plan)
+  ) {
+    migrated.pendingGameSetup = {
+      roundNumber: Number(pendingSetup.roundNumber),
+      plan: pendingSetup.plan,
+      absentPlayerIds: Array.isArray(pendingSetup.absentPlayerIds) ? pendingSetup.absentPlayerIds : [],
+      absentMinutes: Array.isArray(pendingSetup.absentMinutes) ? pendingSetup.absentMinutes : [],
+    };
+  } else {
+    migrated.pendingGameSetup = null;
+  }
 
   // Ensure season schedule exists and matches games per season
   migrated.seasonSchedule = buildSeasonSchedule(

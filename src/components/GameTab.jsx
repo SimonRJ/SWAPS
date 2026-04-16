@@ -142,7 +142,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       startingField: startingField || plan?.[0]?.onField || [],
       startingBench: startingBench || plan?.[0]?.onBench || [],
     };
-    onUpdate({ ...data, currentGame: newGame });
+    onUpdate({ ...data, currentGame: newGame, pendingGameSetup: null });
     setSetupMode(false);
   }
 
@@ -259,6 +259,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       ...data,
       players: updatedPlayers,
       currentGame: null,
+      pendingGameSetup: null,
       gameHistory: [...(data.gameHistory || []), historyEntry],
       cancelledGameDetails: updatedCancelled,
       cancelledGames: updatedCancelled.length,
@@ -282,7 +283,13 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       <GameDaySetup
         data={data}
         onStartGame={handleStartGame}
-        onCancel={() => setSetupMode(false)}
+        onUpdate={onUpdate}
+        onCancel={() => {
+          if (data.pendingGameSetup) {
+            onUpdate({ ...data, pendingGameSetup: null });
+          }
+          setSetupMode(false);
+        }}
       />
     );
   }
@@ -410,7 +417,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
           {!canStartGame && ` (need ${team.fieldPlayers + 1}+)`}
         </p>
         <button
-          onClick={() => setSetupMode(true)}
+          onClick={() => {
+            if (data.pendingGameSetup) {
+              onUpdate({ ...data, pendingGameSetup: null });
+            }
+            setSetupMode(true);
+          }}
           disabled={!canStartGame}
           className={`btn-primary w-full text-lg ${!canStartGame ? 'opacity-50 cursor-not-allowed' : ''}`}
         >

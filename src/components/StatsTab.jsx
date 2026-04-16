@@ -104,6 +104,7 @@ export default function StatsTab({ data, onUpdate }) {
   // When a live game exists with absent players, the current game's actual
   // plan is used and remaining games are recalculated accordingly.
   const minFieldCount = team.fieldPlayers + 1;
+  const hasLiveGame = Boolean(data.currentGame);
   const seasonSheets = useMemo(() => {
     const active = players.filter(p => p.isActive);
     if (active.length < (team.fieldPlayers + 1)) return [];
@@ -116,12 +117,11 @@ export default function StatsTab({ data, onUpdate }) {
     if (remaining.length === 0) return [];
     const roundNumbers = remaining.map(r => r.round);
 
-    // Build current game override when a live game exists.
-    // This ensures the team sheet for the current game matches the actual
-    // plan in use, and that absent players are properly accounted for in
-    // the simulation of subsequent games.
+    // Apply live-game override when a game is in progress, otherwise use
+    // pre-game confirmation from setup so sheets update before kickoff.
     let currentGameOverride = null;
     const cg = data.currentGame;
+    const pendingSetup = data.pendingGameSetup;
     if (cg && cg.plan) {
       currentGameOverride = {
         roundNumber: cg.gameNumber,
@@ -129,10 +129,17 @@ export default function StatsTab({ data, onUpdate }) {
         absentPlayerIds: cg.absentPlayers || [],
         absentMinutes: cg.absentMinutes || [],
       };
+    } else if (pendingSetup && pendingSetup.plan) {
+      currentGameOverride = {
+        roundNumber: pendingSetup.roundNumber,
+        plan: pendingSetup.plan,
+        absentPlayerIds: pendingSetup.absentPlayerIds || [],
+        absentMinutes: pendingSetup.absentMinutes || [],
+      };
     }
 
     return planRemainingSeasonSheets(active, formation, team, gameHistory || [], roundNumbers, currentGameOverride);
-  }, [players, team, gameHistory, data.cancelledGameDetails, data.seasonSchedule, data.currentGame]);
+  }, [players, team, gameHistory, data.cancelledGameDetails, data.seasonSchedule, data.currentGame, data.pendingGameSetup]);
 
   const gamesPlayed = history.length;
   const gamesRemaining = remainingRounds.length;
@@ -340,6 +347,7 @@ export default function StatsTab({ data, onUpdate }) {
       playerMinutes: playerMins,
       activePlayers,
       cumulativeStats: cumStats,
+      openInNewTab: hasLiveGame,
     });
   }
 
@@ -692,6 +700,7 @@ export default function StatsTab({ data, onUpdate }) {
         playerMinutes,
         activePlayers,
         cumulativeStats,
+        openInNewTab: hasLiveGame,
       });
     }
 

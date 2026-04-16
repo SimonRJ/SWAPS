@@ -24,7 +24,7 @@ const PITCH_MARKINGS = {
 };
 
 // Steps: 'away_prompt' | 'select_away' | 'team_sheet'
-export default function GameDaySetup({ data, onStartGame, onCancel }) {
+export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) {
   const { team, players } = data;
   const activePlayers = players.filter(p => p.isActive);
   const minFieldCount = team.fieldPlayers + 1; // +1 for GK
@@ -52,9 +52,8 @@ export default function GameDaySetup({ data, onStartGame, onCancel }) {
     [activePlayers, awayPlayerIds],
   );
 
-  // Auto-generate the game plan when we reach the team sheet step
+  // Auto-generate the game plan from current away selections
   const gamePlan = useMemo(() => {
-    if (step !== 'team_sheet') return null;
     if (selectedPlayers.length < minFieldCount) return null;
     return planGame(
       selectedPlayers,
@@ -66,7 +65,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel }) {
       team.fixedGKPlayerId || null,
       { benchStartCounts, benchProtectedIds },
     );
-  }, [step, selectedPlayers, minFieldCount, team, activePlayers, benchStartCounts, benchProtectedIds]);
+  }, [selectedPlayers, minFieldCount, team, activePlayers, benchStartCounts, benchProtectedIds]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -86,11 +85,44 @@ export default function GameDaySetup({ data, onStartGame, onCancel }) {
       alert(`Need at least ${minFieldCount} players (GK + ${team.fieldPlayers} outfield). Too many players marked as away.`);
       return;
     }
+    const absentMinutes = calculateAbsentPlayerMinutes(absentPlayers, activePlayers, team);
+    if (onUpdate && gamePlan) {
+      onUpdate({
+        ...data,
+        pendingGameSetup: {
+          roundNumber: nextRound,
+          plan: gamePlan,
+          absentPlayerIds: absentPlayers.map(p => p.id),
+          absentMinutes,
+        },
+      });
+    }
     setStep('team_sheet');
   }
 
   function handleNoOneAway() {
+    const noAwayPlan = planGame(
+      activePlayers,
+      FORCED_FORMATION,
+      team.gameDuration,
+      team.rotateGK,
+      activePlayers,
+      team,
+      team.fixedGKPlayerId || null,
+      { benchStartCounts, benchProtectedIds },
+    );
     setAwayPlayerIds(new Set());
+    if (onUpdate && noAwayPlan) {
+      onUpdate({
+        ...data,
+        pendingGameSetup: {
+          roundNumber: nextRound,
+          plan: noAwayPlan,
+          absentPlayerIds: [],
+          absentMinutes: [],
+        },
+      });
+    }
     setStep('team_sheet');
   }
 
@@ -114,6 +146,11 @@ export default function GameDaySetup({ data, onStartGame, onCancel }) {
       opponentName: opponentTeam.name.trim() || 'Opponent',
       opponentLogoUrl: opponentTeam.logoUrl || '',
     });
+  }
+
+  function clearPendingSetup() {
+    if (!onUpdate || !data.pendingGameSetup) return;
+    onUpdate({ ...data, pendingGameSetup: null });
   }
 
   // --- Step: Is Anyone Away Today? ---
@@ -193,7 +230,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel }) {
           </div>
         </div>
         <div className="shrink-0 px-4 py-3 border-t border-gray-200 bg-white flex gap-3">
-          <button onClick={() => setStep('away_prompt')} className="btn-secondary flex-1">
+          <button onClick={() => { clearPendingSetup(); setStep('away_prompt'); }} className="btn-secondary flex-1">
             ← Back
           </button>
           <button onClick={handleConfirmAway} className="btn-primary flex-1">
@@ -376,7 +413,13 @@ export default function GameDaySetup({ data, onStartGame, onCancel }) {
 
         {/* Navigation */}
         <div className="flex gap-3 shrink-0 pt-1 pb-1">
-          <button onClick={() => setStep(absentPlayers.length > 0 ? 'select_away' : 'away_prompt')} className="btn-secondary flex-1">
+          <button
+            onClick={() => {
+              clearPendingSetup();
+              setStep(absentPlayers.length > 0 ? 'select_away' : 'away_prompt');
+            }}
+            className="btn-secondary flex-1"
+          >
             ← Back
           </button>
           <button onClick={handleStart} className="btn-primary flex-1">
