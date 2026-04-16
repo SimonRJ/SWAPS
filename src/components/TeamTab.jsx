@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AGE_CATEGORIES, FIXED_GAME_DURATION, buildSeasonSchedule, generateId, hashPasscode } from '../utils/storage.js';
 import { normalizeShirtNumber } from '../utils/playerUtils.js';
 import OpponentTeamInput from './OpponentTeamInput.jsx';
@@ -58,6 +58,8 @@ export default function TeamTab({ data, onUpdate }) {
   const [newPasscode, setNewPasscode] = useState('');
   const [adminCode, setAdminCode] = useState('');
   const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [scheduleFilter, setScheduleFilter] = useState('all');
+  const [focusedRound, setFocusedRound] = useState(1);
 
   const [teamInfoError, setTeamInfoError] = useState('');
   const [teamInfoStatus, setTeamInfoStatus] = useState('');
@@ -167,6 +169,43 @@ export default function TeamTab({ data, onUpdate }) {
     setScheduleStatus('');
     setScheduleError('');
   }
+
+  function updateAllScheduleRounds(updater) {
+    setScheduleForm(current => current.map((item, index) => updater(item, index)));
+    setScheduleStatus('');
+    setScheduleError('');
+  }
+
+  const scheduleCounts = useMemo(() => {
+    const missingOpponent = scheduleForm.filter(round => !(round.opponentName || '').trim()).length;
+    const missingDate = scheduleForm.filter(round => !round.date).length;
+    const complete = scheduleForm.filter(round => (round.opponentName || '').trim() && round.date).length;
+    return {
+      total: scheduleForm.length,
+      missingOpponent,
+      missingDate,
+      complete,
+    };
+  }, [scheduleForm]);
+
+  const visibleScheduleRounds = useMemo(() => {
+    if (scheduleFilter === 'attention') {
+      return scheduleForm.filter(round => !(round.opponentName || '').trim() || !round.date);
+    }
+    if (scheduleFilter === 'complete') {
+      return scheduleForm.filter(round => (round.opponentName || '').trim() && round.date);
+    }
+    return scheduleForm;
+  }, [scheduleFilter, scheduleForm]);
+
+  useEffect(() => {
+    if (focusedRound > teamForm.gamesPerSeason) {
+      setFocusedRound(teamForm.gamesPerSeason);
+    }
+    if (focusedRound < 1) {
+      setFocusedRound(1);
+    }
+  }, [focusedRound, teamForm.gamesPerSeason]);
 
   async function saveTeamInfo(e) {
     e.preventDefault();
@@ -570,75 +609,201 @@ export default function TeamTab({ data, onUpdate }) {
 
           {activeSection === 'schedule' && (
             <form onSubmit={saveSchedule} className="space-y-3 rounded-xl border border-gray-200 p-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Games per Season</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  min={1}
-                  max={50}
-                  value={teamForm.gamesPerSeason}
-                  onChange={e => {
-                    const gamesPerSeason = Math.max(1, Math.min(50, Number(e.target.value) || 1));
-                    setTeamForm(current => ({ ...current, gamesPerSeason }));
-                    setScheduleForm(current => buildSeasonSchedule(gamesPerSeason, current));
-                    setScheduleStatus('');
-                    setScheduleError('');
-                  }}
-                />
+              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3 space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Rounds</p>
+                    <p className="text-base font-semibold text-gray-900">{scheduleCounts.total}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Complete</p>
+                    <p className="text-base font-semibold text-emerald-700">{scheduleCounts.complete}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Need Opponent</p>
+                    <p className="text-base font-semibold text-amber-700">{scheduleCounts.missingOpponent}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Need Date</p>
+                    <p className="text-base font-semibold text-blue-700">{scheduleCounts.missingDate}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Games per Season</label>
+                    <input
+                      type="number"
+                      className="input-field"
+                      min={1}
+                      max={50}
+                      value={teamForm.gamesPerSeason}
+                      onChange={e => {
+                        const gamesPerSeason = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                        setTeamForm(current => ({ ...current, gamesPerSeason }));
+                        setScheduleForm(current => buildSeasonSchedule(gamesPerSeason, current));
+                        setFocusedRound(current => Math.max(1, Math.min(gamesPerSeason, current)));
+                        setScheduleStatus('');
+                        setScheduleError('');
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Filter Rounds</label>
+                    <select
+                      className="input-field"
+                      value={scheduleFilter}
+                      onChange={e => setScheduleFilter(e.target.value)}
+                    >
+                      <option value="all">All rounds</option>
+                      <option value="attention">Needs setup</option>
+                      <option value="complete">Complete only</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    onClick={() => updateAllScheduleRounds((item, index) => ({ ...item, homeAway: index % 2 === 0 ? 'HOME' : 'AWAY' }))}
+                  >
+                    Alternate Home/Away
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    onClick={() => updateAllScheduleRounds(item => ({ ...item, homeAway: 'HOME' }))}
+                  >
+                    Set All Home
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    onClick={() => updateAllScheduleRounds(item => ({ ...item, homeAway: 'AWAY' }))}
+                  >
+                    Set All Away
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                    onClick={() => updateAllScheduleRounds(item => ({ ...item, date: '' }))}
+                  >
+                    Clear All Dates
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-2 max-h-[58vh] overflow-y-auto pr-1">
-                {scheduleForm.map(game => (
-                  <div key={game.round} className="rounded-xl border border-gray-200 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-800">Round {game.round}</p>
-                      <div className="flex rounded-lg overflow-hidden border border-gray-200">
-                        <button
-                          type="button"
-                          onClick={() => updateScheduleRound(game.round, { homeAway: 'HOME' })}
-                          className={`px-3 py-1 text-xs font-semibold ${game.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-gray-600'}`}
-                        >
-                          Home
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateScheduleRound(game.round, { homeAway: 'AWAY' })}
-                          className={`px-3 py-1 text-xs font-semibold ${game.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-600'}`}
-                        >
-                          Away
-                        </button>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem] gap-3 items-start">
-                      <OpponentTeamInput
-                        label="Opponent"
-                        team={{
-                          name: game.opponentName || '',
-                          logoUrl: game.opponentLogoUrl || '',
-                          confirmed: true,
-                        }}
-                        onTeamChange={next => updateScheduleRound(game.round, {
-                          opponentName: next.name,
-                          opponentLogoUrl: next.logoUrl || '',
-                        })}
-                      />
-                      <div className="relative w-full min-w-0">
-                        <input
-                          type="date"
-                          className="input-field !py-2 !px-2.5 !text-sm !rounded-lg min-w-0 max-w-full"
-                          value={game.date}
-                          onChange={e => updateScheduleRound(game.round, { date: e.target.value })}
-                        />
-                        {!game.date && (
-                          <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                            Date
-                          </span>
-                        )}
-                      </div>
-                    </div>
+              <div className="rounded-xl border border-gray-200 p-2">
+                <div className="mb-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFocusedRound(current => Math.max(1, current - 1))}
+                    className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                  >
+                    Prev
+                  </button>
+                  <div className="flex-1">
+                    <label className="sr-only" htmlFor="round-jump">Jump to round</label>
+                    <select
+                      id="round-jump"
+                      className="input-field !py-2 !text-sm"
+                      value={focusedRound}
+                      onChange={e => setFocusedRound(Number(e.target.value))}
+                    >
+                      {scheduleForm.map(game => (
+                        <option key={game.round} value={game.round}>Jump to Round {game.round}</option>
+                      ))}
+                    </select>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setFocusedRound(current => Math.min(teamForm.gamesPerSeason, current + 1))}
+                    className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="max-h-[58vh] space-y-2 overflow-y-auto pr-1">
+                  {visibleScheduleRounds.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+                      No rounds match this filter.
+                    </div>
+                  ) : visibleScheduleRounds.map(game => {
+                    const hasOpponent = Boolean((game.opponentName || '').trim());
+                    const isComplete = hasOpponent && Boolean(game.date);
+                    const isFocused = focusedRound === game.round;
+                    return (
+                      <div
+                        key={game.round}
+                        className={`rounded-xl border p-3 space-y-3 transition ${isFocused
+                          ? 'border-pitch-400 bg-pitch-50/40'
+                          : 'border-gray-200 bg-white'}`
+                        }
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">Round {game.round}</p>
+                            <p className={`text-xs font-medium ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
+                              {isComplete ? 'Ready for match day' : 'Needs setup'}
+                            </p>
+                          </div>
+                          <div className="flex rounded-lg overflow-hidden border border-gray-200 bg-white">
+                            <button
+                              type="button"
+                              onClick={() => updateScheduleRound(game.round, { homeAway: 'HOME' })}
+                              className={`px-3 py-1 text-xs font-semibold ${game.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700' : 'text-gray-600'}`}
+                            >
+                              Home
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateScheduleRound(game.round, { homeAway: 'AWAY' })}
+                              className={`px-3 py-1 text-xs font-semibold ${game.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'text-gray-600'}`}
+                            >
+                              Away
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_11rem] gap-3 items-start">
+                          <OpponentTeamInput
+                            label="Opponent"
+                            showLogoInput={false}
+                            team={{
+                              name: game.opponentName || '',
+                              logoUrl: game.opponentLogoUrl || '',
+                              confirmed: true,
+                            }}
+                            onTeamChange={next => updateScheduleRound(game.round, {
+                              opponentName: next.name,
+                              opponentLogoUrl: next.logoUrl || '',
+                            })}
+                          />
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input
+                              type="date"
+                              className="input-field !py-2 !px-2.5 !text-sm !rounded-lg"
+                              value={game.date}
+                              onChange={e => updateScheduleRound(game.round, { date: e.target.value })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100"
+                            onClick={() => updateScheduleRound(game.round, { opponentName: '', opponentLogoUrl: '', date: '' })}
+                          >
+                            Clear Round
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {scheduleError && <p className="text-sm text-red-600">{scheduleError}</p>}
