@@ -775,24 +775,23 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-20"></div>
-                {visibleScheduleRounds.length === 0 ? (
-                  <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                    No rounds match this filter.
-                  </p>
-                ) : (
-                  visibleScheduleRounds.map(round => (
-                    <div key={round.round} className="space-y-3 rounded-xl border border-gray-200 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-900">Round {round.round}</p>
-                        <button
-                          type="button"
-                          className="text-xs font-medium text-pitch-700"
-                          onClick={() => openRoundDatePicker(round.round)}
-                        >
-                          Pick date
-                        </button>
-                      </div>
+              <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-20">
+  {visibleScheduleRounds.length === 0 ? (
+    <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+      No rounds match this filter.
+    </p>
+  ) : (
+    visibleScheduleRounds.map(round => (
+      <div key={round.round} className="space-y-3 rounded-xl border border-gray-200 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-gray-900">
+            Round {round.round}
+          </p>
+        </div>
+      </div>
+    ))
+  )}
+</div>
 
                       <OpponentTeamInput
                         team={{
