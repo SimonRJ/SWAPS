@@ -1,7 +1,7 @@
 import { getStore } from '@netlify/blobs';
 
 const store = getStore('swaps-teams');
-const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD || '2248';
+const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD;
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -78,6 +78,9 @@ export default async (req) => {
   }
 
   if (action === 'delete') {
+    if (!ADMIN_DELETE_PASSWORD) {
+      return jsonResponse({ error: 'Administrator delete password is not configured.' }, 500);
+    }
     const adminPassword = String(payload?.adminPassword || '');
     if (adminPassword !== ADMIN_DELETE_PASSWORD) {
       return jsonResponse({ error: 'Invalid administrator password.', code: 'INVALID_ADMIN_PASSWORD' }, 401);

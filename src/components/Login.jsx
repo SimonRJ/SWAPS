@@ -6,11 +6,14 @@ import { FOOTBALL_WEST_CLUBS, getClubById } from '../utils/clubLogos.js';
 import { createTeam, deleteTeamByAdmin, listTeamCodes, loginWithPasscode } from '../utils/netlifyData.js';
 import wizardHero from '../assets/wizard-hero.svg';
 
+const MIN_TEAM_CODE_LENGTH = 3;
+const MAX_TEAM_CODE_LENGTH = 24;
+
 function normalizeTeamCode(value) {
   return String(value || '')
     .toUpperCase()
     .replace(/[^A-Z0-9-]/g, '')
-    .slice(0, 24);
+    .slice(0, MAX_TEAM_CODE_LENGTH);
 }
 
 export default function Login({ onLogin }) {
@@ -91,7 +94,7 @@ export default function Login({ onLogin }) {
     const finalTeamName = (teamName || selectedClub?.name || '').trim();
     if (!finalTeamName) { setError('Enter a team name.'); return; }
     if (!normalizedTeamCode) { setError('Create a team code.'); return; }
-    if (normalizedTeamCode.length < 3) { setError('Team code must be at least 3 characters.'); return; }
+    if (normalizedTeamCode.length < MIN_TEAM_CODE_LENGTH) { setError(`Team code must be at least ${MIN_TEAM_CODE_LENGTH} characters.`); return; }
     if (!createPasscode.trim()) { setError('Enter a passcode.'); return; }
     setLoading(true);
     setError('');
@@ -305,7 +308,7 @@ export default function Login({ onLogin }) {
                   value={createTeamCode}
                   onChange={e => setCreateTeamCode(normalizeTeamCode(e.target.value))}
                   autoComplete="off"
-                  maxLength={24}
+                  maxLength={MAX_TEAM_CODE_LENGTH}
                 />
                 <p className="mt-1 text-xs text-gray-500">Use letters, numbers, and hyphens.</p>
               </div>
