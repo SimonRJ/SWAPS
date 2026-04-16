@@ -824,7 +824,7 @@ export default function TeamTab({ data, onUpdate }) {
                         <p className="mt-1 text-xs text-gray-500">{formatRoundDateLabel(round.date)}</p>
                       </div>
                     </div>
-                  ))
+                  )}
                 )}
               </div>
 
