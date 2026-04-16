@@ -63,28 +63,29 @@ export default function Login({ onLogin, onOpenAdmin }) {
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-[#101914]">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `linear-gradient(180deg, rgba(5, 10, 8, 0.18), rgba(5, 10, 8, 0.62)), url(${loginBackground})`,
-        }}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 flex items-start justify-center" aria-hidden="true">
+        <img
+          src={loginBackground}
+          alt=""
+          className="h-full w-full object-contain object-top"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[rgba(5,10,8,0.10)] to-[rgba(5,10,8,0.65)]" />
+      </div>
 
-      <div className="relative z-10 flex h-full items-center justify-center px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 flex h-full items-end justify-center px-4 pb-[max(3rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-sm rounded-2xl border border-white/35 bg-black/45 p-4 text-white shadow-2xl backdrop-blur-sm sm:p-5"
+          className="w-full max-w-xs rounded-2xl border border-white/35 bg-black/45 p-3 text-white shadow-2xl backdrop-blur-sm sm:p-4"
         >
-          <p className="text-[11px] uppercase tracking-[0.24em] text-white/75">SWAPS</p>
-          <h1 className="mt-1 text-2xl font-bold leading-tight">Team Login</h1>
-          <p className="mt-1 text-sm text-white/85">Use your team code and passcode to continue.</p>
+          <p className="text-[10px] uppercase tracking-[0.24em] text-white/75">SWAPS</p>
+          <h1 className="mt-0.5 text-xl font-bold leading-tight">Team Login</h1>
+          <p className="mt-0.5 text-xs text-white/85">Use your team code and passcode to continue.</p>
 
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 space-y-2.5">
             <div>
-              <label className="mb-1 block text-sm font-medium text-white/95">Team Code</label>
+              <label className="mb-0.5 block text-xs font-medium text-white/95">Team Code</label>
               <select
-                className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2.5 text-base font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400"
+                className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400"
                 value={teamId}
                 onChange={e => setTeamId(normalizeTeamCode(e.target.value))}
                 disabled={loadingTeamCodes}
@@ -101,10 +102,10 @@ export default function Login({ onLogin, onOpenAdmin }) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-white/95">Team Passcode</label>
+              <label className="mb-0.5 block text-xs font-medium text-white/95">Team Passcode</label>
               <input
                 type="password"
-                className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2.5 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400"
+                className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400"
                 placeholder="Enter passcode"
                 value={loginPasscode}
                 onChange={e => setLoginPasscode(e.target.value)}
@@ -121,7 +122,7 @@ export default function Login({ onLogin, onOpenAdmin }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-pitch-600 py-2.5 text-base font-semibold text-white transition-colors hover:bg-pitch-700 disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full rounded-xl bg-pitch-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-pitch-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? 'Checking...' : 'Log In'}
             </button>
