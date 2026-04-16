@@ -592,7 +592,12 @@ export default function TeamTab({ data, onUpdate }) {
                 key={section.id}
                 type="button"
                 onClick={() => setActiveSection(section.id)}
-                className={`rounded-xl border p-3 text-left transition ${activeSection === section.id
+                className={`rounded-xl border p-3 text-left transition ${
+  activeSection === section.id
+    ? 'border-pitch-500 bg-pitch-50'
+    : 'border-gray-300 bg-white'
+}`}
+
                   ? 'border-pitch-500 bg-pitch-50'
                   : 'border-gray-200 bg-white hover:border-gray-300'}`}
               >
