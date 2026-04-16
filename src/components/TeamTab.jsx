@@ -263,10 +263,10 @@ export default function TeamTab({ data, onUpdate }) {
                           opponentLogoUrl: next.logoUrl || '',
                         })}
                       />
-                      <div className="relative w-full">
+                      <div className="relative w-full min-w-0">
                         <input
                           type="date"
-                          className="input-field !py-2 !px-2.5 !text-sm !rounded-lg"
+                          className="input-field !py-2 !px-2.5 !text-sm !rounded-lg min-w-0 max-w-full"
                           value={game.date}
                           onChange={e => updateScheduleRound(game.round, { date: e.target.value })}
                         />
