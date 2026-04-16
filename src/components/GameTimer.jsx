@@ -551,10 +551,6 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
       : nextBlockSecondsRemaining <= PRE_SUB_ALERT_SECONDS_2MIN
         ? 'text-orange-400'
         : 'text-emerald-400';
-  const nextSubProgressPct = hasNextBlock
-    ? Math.min(100, Math.max(0, ((subIntervalSeconds - nextBlockSecondsRemaining) / subIntervalSeconds) * 100))
-    : 100;
-
   // Group field players by position for field layout
   const positionGroups = {};
   for (const a of fieldAssignments) {
@@ -874,14 +870,17 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
       {/* Soccer Field */}
       <div className="game-pitch-area px-1 py-0 flex-1 min-h-0 flex items-center justify-center">
         <div className="relative bg-gradient-to-b from-emerald-700 via-emerald-600 to-emerald-800 rounded-xl overflow-hidden w-full max-w-[470px] md:max-w-[600px] max-h-full aspect-[68/105] border border-emerald-900/60 shadow-2xl touch-none">
-          <div className="absolute top-2.5 left-2.5 z-30 flex flex-col items-start gap-1.5">
+          <div className="absolute bottom-2.5 left-2.5 z-[5] pointer-events-none">
             <div className="h-20 w-20 rounded-full bg-black/90 border border-white/25 shadow-xl flex flex-col items-center justify-center">
               <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-white/75">Next Sub</span>
               <span className={`text-2xl font-black tabular-nums ${nextSubCountdownColor}`}>
                 {hasNextBlock ? formatTime(nextBlockSecondsRemaining) : '--:--'}
               </span>
             </div>
+          </div>
+          <div className="absolute bottom-2.5 right-2.5 z-[5] pointer-events-none">
             <div className="min-w-[160px] max-w-[230px] rounded-xl bg-black/90 border border-white/20 px-2.5 py-2 text-[10px] text-white shadow-lg">
+              <div className="mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/75">Upcoming Subs</div>
               {hasNextBlock ? (
                 nextSubs.length > 0 ? (
                   <div className="space-y-1.5">
@@ -1110,40 +1109,6 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                 );
               })}
             </div>
-          )}
-        </div>
-        <div className="mt-0.5 rounded-lg border border-slate-300 bg-white/95 overflow-hidden">
-          {benchIds.length === 0 && plan?.[0]?.onBench?.length === 0 ? (
-            <div className="px-2 py-1.5 text-[10px] text-slate-600 font-semibold text-center">
-              No substitutes today
-            </div>
-          ) : (
-            <>
-              <div className="h-1 bg-slate-200">
-                <div className="h-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-[width] duration-500" style={{ width: `${nextSubProgressPct}%` }} />
-              </div>
-              <div className="px-2 py-1 text-[9px] text-slate-700">
-                {hasNextBlock ? (
-                  nextSubs.length > 0 ? (
-                    <>
-                      <span className="font-bold text-slate-900">Next sub in {formatTime(nextBlockSecondsRemaining)}</span>
-                      <span className="mx-1 text-slate-400">·</span>
-                      <span className="font-semibold text-rose-600">
-                        Off: {nextSubs.map(sub => getPlayer(sub.off)?.name || '—').join(', ')}
-                      </span>
-                      <span className="mx-1 text-slate-400">·</span>
-                      <span className="font-semibold text-emerald-700">
-                        On: {nextSubs.map(sub => getPlayer(sub.on)?.name || '—').join(', ')}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="font-semibold text-slate-800">Next block in {formatTime(nextBlockSecondsRemaining)} · No player changes scheduled</span>
-                  )
-                ) : (
-                  <span className="font-semibold text-slate-800">Final block active · No further scheduled substitutions</span>
-                )}
-              </div>
-            </>
           )}
         </div>
       </div>
