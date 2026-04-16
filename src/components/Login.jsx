@@ -31,6 +31,7 @@ export default function Login({ onLogin }) {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteStatus, setDeleteStatus] = useState('');
+  const [deleteSucceeded, setDeleteSucceeded] = useState(false);
 
   const refreshTeamCodes = useCallback(async () => {
     setLoadingTeamCodes(true);
@@ -73,6 +74,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     setError('');
     setDeleteStatus('');
+    setDeleteSucceeded(false);
     try {
       const response = await loginWithPasscode(normalizedTeamId, loginPasscode.trim());
       onLogin(response);
@@ -94,6 +96,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     setError('');
     setDeleteStatus('');
+    setDeleteSucceeded(false);
     try {
       const baseData = await getDefaultData({
         name: finalTeamName,
@@ -134,20 +137,24 @@ export default function Login({ onLogin }) {
     const normalizedTeamId = normalizeTeamCode(deleteTeamId);
     if (!normalizedTeamId) {
       setDeleteStatus('Select a team code to delete.');
+      setDeleteSucceeded(false);
       return;
     }
     if (!deletePassword.trim()) {
       setDeleteStatus('Enter the administrator password.');
+      setDeleteSucceeded(false);
       return;
     }
     if (!window.confirm(`Delete team "${normalizedTeamId}"? This cannot be undone.`)) return;
     setDeleteLoading(true);
     setDeleteStatus('');
     setError('');
+    setDeleteSucceeded(false);
     try {
       await deleteTeamByAdmin(normalizedTeamId, deletePassword.trim());
       await refreshTeamCodes();
       setDeleteStatus(`Team ${normalizedTeamId} was deleted.`);
+      setDeleteSucceeded(true);
       setDeletePassword('');
       if (teamId === normalizedTeamId) {
         setTeamId('');
@@ -158,6 +165,7 @@ export default function Login({ onLogin }) {
       setDeleteTeamId('');
     } catch (deleteError) {
       setDeleteStatus(deleteError.message || 'Unable to delete team.');
+      setDeleteSucceeded(false);
     } finally {
       setDeleteLoading(false);
     }
@@ -169,7 +177,7 @@ export default function Login({ onLogin }) {
         <div className="rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md p-4 sm:p-6 text-white shadow-2xl">
           <img
             src={wizardHero}
-            alt="AI generated 3D wizard with a soccer ball"
+            alt="AI-generated 3D wizard with a soccer ball"
             className="w-full rounded-2xl border border-white/20 shadow-2xl"
           />
           <p className="mt-4 text-xs uppercase tracking-[0.2em] text-pitch-100 font-semibold">
@@ -200,11 +208,11 @@ export default function Login({ onLogin }) {
           <div className="flex rounded-xl overflow-hidden border border-gray-200 mb-6">
             <button
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${mode === 'login' ? 'bg-pitch-600 text-white' : 'bg-white text-gray-600'}`}
-              onClick={() => { setMode('login'); setError(''); setDeleteStatus(''); }}
+              onClick={() => { setMode('login'); setError(''); setDeleteStatus(''); setDeleteSucceeded(false); }}
             >Log In</button>
             <button
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${mode === 'create' ? 'bg-pitch-600 text-white' : 'bg-white text-gray-600'}`}
-              onClick={() => { setMode('create'); setError(''); setDeleteStatus(''); }}
+              onClick={() => { setMode('create'); setError(''); setDeleteStatus(''); setDeleteSucceeded(false); }}
             >Create Team</button>
           </div>
 
@@ -358,7 +366,7 @@ export default function Login({ onLogin }) {
                 autoComplete="off"
               />
             </div>
-            {deleteStatus && <p className={`text-sm ${deleteStatus.includes('deleted') ? 'text-green-600' : 'text-red-500'}`}>{deleteStatus}</p>}
+            {deleteStatus && <p className={`text-sm ${deleteSucceeded ? 'text-green-600' : 'text-red-500'}`}>{deleteStatus}</p>}
             <div className="flex justify-end">
               <button
                 type="submit"

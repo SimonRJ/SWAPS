@@ -1,7 +1,7 @@
 import { getStore } from '@netlify/blobs';
 
 const store = getStore('swaps-teams');
-const ADMIN_DELETE_PASSWORD = '2248';
+const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD || '2248';
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
