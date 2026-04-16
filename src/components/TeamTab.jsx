@@ -835,7 +835,7 @@ export default function TeamTab({ data, onUpdate }) {
               <button type="submit" className="btn-primary w-full" disabled={savingSchedule}>
                 {savingSchedule ? 'Saving Schedule...' : 'Save Schedule'}
               </button>
-            </form>
+            </div>
           )}
 
 
