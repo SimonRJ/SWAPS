@@ -102,7 +102,8 @@ export async function generateRoundPdf({
   const contentW = pageW - margin * 2;
   let y = margin;
 
-  const getPlayer = (id) => activePlayers.find(p => p.id === id);
+  const activePlayerById = new Map((activePlayers || []).map(player => [player.id, player]));
+  const getPlayer = (id) => activePlayerById.get(id);
 
   /* ── helpers ── */
   function setFill(rgb) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); }
@@ -621,136 +622,160 @@ export async function generateRoundPdf({
    * SECTION 3 – Player Minutes (Game + Season)
    * =================================================================== */
   {
-    const mergedPlayers = activePlayers
-      .slice()
-      .sort((a, b) => {
-        const gameA = playerMinutes[a.id]?.field || 0;
-        const gameB = playerMinutes[b.id]?.field || 0;
-        if (gameB !== gameA) return gameB - gameA;
-        const seasonA = (cumulativeStats[a.id]?.minutesGK || 0) + (cumulativeStats[a.id]?.minutesDEF || 0)
-          + (cumulativeStats[a.id]?.minutesMID || 0) + (cumulativeStats[a.id]?.minutesATK || 0);
-        const seasonB = (cumulativeStats[b.id]?.minutesGK || 0) + (cumulativeStats[b.id]?.minutesDEF || 0)
-          + (cumulativeStats[b.id]?.minutesMID || 0) + (cumulativeStats[b.id]?.minutesATK || 0);
-        return seasonB - seasonA;
-      });
+    const mergedPlayerMap = new Map((activePlayers || []).map(player => [player.id, player]));
+    for (const playerId of Object.keys(playerMinutes || {})) {
+      if (!mergedPlayerMap.has(playerId) && playerId) {
+        mergedPlayerMap.set(playerId, { id: playerId, name: 'Unknown Player' });
+      }
+    }
+    for (const playerId of Object.keys(cumulativeStats || {})) {
+      if (!mergedPlayerMap.has(playerId) && playerId) {
+        mergedPlayerMap.set(playerId, { id: playerId, name: 'Unknown Player' });
+      }
+    }
+
+    const mergedPlayers = Array.from(mergedPlayerMap.values()).sort((a, b) => {
+      const gameA = playerMinutes[a.id]?.field || 0;
+      const gameB = playerMinutes[b.id]?.field || 0;
+      if (gameB !== gameA) return gameB - gameA;
+      const seasonA = (cumulativeStats[a.id]?.minutesGK || 0) + (cumulativeStats[a.id]?.minutesDEF || 0)
+        + (cumulativeStats[a.id]?.minutesMID || 0) + (cumulativeStats[a.id]?.minutesATK || 0);
+      const seasonB = (cumulativeStats[b.id]?.minutesGK || 0) + (cumulativeStats[b.id]?.minutesDEF || 0)
+        + (cumulativeStats[b.id]?.minutesMID || 0) + (cumulativeStats[b.id]?.minutesATK || 0);
+      return seasonB - seasonA;
+    });
 
     const rowH = 5;
     const headerH = 8;
     const tableHeaderH = 4.5;
-    const cardH = headerH + 2 + tableHeaderH + mergedPlayers.length * rowH + 2;
-
-    const maxCardH = pageH - y - margin - 2;
-    const usedCardH = Math.min(cardH, maxCardH);
-
-    cardBg(margin, y, contentW, usedCardH, 2.5);
-    const cx = margin + 3;
-    let ty = y + 5.5;
-
-    // Section header (matches Bench/Substitutions cards)
-    setFill(C.slate900);
-    doc.roundedRect(margin, y, contentW, headerH, 2.5, 2.5, 'F');
-    doc.rect(margin, y + 2.5, contentW, headerH - 2.5, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    setText(C.white);
-    doc.text('PLAYER MINUTES', margin + contentW / 2, y + 5.5, { align: 'center' });
-    ty = y + headerH + 4;
-
-    const tableLeft = cx;
+    const tableLeft = margin + 3;
     const tableW = contentW - 6;
-    // Keep all columns evenly distributed across the full table width.
     const tableCols = ['name', 'pos', 'gameField', 'gameBench', 'gk', 'def', 'mid', 'atk', 'seasonPlayed', 'seasonBench'];
     const colW = tableW / tableCols.length;
-    // Column coordinates are center points so headers and row values can all align centrally.
     const colX = tableCols.reduce((acc, key, idx) => {
       acc[key] = tableLeft + colW * idx + colW / 2;
       return acc;
     }, {});
-
-    doc.setFontSize(6.2);
-    doc.setFont('helvetica', 'bold');
-    setText(C.gray400);
-    doc.text('PLAYER', colX.name, ty, { align: 'center' });
-    doc.text('POSITIONS', colX.pos, ty, { align: 'center' });
-    doc.text('FIELD', colX.gameField, ty, { align: 'center' });
-    doc.text('BENCH', colX.gameBench, ty, { align: 'center' });
     const gkW = pillWidth('GK', 5.3);
     const defW = pillWidth('DEF', 5.3);
     const midW = pillWidth('MID', 5.3);
     const atkW = pillWidth('ATK', 5.3);
-    pill(colX.gk - gkW / 2, ty - 2.2, 'GK', C.GK.bg, C.GK.fg, 5.3);
-    pill(colX.def - defW / 2, ty - 2.2, 'DEF', C.DEF.bg, C.DEF.fg, 5.3);
-    pill(colX.mid - midW / 2, ty - 2.2, 'MID', C.MID.bg, C.MID.fg, 5.3);
-    pill(colX.atk - atkW / 2, ty - 2.2, 'ATK', C.ATK.bg, C.ATK.fg, 5.3);
-    setText(C.gray400);
-    doc.text('PLAYED', colX.seasonPlayed, ty, { align: 'center' });
-    doc.text('BENCH', colX.seasonBench, ty, { align: 'center' });
-    setFill(C.gray200);
-    doc.rect(tableLeft, ty + 1, tableW, 0.2, 'F');
-    ty += tableHeaderH;
+    const fixedTableHeight = headerH + 2 + tableHeaderH + 2;
 
-    mergedPlayers.forEach((p, idx) => {
-      if (ty + rowH > y + usedCardH - 1) return;
-      const mins = playerMinutes[p.id] || {};
-      const cum = cumulativeStats[p.id] || {};
-      const gk = cum.minutesGK || 0;
-      const def = cum.minutesDEF || 0;
-      const mid = cum.minutesMID || 0;
-      const atk = cum.minutesATK || 0;
-      const totalSeason = gk + def + mid + atk;
+    const renderTablePage = (playersForPage, startY, pageIndex, rowStartIndex) => {
+      const cardH = headerH + 2 + tableHeaderH + playersForPage.length * rowH + 2;
+      cardBg(margin, startY, contentW, cardH, 2.5);
 
-      if (idx % 2 === 0) {
-        setFill(C.gray50);
-        doc.rect(tableLeft, ty - 2.8, tableW, rowH, 'F');
-      }
-
+      setFill(C.slate900);
+      doc.roundedRect(margin, startY, contentW, headerH, 2.5, 2.5, 'F');
+      doc.rect(margin, startY + 2.5, contentW, headerH - 2.5, 'F');
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      setText(C.gray900);
-      doc.text(p.name, colX.name, ty, { align: 'center' });
+      doc.setFontSize(7.5);
+      setText(C.white);
+      doc.text(
+        pageIndex === 0 ? 'PLAYER MINUTES' : 'PLAYER MINUTES (CONT.)',
+        margin + contentW / 2,
+        startY + 5.5,
+        { align: 'center' },
+      );
 
-      const posEntries = Object.entries(mins.positions || {}).filter(([, v]) => v > 0);
-      if (posEntries.length > 0) {
-        const posPills = posEntries.map(([pos, min]) => {
-          const posC = POS_COLORS[pos] || C.BENCH;
-          const label = `${pos} ${min}'`;
-          const pw = pillWidth(label, 5.5);
-          return { posC, label, pw };
-        });
-        const totalPosW = posPills.reduce((sum, item) => sum + item.pw, 0) + (posPills.length - 1) * PILL_SPACING;
-        let px = colX.pos - totalPosW / 2;
-        for (const item of posPills) {
-          pill(px, ty - 2.2, item.label, item.posC.bg, item.posC.fg, 5.5);
-          px += item.pw + PILL_SPACING;
+      let ty = startY + headerH + 4;
+      doc.setFontSize(6.2);
+      doc.setFont('helvetica', 'bold');
+      setText(C.gray400);
+      doc.text('PLAYER', colX.name, ty, { align: 'center' });
+      doc.text('POSITIONS', colX.pos, ty, { align: 'center' });
+      doc.text('FIELD', colX.gameField, ty, { align: 'center' });
+      doc.text('BENCH', colX.gameBench, ty, { align: 'center' });
+      pill(colX.gk - gkW / 2, ty - 2.2, 'GK', C.GK.bg, C.GK.fg, 5.3);
+      pill(colX.def - defW / 2, ty - 2.2, 'DEF', C.DEF.bg, C.DEF.fg, 5.3);
+      pill(colX.mid - midW / 2, ty - 2.2, 'MID', C.MID.bg, C.MID.fg, 5.3);
+      pill(colX.atk - atkW / 2, ty - 2.2, 'ATK', C.ATK.bg, C.ATK.fg, 5.3);
+      setText(C.gray400);
+      doc.text('PLAYED', colX.seasonPlayed, ty, { align: 'center' });
+      doc.text('BENCH', colX.seasonBench, ty, { align: 'center' });
+      setFill(C.gray200);
+      doc.rect(tableLeft, ty + 1, tableW, 0.2, 'F');
+      ty += tableHeaderH;
+
+      playersForPage.forEach((p, idx) => {
+        const rowNumber = rowStartIndex + idx;
+        const mins = playerMinutes[p.id] || {};
+        const cum = cumulativeStats[p.id] || {};
+        const gk = cum.minutesGK || 0;
+        const def = cum.minutesDEF || 0;
+        const mid = cum.minutesMID || 0;
+        const atk = cum.minutesATK || 0;
+        const totalSeason = gk + def + mid + atk;
+
+        if (rowNumber % 2 === 0) {
+          setFill(C.gray50);
+          doc.rect(tableLeft, ty - 2.8, tableW, rowH, 'F');
         }
-      } else {
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        setText(C.gray900);
+        doc.text(p.name || 'Unknown Player', colX.name, ty, { align: 'center' });
+
+        const posEntries = Object.entries(mins.positions || {}).filter(([, v]) => v > 0);
+        if (posEntries.length > 0) {
+          const posPills = posEntries.map(([pos, min]) => {
+            const posC = POS_COLORS[pos] || C.BENCH;
+            const label = `${pos} ${min}'`;
+            const pw = pillWidth(label, 5.5);
+            return { posC, label, pw };
+          });
+          const totalPosW = posPills.reduce((sum, item) => sum + item.pw, 0) + (posPills.length - 1) * PILL_SPACING;
+          let px = colX.pos - totalPosW / 2;
+          for (const item of posPills) {
+            pill(px, ty - 2.2, item.label, item.posC.bg, item.posC.fg, 5.5);
+            px += item.pw + PILL_SPACING;
+          }
+        } else {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          setText(C.gray400);
+          doc.text('—', colX.pos, ty, { align: 'center' });
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        setText(C.pitch700);
+        doc.text(`${mins.field || 0}'`, colX.gameField, ty, { align: 'center' });
+        doc.text(`${mins.bench || 0}'`, colX.gameBench, ty, { align: 'center' });
+
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
-        setText(C.gray400);
-        doc.text('—', colX.pos, ty, { align: 'center' });
+        setText(C.gray700);
+        doc.text(`${gk}'`, colX.gk, ty, { align: 'center' });
+        doc.text(`${def}'`, colX.def, ty, { align: 'center' });
+        doc.text(`${mid}'`, colX.mid, ty, { align: 'center' });
+        doc.text(`${atk}'`, colX.atk, ty, { align: 'center' });
+        doc.setFont('helvetica', 'bold');
+        setText(C.pitch700);
+        doc.text(`${totalSeason}'`, colX.seasonPlayed, ty, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+        setText(C.gray700);
+        doc.text(`${cum.minutesBench || 0}'`, colX.seasonBench, ty, { align: 'center' });
+        ty += rowH;
+      });
+    };
+
+    let rowStartIndex = 0;
+    let pageIndex = 0;
+    while (rowStartIndex < mergedPlayers.length) {
+      const startY = pageIndex === 0 ? y : margin;
+      const availableH = pageH - startY - margin;
+      const rowsPerPage = Math.max(1, Math.floor((availableH - fixedTableHeight) / rowH));
+      const playersForPage = mergedPlayers.slice(rowStartIndex, rowStartIndex + rowsPerPage);
+      renderTablePage(playersForPage, startY, pageIndex, rowStartIndex);
+      rowStartIndex += playersForPage.length;
+      if (rowStartIndex < mergedPlayers.length) {
+        doc.addPage();
+        pageIndex += 1;
       }
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      setText(C.pitch700);
-      doc.text(`${mins.field || 0}'`, colX.gameField, ty, { align: 'center' });
-      doc.text(`${mins.bench || 0}'`, colX.gameBench, ty, { align: 'center' });
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      setText(C.gray700);
-      doc.text(`${gk}'`, colX.gk, ty, { align: 'center' });
-      doc.text(`${def}'`, colX.def, ty, { align: 'center' });
-      doc.text(`${mid}'`, colX.mid, ty, { align: 'center' });
-      doc.text(`${atk}'`, colX.atk, ty, { align: 'center' });
-      doc.setFont('helvetica', 'bold');
-      setText(C.pitch700);
-      doc.text(`${totalSeason}'`, colX.seasonPlayed, ty, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      setText(C.gray700);
-      doc.text(`${cum.minutesBench || 0}'`, colX.seasonBench, ty, { align: 'center' });
-      ty += rowH;
-    });
+    }
   }
 
   /* ── Save ── */

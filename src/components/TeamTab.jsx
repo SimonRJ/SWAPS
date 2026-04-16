@@ -74,6 +74,10 @@ export default function TeamTab({ data, onUpdate }) {
   async function saveTeam(e) {
     e.preventDefault();
     let updatedTeam = { ...teamForm };
+    const hasSelectedGoalkeeper = players.some(p => p.id === updatedTeam.fixedGKPlayerId);
+    if (!hasSelectedGoalkeeper) {
+      updatedTeam.fixedGKPlayerId = '';
+    }
     if (newPasscode.trim()) {
       updatedTeam.passcodeHash = await hashPasscode(newPasscode.trim());
     }
@@ -248,19 +252,29 @@ export default function TeamTab({ data, onUpdate }) {
             {!teamForm.rotateGK && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Primary Goalkeeper</label>
-                <select
-                  className="input-field"
-                  value={teamForm.fixedGKPlayerId || ''}
-                  onChange={e => setTeamForm(f => ({ ...f, fixedGKPlayerId: e.target.value }))}
-                >
-                  <option value="">Auto (highest GK minutes)</option>
-                  {players.filter(p => p.isActive).map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  You can still move another player into goal during a game if needed.
-                </p>
+                {players.length === 0 ? (
+                  <div className="input-field bg-gray-50 text-gray-500 font-medium cursor-default">
+                    Please add team players
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      className="input-field"
+                      value={teamForm.fixedGKPlayerId || ''}
+                      onChange={e => setTeamForm(f => ({ ...f, fixedGKPlayerId: e.target.value }))}
+                    >
+                      <option value="">Select primary goalkeeper</option>
+                      {players.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}{p.isActive ? '' : ' (Inactive)'}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      You can still move another player into goal during a game if needed.
+                    </p>
+                  </>
+                )}
               </div>
             )}
             <div className="flex gap-2 pt-1">
