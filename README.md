@@ -1,8 +1,6 @@
 # ⚽ SWAPS — Soccer Subs
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/deploy-status.svg)](https://swaps-app.netlify.app)
-
-**Live app → [swaps-app.netlify.app](https://swaps-app.netlify.app)**
+**🚀 Live app → [swaps-app.netlify.app](https://swaps-app.netlify.app)**
 
 A mobile-first web app for managing soccer substitutions across an entire season, ensuring every player gets fair and equal time in every position.
 
@@ -66,8 +64,8 @@ npm run lint
 
 ## Repository Protection
 
-> ⚠️ **This repository has deletion protection enabled.** To prevent accidental loss, the repository owner should enable the following in **GitHub → Settings → General → Danger Zone**:
-> - Set repository visibility to avoid accidental changes.
-> - Under *Delete this repository*, ensure only admins with confirmed access can perform deletion.
+> ⚠️ **Do not delete this repository.** To prevent accidental loss:
+> - The repository owner should restrict the **Delete this repository** option under **GitHub → Settings → General → Danger Zone** to confirmed admin access only.
+> - Consider transferring ownership to a GitHub Organisation for additional safeguards.
 >
 > For branch protection, configure rulesets under **Settings → Rules → Rulesets** to require pull request reviews and status checks before merging to `main`.
