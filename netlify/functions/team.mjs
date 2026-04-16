@@ -1,6 +1,10 @@
 import { getStore } from '@netlify/blobs';
 
-const store = getStore('swaps-teams');
+const BLOBS_SITE_ID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
+const BLOBS_TOKEN = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_API_TOKEN;
+const store = BLOBS_SITE_ID && BLOBS_TOKEN
+  ? getStore({ name: 'swaps-teams', siteID: BLOBS_SITE_ID, token: BLOBS_TOKEN })
+  : getStore('swaps-teams');
 const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD;
 
 function jsonResponse(body, status = 200) {
