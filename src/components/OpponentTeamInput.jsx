@@ -61,6 +61,7 @@ export default function OpponentTeamInput({
           label="Opponent Logo"
           helperText="Upload an image for this opponent club logo."
           value={team?.logoUrl || ''}
+          previewName={team?.name || matchedClub?.name || 'Opponent'}
           onChange={(logoUrl) => onTeamChange({
             name: team?.name || '',
             logoUrl,

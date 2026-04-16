@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { getClipboardImageFile, readImageFileAsDataUrl } from '../utils/imageUpload.js';
+import TeamAvatar from './TeamAvatar.jsx';
 
 export default function LogoImageInput({
   value = '',
   onChange,
   label = 'Logo',
   helperText = 'Upload from photos, or tap and paste an image.',
+  previewName = 'Team',
 }) {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
@@ -56,6 +58,20 @@ export default function LogoImageInput({
       >
         Upload Logo Image
       </button>
+      {value && (
+        <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Current Logo</p>
+          <div className="flex items-center gap-3">
+            <TeamAvatar
+              src={value}
+              name={previewName}
+              alt={`${previewName} logo`}
+              sizeClass="w-12 h-12"
+            />
+            <p className="text-xs text-gray-600">Uploaded image will be used across the app.</p>
+          </div>
+        </div>
+      )}
       <div
         tabIndex={0}
         onPaste={e => {

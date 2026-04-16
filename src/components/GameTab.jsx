@@ -408,10 +408,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       ? getOpponentClubById(editDraft.opponentClubId)
       : null;
     let nextOpponentName = (editDraft.opponentName || '').trim() || originalGame.opponentName || 'Opponent';
-    let nextOpponentLogoUrl = editDraft.opponentLogoUrl || originalGame.opponentLogoUrl || '';
+    const nextOpponentLogoUrl = originalGame.opponentLogoUrl || '';
     if (editDraft.opponentSelectionTouched && selectedOpponentClub) {
       nextOpponentName = selectedOpponentClub.name || nextOpponentName;
-      nextOpponentLogoUrl = selectedOpponentClub.logoUrl || nextOpponentLogoUrl;
     }
     updatedHistory[editingGameIndex] = {
       ...originalGame,
@@ -592,6 +591,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                 {/* Opponent selector */}
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Opponent Team</label>
+                  <p className="mb-2 text-xs text-gray-500">
+                    Opponent logo is managed in Team Settings.
+                  </p>
                   <select
                     className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white"
                     value={editDraft.opponentClubId || '__custom__'}
@@ -607,7 +609,6 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                         opponentSelectionTouched: true,
                         opponentClubId: clubId,
                         opponentName: club?.name || d.opponentName,
-                        opponentLogoUrl: club?.logoUrl || d.opponentLogoUrl,
                       }));
                     }}
                   >

@@ -167,7 +167,7 @@ export default function StatsTab({ data, onUpdate }) {
         ? {
             ...item,
             opponentName: roundDraft.opponentName || '',
-            opponentLogoUrl: roundDraft.opponentLogoUrl || '',
+            opponentLogoUrl: item.opponentLogoUrl || '',
             date: roundDraft.date || '',
             homeAway: roundDraft.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
           }
@@ -198,7 +198,7 @@ export default function StatsTab({ data, onUpdate }) {
           ? {
               ...item,
               opponentName: cancelledDraft.opponentName || '',
-              opponentLogoUrl: cancelledDraft.opponentLogoUrl || '',
+              opponentLogoUrl: item.opponentLogoUrl || '',
               date: cancelledDraft.date || '',
               homeAway: cancelledDraft.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
             }
@@ -210,7 +210,7 @@ export default function StatsTab({ data, onUpdate }) {
         ? {
             ...item,
             opponentName: cancelledDraft.opponentName || '',
-            opponentLogoUrl: cancelledDraft.opponentLogoUrl || '',
+            opponentLogoUrl: item.opponentLogoUrl || '',
             date: cancelledDraft.date || '',
             homeAway: cancelledDraft.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
           }
@@ -515,8 +515,8 @@ export default function StatsTab({ data, onUpdate }) {
                 onTeamChange={next => setCancelledDraft(d => ({
                   ...d,
                   opponentName: next.name,
-                  opponentLogoUrl: next.logoUrl || '',
                 }))}
+                showLogoInput={false}
               />
               <div className="relative">
                 <input
@@ -909,8 +909,8 @@ export default function StatsTab({ data, onUpdate }) {
                 onTeamChange={next => setRoundDraft(d => ({
                   ...d,
                   opponentName: next.name,
-                  opponentLogoUrl: next.logoUrl || '',
                 }))}
+                showLogoInput={false}
               />
               <div className="relative">
                 <input
