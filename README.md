@@ -1,6 +1,6 @@
 # ⚽ SWAPS — Soccer Subs
 
-**🚀 Live app → [swaps-app.netlify.app](https://swaps-app.netlify.app)**
+**🚀 Live app → [substeam.netlify.app](https://substeam.netlify.app)**
 
 A mobile-first web app for managing soccer substitutions across an entire season, ensuring every player gets fair and equal time in every position.
 
