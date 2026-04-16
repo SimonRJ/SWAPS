@@ -5,6 +5,7 @@ import { FOOTBALL_WEST_CLUBS, getClubById } from '../utils/clubLogos.js';
 import {
   createTeam,
   deleteTeamByAdmin,
+  listRecoverableTeamCodes,
   listSecurityLogs,
   listTeamCodes,
   restoreFromSecurityLog,
@@ -46,6 +47,7 @@ export default function AdminPanel({ onBack }) {
   const [securityTeamId, setSecurityTeamId] = useState('');
   const [securityPassword, setSecurityPassword] = useState('');
   const [securityLogs, setSecurityLogs] = useState([]);
+  const [recoverableTeamCodes, setRecoverableTeamCodes] = useState([]);
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securityStatus, setSecurityStatus] = useState('');
   const [securityError, setSecurityError] = useState('');
@@ -54,13 +56,16 @@ export default function AdminPanel({ onBack }) {
   const refreshTeamCodes = useCallback(async () => {
     setLoadingTeamCodes(true);
     try {
-      const codes = await listTeamCodes();
+      const [codes, recoverableCodes] = await Promise.all([listTeamCodes(), listRecoverableTeamCodes()]);
       const nextCodes = Array.isArray(codes) ? codes : [];
+      const nextRecoverableCodes = Array.isArray(recoverableCodes) ? recoverableCodes : [];
       setTeamCodes(nextCodes);
+      setRecoverableTeamCodes(nextRecoverableCodes);
       setDeleteTeamId(prev => (prev ? prev : nextCodes[0] || ''));
-      setSecurityTeamId(prev => (prev ? prev : nextCodes[0] || ''));
+      setSecurityTeamId(prev => (prev ? prev : nextRecoverableCodes[0] || nextCodes[0] || ''));
     } catch {
       setTeamCodes([]);
+      setRecoverableTeamCodes([]);
     } finally {
       setLoadingTeamCodes(false);
     }
@@ -72,6 +77,10 @@ export default function AdminPanel({ onBack }) {
 
   const selectedClub = getClubById(clubId);
   const sortedTeamCodes = useMemo(() => [...teamCodes].sort((a, b) => a.localeCompare(b)), [teamCodes]);
+  const sortedRecoverableTeamCodes = useMemo(
+    () => [...recoverableTeamCodes].sort((a, b) => a.localeCompare(b)),
+    [recoverableTeamCodes],
+  );
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -394,7 +403,7 @@ export default function AdminPanel({ onBack }) {
               <option value="">
                 {loadingTeamCodes ? 'Loading team codes...' : 'Select team code'}
               </option>
-              {sortedTeamCodes.map(code => (
+              {sortedRecoverableTeamCodes.map(code => (
                 <option key={`security-${code}`} value={code}>
                   {code}
                 </option>
