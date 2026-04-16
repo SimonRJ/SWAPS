@@ -725,7 +725,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'schedule' && (
-            <className="flex h-auto flex-col gap-4 rounded-xl border border-gray-200 p-4">
+            <div className="flex h-auto flex-col gap-4 rounded-xl border border-gray-200 p-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border p-3 text-center">
                   <p className="text-xs text-gray-500">ROUNDS</p>
