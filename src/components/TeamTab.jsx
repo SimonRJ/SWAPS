@@ -749,7 +749,7 @@ export default function TeamTab({ data, onUpdate }) {
                     Next
                   </button>
                 </div>
-                <div className="max-h-[52vh] space-y-2 overflow-y-auto overscroll-contain pr-1">
+                <div className="max-h-[52vh] space-y-2 overflow-y-auto pr-1">
                   {visibleScheduleRounds.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
                       No rounds match this filter.
