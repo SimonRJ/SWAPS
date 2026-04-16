@@ -725,7 +725,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'schedule' && (
-            <form onSubmit={saveSchedule} className="min-h-0 flex flex-1 flex-col gap-4 overflow-hidden rounded-xl border border-gray-200 p-4">
+            <className="flex h-auto flex-col gap-4 rounded-xl border border-gray-200 p-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border p-3 text-center">
                   <p className="text-xs text-gray-500">ROUNDS</p>
@@ -888,7 +888,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'players' && (
-            <form onSubmit={savePlayers} className="flex flex-col min-h-0 flex-1 space-y-3 overflow-hidden">
+            <form onSubmit={savePlayers} className="flex h-auto flex-col space-y-3">
 
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">
@@ -928,7 +928,8 @@ export default function TeamTab({ data, onUpdate }) {
               {playerForm.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center py-3">No players yet. Add your squad.</p>
               ) : (
-                <ul className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto pr-1">
+<ul className="divide-y divide-gray-100">
+
                   {playerForm.map(player => (
                     <li key={player.id} className="flex items-center gap-3 py-3">
                       <PlayerAvatar
