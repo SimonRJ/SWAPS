@@ -725,7 +725,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'schedule' && (
-            <div className="flex h-auto flex-col gap-4 rounded-xl border border-gray-200 p-4">
+            <div className="flex flex-1 min-h-0 flex-col gap-4 rounded-xl border border-gray-200 p-4 overflow-hidden">
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border p-3 text-center">
                   <p className="text-xs text-gray-500">ROUNDS</p>
@@ -775,7 +775,7 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-20"
                 {visibleScheduleRounds.length === 0 ? (
                   <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     No rounds match this filter.
@@ -888,7 +888,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'players' && (
-            <form onSubmit={savePlayers} className="flex h-auto flex-col space-y-3">
+            <form onSubmit={savePlayers} className="flex flex-1 min-h-0 flex-col space-y-3 overflow-hidden">
 
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">
@@ -928,7 +928,7 @@ export default function TeamTab({ data, onUpdate }) {
               {playerForm.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center py-3">No players yet. Add your squad.</p>
               ) : (
-<ul className="divide-y divide-gray-100">
+<ul className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-100 pb-20">
 
                   {playerForm.map(player => (
                     <li key={player.id} className="flex items-center gap-3 py-3">
