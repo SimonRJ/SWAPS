@@ -114,6 +114,37 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [setupMode, currentGame]);
 
+  useEffect(() => {
+    if (!editDraft) return undefined;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const originalStyles = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      left: document.body.style.left,
+      right: document.body.style.right,
+      width: document.body.style.width,
+      touchAction: document.body.style.touchAction,
+    };
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+    document.body.style.touchAction = 'none';
+    return () => {
+      document.body.style.overflow = originalStyles.overflow;
+      document.body.style.position = originalStyles.position;
+      document.body.style.top = originalStyles.top;
+      document.body.style.left = originalStyles.left;
+      document.body.style.right = originalStyles.right;
+      document.body.style.width = originalStyles.width;
+      document.body.style.touchAction = originalStyles.touchAction;
+      window.scrollTo({ top: scrollY, left: 0, behavior: 'auto' });
+    };
+  }, [editDraft]);
+
   function handleStartGame({ availablePlayers, absentPlayers, absentMinutes, formation, plan, gameNumber, opponentName, opponentLogoUrl, startingField, startingBench }) {
     // Initialize per-player timers
     const playerTimers = {};
@@ -360,6 +391,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       awayScore: game.awayScore ?? 0,
       goals: (game.goals || []).map(g => ({ ...g })),
       opponentClubId: matchedClub?.id || '__custom__',
+      opponentSelectionTouched: false,
     });
   }
 
@@ -371,13 +403,20 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
   function saveEditedGame() {
     if (editingGameIndex === null || !editDraft) return;
     const updatedHistory = [...(data.gameHistory || [])];
+    const originalGame = updatedHistory[editingGameIndex] || {};
     const selectedOpponentClub = editDraft.opponentClubId && editDraft.opponentClubId !== '__custom__'
       ? getOpponentClubById(editDraft.opponentClubId)
       : null;
+    let nextOpponentName = (editDraft.opponentName || '').trim() || originalGame.opponentName || 'Opponent';
+    let nextOpponentLogoUrl = editDraft.opponentLogoUrl || originalGame.opponentLogoUrl || '';
+    if (editDraft.opponentSelectionTouched && selectedOpponentClub) {
+      nextOpponentName = selectedOpponentClub.name || nextOpponentName;
+      nextOpponentLogoUrl = selectedOpponentClub.logoUrl || nextOpponentLogoUrl;
+    }
     updatedHistory[editingGameIndex] = {
-      ...updatedHistory[editingGameIndex],
-      opponentName: selectedOpponentClub?.name || (editDraft.opponentName || '').trim() || 'Opponent',
-      opponentLogoUrl: selectedOpponentClub?.logoUrl || updatedHistory[editingGameIndex].opponentLogoUrl || '',
+      ...originalGame,
+      opponentName: nextOpponentName,
+      opponentLogoUrl: nextOpponentLogoUrl,
       homeScore: sanitizeScore(editDraft.homeScore),
       awayScore: sanitizeScore(editDraft.awayScore),
       goals: (editDraft.goals || []).map(g => {
@@ -507,8 +546,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       )}
 
       {editDraft && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center" onClick={closeEditGame}>
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 h-dvh bg-black/60 z-50 flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeEditGame}>
+          <div className="bg-white w-full h-dvh sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header with result badge */}
             <div className="bg-gradient-to-r from-pitch-700 to-pitch-600 px-6 pt-6 pb-4 text-white">
               <div className="flex items-center justify-between mb-2">
@@ -519,7 +558,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
             </div>
 
             {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto overscroll-contain">
               {/* Score display */}
               <div className="px-6 py-5 bg-gray-50 border-b border-gray-100">
                 <div className="flex items-center justify-center gap-4">
@@ -559,12 +598,13 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                     onChange={e => {
                       const clubId = e.target.value;
                       if (clubId === '__custom__') {
-                        setEditDraft(d => ({ ...d, opponentClubId: '__custom__' }));
+                        setEditDraft(d => ({ ...d, opponentClubId: '__custom__', opponentSelectionTouched: true }));
                         return;
                       }
                       const club = getOpponentClubById(clubId);
                       setEditDraft(d => ({
                         ...d,
+                        opponentSelectionTouched: true,
                         opponentClubId: clubId,
                         opponentName: club?.name || d.opponentName,
                         opponentLogoUrl: club?.logoUrl || d.opponentLogoUrl,
