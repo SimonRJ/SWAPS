@@ -2,9 +2,21 @@ import { getStore } from '@netlify/blobs';
 
 const BLOBS_SITE_ID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
 const BLOBS_TOKEN = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_API_TOKEN;
-const store = BLOBS_SITE_ID && BLOBS_TOKEN
-  ? getStore({ name: 'swaps-teams', siteID: BLOBS_SITE_ID, token: BLOBS_TOKEN })
-  : getStore('swaps-teams');
+
+function createStore() {
+  // Prefer Netlify runtime auth to avoid token scope mismatches.
+  try {
+    return getStore('swaps-teams');
+  } catch {}
+
+  if (BLOBS_SITE_ID && BLOBS_TOKEN) {
+    return getStore({ name: 'swaps-teams', siteID: BLOBS_SITE_ID, token: BLOBS_TOKEN });
+  }
+
+  return null;
+}
+
+const store = createStore();
 const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD;
 const ADMIN_TEAM_PASSWORD_CODE = process.env.ADMIN_TEAM_PASSWORD_CODE || ADMIN_DELETE_PASSWORD;
 
@@ -31,6 +43,9 @@ function validateDataShape(data) {
 export default async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed.' }, 405);
+  }
+  if (!store) {
+    return jsonResponse({ error: 'Blob storage is not configured for this environment.' }, 500);
   }
 
   let payload;
