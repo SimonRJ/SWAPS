@@ -89,6 +89,7 @@ export async function generateRoundPdf({
   playerMinutes,
   activePlayers,
   cumulativeStats,
+  openInNewTab = false,
 }) {
   // Pre-load logo images so they can be embedded in the PDF
   const [teamLogoDataUrl, opponentLogoDataUrl] = await Promise.all([
@@ -104,6 +105,25 @@ export async function generateRoundPdf({
 
   const activePlayerById = new Map((activePlayers || []).map(player => [player.id, player]));
   const getPlayer = (id) => activePlayerById.get(id);
+  const fileName = `Round_${roundNumber}_TeamSheet.pdf`;
+
+  function outputPdf() {
+    if (!openInNewTab) {
+      doc.save(fileName);
+      return;
+    }
+    try {
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      const popup = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      if (!popup) {
+        doc.save(fileName);
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch {
+      doc.save(fileName);
+    }
+  }
 
   /* ── helpers ── */
   function setFill(rgb) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); }
@@ -388,7 +408,7 @@ export async function generateRoundPdf({
     doc.setFontSize(9);
     setText(C.gray400);
     doc.text('No team sheet available — not enough active players.', margin + 6, y + 8);
-    doc.save(`Round_${roundNumber}_TeamSheet.pdf`);
+    outputPdf();
     return;
   }
 
@@ -779,5 +799,5 @@ export async function generateRoundPdf({
   }
 
   /* ── Save ── */
-  doc.save(`Round_${roundNumber}_TeamSheet.pdf`);
+  outputPdf();
 }
