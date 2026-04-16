@@ -35,6 +35,24 @@ export default async (req) => {
   }
 
   const action = payload?.action;
+  if (action === 'list') {
+    const teamCodes = [];
+    let cursor;
+
+    do {
+      const page = await store.list({ prefix: 'teams/', cursor });
+      for (const blob of page?.blobs || []) {
+        if (!blob?.key) continue;
+        const code = blob.key.replace(/^teams\//, '');
+        if (code) teamCodes.push(code);
+      }
+      cursor = page?.cursor;
+    } while (cursor);
+
+    teamCodes.sort((a, b) => a.localeCompare(b));
+    return jsonResponse({ teamCodes });
+  }
+
   const teamId = normalizeTeamId(payload?.teamId);
   if (!teamId) return jsonResponse({ error: 'Team code is required.' }, 400);
 
