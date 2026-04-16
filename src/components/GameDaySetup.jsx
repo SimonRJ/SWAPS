@@ -1,10 +1,14 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
   formatFormation,
-  getFormationSlotXPercent,
-  POSITION_Y_PERCENT,
 } from '../utils/formations.js';
-import { planGame, calculateAbsentPlayerMinutes, computeBenchStartCounts, getBenchProtectedIds } from '../utils/subAlgorithm.js';
+import {
+  planGame,
+  calculateAbsentPlayerMinutes,
+  computeBenchStartCounts,
+  getBenchProtectedIds,
+  getSubsBetweenBlocks,
+} from '../utils/subAlgorithm.js';
 import { getNextUnresolvedRound } from '../utils/storage.js';
 import OpponentTeamInput from './OpponentTeamInput.jsx';
 import PlayerAvatar from './PlayerAvatar.jsx';
@@ -12,16 +16,6 @@ import PlayerAvatar from './PlayerAvatar.jsx';
 // Forced formation: 3-3-2 (3 DEF, 3 MID, 2 ATK + 1 GK)
 const FORCED_FORMATION = [3, 3, 2];
 const FORCED_FORMATION_STR = formatFormation(FORCED_FORMATION);
-const INITIAL_PLAY_TIME = '00:00';
-
-const PITCH_MARKINGS = {
-  penaltyAreaDepthPct: 15.7,
-  penaltyAreaWidthPct: 59.3,
-  goalAreaDepthPct: 5.2,
-  goalAreaWidthPct: 26.9,
-  centerCircleDiameterPct: 26.9,
-  penaltySpotDistancePct: 10.5,
-};
 
 // Steps: 'away_prompt' | 'select_away' | 'team_sheet'
 export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) {
@@ -153,6 +147,22 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
     onUpdate({ ...data, pendingGameSetup: null });
   }
 
+  function posLabel(pos) {
+    if (pos === 'GK') return 'GK';
+    if (pos === 'DEF') return 'DEF';
+    if (pos === 'MID') return 'MID';
+    if (pos === 'ATK') return 'ATK';
+    return pos;
+  }
+
+  function posTagColor(pos) {
+    if (pos === 'GK') return 'bg-yellow-100 text-yellow-800';
+    if (pos === 'DEF') return 'bg-blue-100 text-blue-800';
+    if (pos === 'MID') return 'bg-purple-100 text-purple-800';
+    if (pos === 'ATK') return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-600';
+  }
+
   // --- Step: Is Anyone Away Today? ---
   if (step === 'away_prompt') {
     return (
@@ -243,189 +253,199 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
 
   // --- Step: Team Sheet Display ---
   if (step === 'team_sheet') {
-    const field = gamePlan?.[0]?.onField || [];
-    const bench = gamePlan?.[0]?.onBench || [];
-    const positionGroups = {};
-    for (const assignment of field) {
-      if (!positionGroups[assignment.position]) positionGroups[assignment.position] = [];
-      positionGroups[assignment.position].push(assignment);
+    const roundInfo = scheduledRound;
+    const numBlocks = gamePlan ? gamePlan.length : 0;
+
+    const playerMinutes = {};
+    if (gamePlan) {
+      for (const player of selectedPlayers) {
+        playerMinutes[player.id] = { field: 0, bench: 0, positions: {} };
+      }
+      for (let blockIndex = 0; blockIndex < numBlocks; blockIndex++) {
+        const block = gamePlan[blockIndex];
+        for (const { playerId, position } of block.onField) {
+          if (!playerMinutes[playerId]) continue;
+          playerMinutes[playerId].field += 10;
+          playerMinutes[playerId].positions[position] = (playerMinutes[playerId].positions[position] || 0) + 10;
+        }
+        for (const benchId of block.onBench) {
+          if (!playerMinutes[benchId]) continue;
+          playerMinutes[benchId].bench += 10;
+        }
+      }
     }
 
+    const subChanges = [];
+    if (gamePlan && gamePlan.length > 1) {
+      for (let blockIndex = 1; blockIndex < gamePlan.length; blockIndex++) {
+        const changes = getSubsBetweenBlocks(gamePlan[blockIndex - 1], gamePlan[blockIndex]);
+        if (changes.length > 0) {
+          subChanges.push({ minute: blockIndex * 10, subs: changes });
+        }
+      }
+    }
+
+    const getPlayer = (id) => selectedPlayers.find(player => player.id === id);
+
     return (
-      <div className="max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto game-timer-mobile-height px-1 pt-0 pb-0 overflow-hidden overscroll-none flex flex-col">
-        <div className="px-2 py-1 shrink-0 rounded-lg bg-slate-900 text-white">
-          <div className="flex items-center justify-between text-[11px] font-semibold opacity-80">
-            <span>READY TO START</span>
-            <span>GAME {nextRound} · 3-3-2</span>
+      <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">Round {nextRound} Team Sheet</h2>
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${roundInfo?.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+              {roundInfo?.homeAway === 'AWAY' ? 'Away' : 'Home'}
+            </span>
           </div>
-          <div className="flex items-center justify-center gap-3 mt-0.5">
-            <span className="text-xs truncate max-w-[44%]">{team.name}</span>
-            <span className="text-sm font-black">0 - 0</span>
-            <span className="text-xs truncate max-w-[44%]">{opponentTeam.name || 'Opponent'}</span>
-          </div>
-        </div>
-        <div className="shrink-0">
+          <p className="text-xs text-gray-500">
+            Formation: {FORCED_FORMATION_STR} · {team.gameDuration} min game
+          </p>
           <OpponentTeamInput
             team={opponentTeam}
             onTeamChange={setOpponentTeam}
             showLogoInput={false}
           />
+          {absentPlayers.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <p className="text-xs text-amber-700 font-semibold">
+                ⚠️ Away players: {absentPlayers.map(player => player.name).join(', ')}
+              </p>
+            </div>
+          )}
         </div>
-        {absentPlayers.length > 0 && (
-          <div className="mx-1 mb-0.5 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 shrink-0">
-            <p className="text-[10px] text-amber-700 font-semibold">
-              ⚠️ {absentPlayers.length} away: {absentPlayers.map(p => p.name.split(' ')[0]).join(', ')}
-            </p>
+
+        {!gamePlan ? (
+          <div className="card text-center py-6 space-y-3">
+            <p className="text-gray-400 text-sm">Not enough active players to generate a team sheet. Need at least {minFieldCount}.</p>
+            <button
+              onClick={() => {
+                clearPendingSetup();
+                setStep(absentPlayers.length > 0 ? 'select_away' : 'away_prompt');
+              }}
+              className="btn-secondary w-full"
+            >
+              ← Back
+            </button>
           </div>
-        )}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <div className="px-1 py-0 flex-1 min-h-0 flex items-center justify-center">
-            <div className="relative bg-gradient-to-b from-emerald-700 via-emerald-600 to-emerald-800 rounded-xl overflow-hidden w-full max-w-[470px] md:max-w-[600px] max-h-full aspect-[68/105] border border-emerald-900/60 shadow-2xl touch-none">
-              <div className="absolute inset-0">
-                <div className="absolute left-0 right-0 top-1/2 h-px bg-white/35" />
-                <div
-                  className="absolute left-1/2 top-1/2 border border-white/35 rounded-full -translate-x-1/2 -translate-y-1/2"
-                  style={{
-                    width: `${PITCH_MARKINGS.centerCircleDiameterPct}%`,
-                    height: `${PITCH_MARKINGS.centerCircleDiameterPct}%`,
+        ) : (
+          <>
+            <div className="card">
+              <div className="flex gap-3 mb-3">
+                <button
+                  onClick={() => {
+                    clearPendingSetup();
+                    setStep(absentPlayers.length > 0 ? 'select_away' : 'away_prompt');
                   }}
-                />
-                <div className="absolute left-1/2 top-1/2 w-2 h-2 bg-white/40 rounded-full -translate-x-1 -translate-y-1" />
-                <div
-                  className="absolute top-0 border-b border-l border-r border-white/35"
-                  style={{
-                    left: `${(100 - PITCH_MARKINGS.penaltyAreaWidthPct) / 2}%`,
-                    width: `${PITCH_MARKINGS.penaltyAreaWidthPct}%`,
-                    height: `${PITCH_MARKINGS.penaltyAreaDepthPct}%`,
-                  }}
-                />
-                <div
-                  className="absolute bottom-0 border-t border-l border-r border-white/35"
-                  style={{
-                    left: `${(100 - PITCH_MARKINGS.penaltyAreaWidthPct) / 2}%`,
-                    width: `${PITCH_MARKINGS.penaltyAreaWidthPct}%`,
-                    height: `${PITCH_MARKINGS.penaltyAreaDepthPct}%`,
-                  }}
-                />
-                <div
-                  className="absolute top-0 border-b border-l border-r border-white/40"
-                  style={{
-                    left: `${(100 - PITCH_MARKINGS.goalAreaWidthPct) / 2}%`,
-                    width: `${PITCH_MARKINGS.goalAreaWidthPct}%`,
-                    height: `${PITCH_MARKINGS.goalAreaDepthPct}%`,
-                  }}
-                />
-                <div
-                  className="absolute bottom-0 border-t border-l border-r border-white/40"
-                  style={{
-                    left: `${(100 - PITCH_MARKINGS.goalAreaWidthPct) / 2}%`,
-                    width: `${PITCH_MARKINGS.goalAreaWidthPct}%`,
-                    height: `${PITCH_MARKINGS.goalAreaDepthPct}%`,
-                  }}
-                />
-                <div
-                  className="absolute left-1/2 w-1.5 h-1.5 bg-white/45 rounded-full -translate-x-1/2 -translate-y-1/2"
-                  style={{ top: `${PITCH_MARKINGS.penaltySpotDistancePct}%` }}
-                />
-                <div
-                  className="absolute left-1/2 w-1.5 h-1.5 bg-white/45 rounded-full -translate-x-1/2 -translate-y-1/2"
-                  style={{ top: `${100 - PITCH_MARKINGS.penaltySpotDistancePct}%` }}
-                />
-                <div className="absolute inset-0 border border-white/35 rounded-xl" />
-                <div className="absolute left-1/2 -translate-x-1/2 top-[15%] text-white/20 text-xs font-bold">ATK</div>
-                <div className="absolute left-1/2 -translate-x-1/2 top-[42%] text-white/20 text-xs font-bold">MID</div>
-                <div className="absolute left-1/2 -translate-x-1/2 top-[65%] text-white/20 text-xs font-bold">DEF</div>
-                <div className="absolute left-1/2 -translate-x-1/2 top-[83%] text-white/20 text-xs font-bold">GK</div>
+                  className="btn-secondary flex-1"
+                >
+                  ← Back
+                </button>
+                <button onClick={handleStart} className="btn-primary flex-1">
+                  🟢 Start Game
+                </button>
               </div>
-              {field.map((assignment) => {
-                const player = selectedPlayers.find(p => p.id === assignment.playerId);
-                const group = positionGroups[assignment.position] || [];
-                const posIdx = group.findIndex(item => item.playerId === assignment.playerId);
-                const posCount = group.length || 1;
-                const xPct = posCount === 1 ? 50 : getFormationSlotXPercent(assignment.position, posIdx, posCount);
-                const yPct = POSITION_Y_PERCENT[assignment.position] || 50;
-                return (
-                  <div
-                    key={assignment.playerId}
-                    className="absolute z-10 flex flex-col items-center select-none"
-                    style={{ left: `${xPct}%`, top: `${yPct}%`, transform: 'translate(-50%, -50%)' }}
-                  >
-                    <PlayerAvatar
-                      player={player}
-                      sizeClass="w-8 h-9 md:w-10 md:h-11"
-                      variant="jersey"
-                      className="shadow-lg"
-                      textClassName="text-[10px] md:text-xs font-black"
-                    />
-                    <div className="bg-black/55 text-white text-[8px] md:text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 whitespace-nowrap max-w-[62px] md:max-w-[80px] truncate">
-                      {player?.name?.split(' ')[0] || '?'}
+              <h3 className="font-bold text-gray-900 mb-3">Starting Lineup</h3>
+              <div className="space-y-2">
+                {gamePlan[0].onField.map(({ playerId, position }) => {
+                  const player = getPlayer(playerId);
+                  return (
+                    <div key={playerId} className="flex items-center gap-3 py-1">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${posTagColor(position)}`}>{posLabel(position)}</span>
+                      <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-pitch-100 text-pitch-700" textClassName="text-xs" />
+                      <span className="text-sm font-semibold text-gray-900">{player?.name || '?'}</span>
                     </div>
-                    <div className="text-[8px] md:text-[10px] text-white/85 font-mono bg-black/35 px-1 rounded">
-                      {INITIAL_PLAY_TIME}
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="absolute top-2 right-3 bg-black/40 text-white text-[10px] font-bold px-2 py-1 rounded-full z-20">
-                Block 1/{gamePlan?.length || 1}
+                  );
+                })}
               </div>
             </div>
-          </div>
-          <div className="px-1.5 pt-0 pb-0 shrink-0">
-            <div className="bg-gradient-to-b from-slate-900 to-slate-800 rounded-xl p-1 border border-slate-700/80 min-h-[42px]">
-              {bench.length === 0 ? (
-                <div className="flex items-center justify-center gap-2 py-0.5">
-                  <span className="text-[8px] tracking-[0.12em] text-slate-300 font-bold">SUB BENCH</span>
-                  <span className="rounded-full bg-slate-700 text-slate-100 px-1.5 py-0.5 text-[8px]">{bench.length}</span>
-                  <span className="text-[10px] text-slate-400">No substitutes today</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-                  <span className="shrink-0 text-[8px] tracking-[0.12em] text-slate-300 font-bold">SUB BENCH</span>
-                  <span className="shrink-0 rounded-full bg-slate-700 text-slate-100 px-1.5 py-0.5 text-[8px]">{bench.length}</span>
-                  {bench.map(id => {
-                    const player = selectedPlayers.find(p => p.id === id);
+
+            {gamePlan[0].onBench.length > 0 && (
+              <div className="card">
+                <h3 className="font-bold text-gray-900 mb-3">Starting on Bench</h3>
+                <div className="space-y-2">
+                  {gamePlan[0].onBench.map(id => {
+                    const player = getPlayer(id);
                     return (
-                      <div
-                        key={id}
-                        className="flex items-center gap-1 bg-slate-700/95 rounded-lg px-1.5 py-1 select-none border border-slate-600 min-w-max touch-none"
-                      >
-                        <PlayerAvatar
-                          player={player}
-                          sizeClass="w-6 h-7 md:w-8 md:h-9"
-                          variant="jersey"
-                          isBench
-                          className=""
-                          textClassName="text-[10px] md:text-xs font-black"
-                        />
-                        <div>
-                          <div className="text-white text-[10px] md:text-xs font-semibold leading-tight">{player?.name?.split(' ')[0] || '?'}</div>
-                          <div className="text-slate-300 text-[8px] md:text-[10px] font-mono">{INITIAL_PLAY_TIME}</div>
-                        </div>
+                      <div key={id} className="flex items-center gap-3 py-1">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">BENCH</span>
+                        <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-gray-100 text-gray-600" textClassName="text-xs" />
+                        <span className="text-sm font-semibold text-gray-900">{player?.name || '?'}</span>
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            )}
 
-        {/* Navigation */}
-        <div className="flex gap-3 shrink-0 pt-1 pb-1">
-          <button
-            onClick={() => {
-              clearPendingSetup();
-              setStep(absentPlayers.length > 0 ? 'select_away' : 'away_prompt');
-            }}
-            className="btn-secondary flex-1"
-          >
-            ← Back
-          </button>
-          <button onClick={handleStart} className="btn-primary flex-1">
-            🟢 Start Game
-          </button>
-        </div>
+            {subChanges.length > 0 && (
+              <div className="card">
+                <h3 className="font-bold text-gray-900 mb-3">Substitution Plan</h3>
+                <div className="space-y-3">
+                  {subChanges.map(({ minute, subs }) => (
+                    <div key={minute} className="rounded-xl border border-gray-200 p-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="bg-pitch-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{minute}&apos;</span>
+                        <span className="text-xs text-gray-500 font-medium">{subs.length} sub{subs.length > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {subs.map((sub, idx) => {
+                          const offPlayer = getPlayer(sub.off);
+                          const onPlayer = getPlayer(sub.on);
+                          return (
+                            <div key={idx} className="flex items-center gap-2 text-sm">
+                              <span className="text-red-500 font-bold text-xs">↓</span>
+                              <span className="text-gray-700">{offPlayer?.name || '?'}</span>
+                              <span className="text-gray-400 text-xs">→</span>
+                              <span className="text-emerald-600 font-bold text-xs">↑</span>
+                              <span className="text-gray-700">{onPlayer?.name || '?'}</span>
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${posTagColor(sub.position)}`}>{posLabel(sub.position)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="card">
+              <h3 className="font-bold text-gray-900 mb-3">Estimated Minutes</h3>
+              <div className="space-y-2">
+                {selectedPlayers
+                  .slice()
+                  .sort((a, b) => (playerMinutes[b.id]?.field || 0) - (playerMinutes[a.id]?.field || 0))
+                  .map(player => {
+                    const mins = playerMinutes[player.id];
+                    if (!mins) return null;
+                    const posEntries = Object.entries(mins.positions || {}).filter(([, value]) => value > 0);
+                    return (
+                      <div key={player.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                        <div className="flex items-center gap-2">
+                          <PlayerAvatar player={player} sizeClass="w-6 h-6" className="bg-pitch-100 text-pitch-700" textClassName="text-[10px]" />
+                          <span className="text-sm font-semibold text-gray-900">{player.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            {posEntries.map(([pos, min]) => (
+                              <span key={pos} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${posTagColor(pos)}`}>
+                                {posLabel(pos)} {min}&#39;
+                              </span>
+                            ))}
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-pitch-700">{mins.field}&#39;</span>
+                            {mins.bench > 0 && (
+                              <span className="text-xs text-gray-400 ml-1">({mins.bench}&#39; bench)</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     );
   }
