@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { migrateData } from './utils/storage.js';
 import Login from './components/Login.jsx';
+import AdminPanel from './components/AdminPanel.jsx';
 import TabNav from './components/TabNav.jsx';
 import TeamTab from './components/TeamTab.jsx';
 import GameTab from './components/GameTab.jsx';
@@ -26,6 +27,7 @@ export default function App() {
   const [session, setSession] = useState(() => readStoredSession());
   const [checkingSession, setCheckingSession] = useState(() => Boolean(readStoredSession()));
   const [syncError, setSyncError] = useState('');
+  const [authScreen, setAuthScreen] = useState('login');
   const [activeTab, setActiveTab] = useState('game');
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
@@ -66,6 +68,7 @@ export default function App() {
     setData(migrated);
     setSession(loginSession);
     setLoggedIn(true);
+    setAuthScreen('login');
     setSyncError('');
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginSession));
   }, []);
@@ -92,6 +95,7 @@ export default function App() {
     setData(null);
     setSession(null);
     setSyncError('');
+    setAuthScreen('login');
     sessionStorage.removeItem(SESSION_KEY);
   }
 
@@ -104,7 +108,10 @@ export default function App() {
   }
 
   if (!loggedIn) {
-    return <Login onLogin={handleLogin} />;
+    if (authScreen === 'admin') {
+      return <AdminPanel onBack={() => setAuthScreen('login')} />;
+    }
+    return <Login onLogin={handleLogin} onOpenAdmin={() => setAuthScreen('admin')} />;
   }
 
   return (
