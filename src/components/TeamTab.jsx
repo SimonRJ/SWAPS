@@ -64,19 +64,29 @@ function getPlayedMinutes(player) {
   return (player.minutesGK || 0) + (player.minutesDEF || 0) + (player.minutesMID || 0) + (player.minutesATK || 0);
 }
 
+function getPositionMinuteTotal(values = {}) {
+  return (values.GK || 0) + (values.DEF || 0) + (values.MID || 0) + (values.ATK || 0);
+}
+
+function getPlayerDeltaMinutes(delta) {
+  return getPositionMinuteTotal({
+    GK: delta?.minutesGK,
+    DEF: delta?.minutesDEF,
+    MID: delta?.minutesMID,
+    ATK: delta?.minutesATK,
+  });
+}
+
 function getGameMinutesForPlayer(game, playerId) {
   const delta = Array.isArray(game.playerMinuteDeltas)
     ? game.playerMinuteDeltas.find(item => item.playerId === playerId)
     : null;
   if (delta) {
-    return (delta.minutesGK || 0) + (delta.minutesDEF || 0) + (delta.minutesMID || 0) + (delta.minutesATK || 0);
+    return getPlayerDeltaMinutes(delta);
   }
 
   const timer = game.playerTimers?.[playerId];
-  const positionSeconds = timer?.positionSeconds || {};
-  return Math.round(
-    ((positionSeconds.GK || 0) + (positionSeconds.DEF || 0) + (positionSeconds.MID || 0) + (positionSeconds.ATK || 0)) / 60,
-  );
+  return Math.round(getPositionMinuteTotal(timer?.positionSeconds) / 60);
 }
 
 function buildSquadPreviewStats(players, gameHistory) {
@@ -532,7 +542,7 @@ export default function TeamTab({ data, onUpdate }) {
                           ? 'border-gray-200 bg-gray-50 text-gray-700'
                           : 'border-gray-200 bg-gray-100 text-gray-400'}`}
                         >
-                          {player.shirtNumber || '—'}
+                          {player.shirtNumber || '-'}
                         </span>
                         <div className="min-w-0">
                           <p className={`truncate font-medium ${player.isActive ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
@@ -544,13 +554,13 @@ export default function TeamTab({ data, onUpdate }) {
                         </div>
                       </div>
                       <div
-                        className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-4 text-right text-gray-500"
+                        className="grid grid-cols-2 justify-items-end gap-x-3 gap-y-1 text-[11px] leading-4 text-gray-500"
                         style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
                       >
-                        <span>{stats.gamesPlayed > 0 ? `Played ${stats.gamesPlayed}` : '\u00A0'}</span>
-                        <span>{stats.minutesPlayed > 0 ? `Minutes ${stats.minutesPlayed}` : '\u00A0'}</span>
-                        <span>{stats.goals > 0 ? `Goals ${stats.goals}` : '\u00A0'}</span>
-                        <span>{stats.saves > 0 ? `Saves ${stats.saves}` : '\u00A0'}</span>
+                        <span aria-hidden={stats.gamesPlayed <= 0 || undefined}>{stats.gamesPlayed > 0 ? `Played ${stats.gamesPlayed}` : ''}</span>
+                        <span aria-hidden={stats.minutesPlayed <= 0 || undefined}>{stats.minutesPlayed > 0 ? `Minutes ${stats.minutesPlayed}` : ''}</span>
+                        <span aria-hidden={stats.goals <= 0 || undefined}>{stats.goals > 0 ? `Goals ${stats.goals}` : ''}</span>
+                        <span aria-hidden={stats.saves <= 0 || undefined}>{stats.saves > 0 ? `Saves ${stats.saves}` : ''}</span>
                       </div>
                     </li>
                   );
