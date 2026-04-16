@@ -888,7 +888,7 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'players' && (
-            <form onSubmit={savePlayers} className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden rounded-xl border border-gray-200 p-4">
+            <form onSubmit={savePlayers} className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">
                   Squad ({playerForm.length})
