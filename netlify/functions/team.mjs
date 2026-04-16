@@ -21,6 +21,7 @@ const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD;
 const ADMIN_TEAM_PASSWORD_CODE = process.env.ADMIN_TEAM_PASSWORD_CODE || ADMIN_DELETE_PASSWORD;
 const SECURITY_LOG_PREFIX = 'security-logs/';
 const SECURITY_SNAPSHOT_PREFIX = 'security-snapshots/';
+const DELETED_TEAM_PREFIX = 'deleted-teams/';
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -44,6 +45,10 @@ function securityLogKey(teamId, logId) {
 
 function securitySnapshotKey(teamId, logId) {
   return `${SECURITY_SNAPSHOT_PREFIX}${teamId}/${logId}`;
+}
+
+function deletedTeamKey(teamId) {
+  return `${DELETED_TEAM_PREFIX}${teamId}`;
 }
 
 function buildLogId() {
@@ -165,6 +170,58 @@ async function listSecurityLogsForTeam(teamId) {
   return entries.slice(0, 120);
 }
 
+async function listActiveTeamCodes() {
+  const teamCodes = [];
+  let cursor;
+
+  do {
+    const page = await store.list({ prefix: 'teams/', cursor });
+    for (const blob of page?.blobs || []) {
+      if (!blob?.key) continue;
+      const code = blob.key.replace(/^teams\//, '');
+      if (code) teamCodes.push(code);
+    }
+    cursor = page?.cursor;
+  } while (cursor);
+
+  return teamCodes;
+}
+
+async function listTeamIdsFromNestedPrefix(prefix) {
+  const teamIds = new Set();
+  let cursor;
+
+  do {
+    const page = await store.list({ prefix, cursor });
+    for (const blob of page?.blobs || []) {
+      if (!blob?.key) continue;
+      const relative = blob.key.slice(prefix.length);
+      const teamId = normalizeTeamId(relative.split('/')[0] || '');
+      if (teamId) teamIds.add(teamId);
+    }
+    cursor = page?.cursor;
+  } while (cursor);
+
+  return teamIds;
+}
+
+async function listDeletedTeamCodes() {
+  const teamIds = [];
+  let cursor;
+
+  do {
+    const page = await store.list({ prefix: DELETED_TEAM_PREFIX, cursor });
+    for (const blob of page?.blobs || []) {
+      if (!blob?.key) continue;
+      const code = normalizeTeamId(blob.key.replace(new RegExp(`^${DELETED_TEAM_PREFIX}`), ''));
+      if (code) teamIds.push(code);
+    }
+    cursor = page?.cursor;
+  } while (cursor);
+
+  return teamIds;
+}
+
 function validateDataShape(data) {
   return Boolean(data && data.team && typeof data.team.passcodeHash === 'string');
 }
@@ -186,19 +243,26 @@ export default async (req) => {
 
   const action = payload?.action;
   if (action === 'list') {
-    const teamCodes = [];
-    let cursor;
+    const teamCodes = await listActiveTeamCodes();
+    teamCodes.sort((a, b) => a.localeCompare(b));
+    return jsonResponse({ teamCodes });
+  }
 
-    do {
-      const page = await store.list({ prefix: 'teams/', cursor });
-      for (const blob of page?.blobs || []) {
-        if (!blob?.key) continue;
-        const code = blob.key.replace(/^teams\//, '');
-        if (code) teamCodes.push(code);
-      }
-      cursor = page?.cursor;
-    } while (cursor);
-
+  if (action === 'listRecoverable') {
+    const [activeTeamCodes, deletedTeamCodes, securityLogTeamIds, securitySnapshotTeamIds] = await Promise.all([
+      listActiveTeamCodes(),
+      listDeletedTeamCodes(),
+      listTeamIdsFromNestedPrefix(SECURITY_LOG_PREFIX),
+      listTeamIdsFromNestedPrefix(SECURITY_SNAPSHOT_PREFIX),
+    ]);
+    const teamCodes = [
+      ...new Set([
+        ...activeTeamCodes,
+        ...deletedTeamCodes,
+        ...Array.from(securityLogTeamIds),
+        ...Array.from(securitySnapshotTeamIds),
+      ]),
+    ];
     teamCodes.sort((a, b) => a.localeCompare(b));
     return jsonResponse({ teamCodes });
   }
@@ -228,12 +292,8 @@ export default async (req) => {
       details: ['Initial team setup was created.'],
       actor: 'team_admin',
     });
+    await store.delete(deletedTeamKey(teamId));
     return jsonResponse({ data });
-  }
-
-  const existing = await store.get(key, { type: 'json' });
-  if (!existing) {
-    return jsonResponse({ error: 'Team not found.' }, 404);
   }
 
   if (action === 'delete') {
@@ -244,6 +304,29 @@ export default async (req) => {
     if (adminPassword !== ADMIN_DELETE_PASSWORD) {
       return jsonResponse({ error: 'Invalid administrator password.', code: 'INVALID_ADMIN_PASSWORD' }, 401);
     }
+    const existing = await store.get(key, { type: 'json' });
+    if (!existing) {
+      return jsonResponse({ error: 'Team not found.' }, 404);
+    }
+
+    const logId = buildLogId();
+    const snapshotKey = securitySnapshotKey(teamId, logId);
+    await store.setJSON(snapshotKey, existing);
+    await store.setJSON(securityLogKey(teamId, logId), {
+      id: logId,
+      teamId,
+      timestamp: new Date().toISOString(),
+      type: 'team_delete',
+      summary: 'Team was deleted by an administrator.',
+      details: ['A full snapshot was captured immediately before deletion.'],
+      snapshotKey,
+      actor: 'system_admin',
+    });
+    await store.setJSON(deletedTeamKey(teamId), {
+      teamId,
+      deletedAt: new Date().toISOString(),
+      restoreLogId: logId,
+    });
     await store.delete(key);
     return jsonResponse({ ok: true });
   }
@@ -266,6 +349,7 @@ export default async (req) => {
   if (action === 'securityRestore') {
     const logId = String(payload?.logId || '').trim();
     if (!logId) return jsonResponse({ error: 'Log entry is required.' }, 400);
+    const existing = await store.get(key, { type: 'json' });
     const restoreSource = await store.get(securityLogKey(teamId, logId), { type: 'json' });
     const snapshotKey = restoreSource?.snapshotKey || securitySnapshotKey(teamId, logId);
     const snapshot = await store.get(snapshotKey, { type: 'json' });
@@ -275,7 +359,9 @@ export default async (req) => {
 
     const restoreLogId = buildLogId();
     const restoreSnapshotKey = securitySnapshotKey(teamId, restoreLogId);
-    await store.setJSON(restoreSnapshotKey, existing);
+    if (existing) {
+      await store.setJSON(restoreSnapshotKey, existing);
+    }
     await store.setJSON(key, snapshot);
     await store.setJSON(securityLogKey(teamId, restoreLogId), {
       id: restoreLogId,
@@ -285,11 +371,17 @@ export default async (req) => {
       summary: 'Restored team data from a security snapshot.',
       details: [`Restored state captured before log ${logId}.`],
       restoredLogId: logId,
-      snapshotKey: restoreSnapshotKey,
+      ...(existing ? { snapshotKey: restoreSnapshotKey } : {}),
       actor: 'system_admin',
     });
+    await store.delete(deletedTeamKey(teamId));
 
     return jsonResponse({ ok: true, restoredLogId: logId });
+  }
+
+  const existing = await store.get(key, { type: 'json' });
+  if (!existing) {
+    return jsonResponse({ error: 'Team not found.' }, 404);
   }
 
   const passcodeHash = String(payload?.passcodeHash || '');

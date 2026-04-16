@@ -79,6 +79,13 @@ export async function listTeamCodes() {
   return Array.isArray(result.teamCodes) ? result.teamCodes : [];
 }
 
+export async function listRecoverableTeamCodes() {
+  const result = await callTeamFunction({
+    action: 'listRecoverable',
+  });
+  return Array.isArray(result.teamCodes) ? result.teamCodes : [];
+}
+
 export async function deleteTeamByAdmin(teamId, adminPassword) {
   const result = await callTeamFunction({
     action: 'delete',
