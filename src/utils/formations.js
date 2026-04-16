@@ -78,7 +78,7 @@ const FORMATIONS_MAP = {
 
 export const POSITION_Y_PERCENT = {
   GK: 88,
-  DEF: 70,
+  DEF: 66,
   MID: 47,
   ATK: 24,
 };
