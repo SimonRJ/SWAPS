@@ -590,22 +590,23 @@ export default function TeamTab({ data, onUpdate }) {
             {EDIT_SECTIONS.map(section => (
               <button
                 key={section.id}
-                type="button"
-                onClick={() => setActiveSection(section.id)}
-                className={`rounded-xl border p-3 text-left transition ${
-  activeSection === section.id
-    ? 'border-pitch-500 bg-pitch-50'
-    : 'border-gray-300 bg-white hover:border-gray-300'
-}`}
+  type="button"
+  onClick={() => setActiveSection(section.id)}
+  className={`rounded-xl border p-3 text-left transition ${
+    activeSection === section.id
+      ? 'border-pitch-500 bg-pitch-50'
+      : 'border-gray-300 bg-white hover:border-gray-300'
+  }`}
+>
+  <p className={`text-sm font-semibold ${
+    activeSection === section.id ? 'text-pitch-700' : 'text-gray-900'
+  }`}>
+    {section.title}
+  </p>
 
-
-                  ? 'border-pitch-500 bg-pitch-50'
-                  : 'border-gray-200 bg-white hover:border-gray-300'}`}
-              >
-                <p className={`text-sm font-semibold ${activeSection === section.id ? 'text-pitch-700' : 'text-gray-900'}`}>
-                  {section.title}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{section.description}</p>
+  <p className="text-xs text-gray-500 mt-1">
+    {section.description}
+  </p>
               </button>
             ))}
           </div>
