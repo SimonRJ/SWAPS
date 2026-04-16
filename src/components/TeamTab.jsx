@@ -166,6 +166,7 @@ export default function TeamTab({ data, onUpdate }) {
             <LogoImageInput
               label="Team Logo (optional)"
               value={teamForm.logoUrl || ''}
+              previewName={teamForm.name || 'Team'}
               onChange={logoUrl => setTeamForm(f => ({ ...f, logoUrl }))}
             />
             <div>
@@ -185,7 +186,7 @@ export default function TeamTab({ data, onUpdate }) {
                   setTeamEditError('');
                 }} autoComplete="off" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Age Category</label>
                 <select
@@ -249,7 +250,7 @@ export default function TeamTab({ data, onUpdate }) {
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_9rem] gap-3 items-start">
                       <OpponentTeamInput
                         label="Opponent"
                         team={{
@@ -262,7 +263,7 @@ export default function TeamTab({ data, onUpdate }) {
                           opponentLogoUrl: next.logoUrl || '',
                         })}
                       />
-                      <div className="relative w-[130px]">
+                      <div className="relative w-full">
                         <input
                           type="date"
                           className="input-field !py-2 !px-2.5 !text-sm !rounded-lg"
