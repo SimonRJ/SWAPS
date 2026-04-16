@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AGE_CATEGORIES, FIXED_GAME_DURATION, buildSeasonSchedule, generateId, hashPasscode } from '../utils/storage.js';
 import { normalizeShirtNumber } from '../utils/playerUtils.js';
 import OpponentTeamInput from './OpponentTeamInput.jsx';
@@ -46,6 +46,17 @@ function normalizePlayersForm(players) {
   }));
 }
 
+function formatRoundDateLabel(dateValue) {
+  if (!dateValue) return 'date required';
+  const parsed = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function TeamTab({ data, onUpdate }) {
   const { team, players } = data;
   const [newName, setNewName] = useState('');
@@ -74,6 +85,7 @@ export default function TeamTab({ data, onUpdate }) {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [savingLoginDetails, setSavingLoginDetails] = useState(false);
   const [savingPlayers, setSavingPlayers] = useState(false);
+  const dateInputRefs = useRef({});
 
   const fieldOptions = [5, 6, 7, 8, 9, 10];
 
@@ -174,6 +186,16 @@ export default function TeamTab({ data, onUpdate }) {
     setScheduleForm(current => current.map((item, index) => updater(item, index)));
     setScheduleStatus('');
     setScheduleError('');
+  }
+
+  function openRoundDatePicker(round) {
+    const input = dateInputRefs.current[round];
+    if (!input) return;
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+    input.click();
   }
 
   const scheduleCounts = useMemo(() => {
@@ -743,7 +765,9 @@ export default function TeamTab({ data, onUpdate }) {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <p className="text-sm font-semibold text-gray-900">Round {game.round}</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              Round {game.round} - <span className={game.date ? 'text-gray-700' : 'text-amber-700'}>{formatRoundDateLabel(game.date)}</span>
+                            </p>
                             <p className={`text-xs font-medium ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
                               {isComplete ? 'Ready for match day' : 'Needs setup'}
                             </p>
@@ -780,13 +804,24 @@ export default function TeamTab({ data, onUpdate }) {
                               opponentLogoUrl: next.logoUrl || '',
                             })}
                           />
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                          <div className="sm:justify-self-end sm:pt-7">
+                            <button
+                              type="button"
+                              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                              onClick={() => openRoundDatePicker(game.round)}
+                            >
+                              Date
+                            </button>
                             <input
+                              ref={element => {
+                                if (element) dateInputRefs.current[game.round] = element;
+                                else delete dateInputRefs.current[game.round];
+                              }}
                               type="date"
-                              className="input-field !py-2 !px-2.5 !text-sm !rounded-lg"
+                              className="sr-only"
                               value={game.date}
                               onChange={e => updateScheduleRound(game.round, { date: e.target.value })}
+                              aria-label={`Select date for Round ${game.round}`}
                             />
                           </div>
                         </div>
