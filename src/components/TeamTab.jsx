@@ -573,7 +573,7 @@ export default function TeamTab({ data, onUpdate }) {
         <div
           className={`card ${isScrollableEditorSection
             ? 'flex min-h-0 flex-col gap-4 overflow-hidden'
-            : 'space-y-4'} min-h-0'}
+            : 'space-y-4'} min-h-0`}
           style={isScrollableEditorSection ? { maxHeight: SCROLLABLE_EDITOR_MAX_HEIGHT } : undefined}
         >
           <div className="flex items-start justify-between gap-3">
