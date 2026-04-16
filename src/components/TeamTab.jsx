@@ -28,6 +28,9 @@ const EDIT_SECTIONS = [
   },
 ];
 
+const SCROLLABLE_EDITOR_MAX_HEIGHT = 'calc(100dvh - var(--app-header-height) - var(--app-tabbar-height) - 7rem)';
+const SQUAD_PREVIEW_STATS_MIN_WIDTH = 'clamp(11rem, 35vw, 14rem)';
+
 function normalizeTeamForm(team) {
   return {
     ...team,
@@ -540,7 +543,10 @@ export default function TeamTab({ data, onUpdate }) {
                           )}
                         </div>
                       </div>
-                      <div className="grid min-w-[11rem] grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-4 text-right text-gray-500 sm:min-w-[14rem]">
+                      <div
+                        className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] leading-4 text-right text-gray-500"
+                        style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
+                      >
                         <span>{stats.gamesPlayed > 0 ? `Played ${stats.gamesPlayed}` : '\u00A0'}</span>
                         <span>{stats.minutesPlayed > 0 ? `Minutes ${stats.minutesPlayed}` : '\u00A0'}</span>
                         <span>{stats.goals > 0 ? `Goals ${stats.goals}` : '\u00A0'}</span>
@@ -554,9 +560,11 @@ export default function TeamTab({ data, onUpdate }) {
           </div>
         </>
       ) : (
-        <div className={`card ${isScrollableEditorSection
-          ? 'flex max-h-[calc(100dvh-var(--app-header-height)-var(--app-tabbar-height)-7rem)] min-h-0 flex-col gap-4 overflow-hidden'
-          : 'space-y-4'}`}
+        <div
+          className={`card ${isScrollableEditorSection
+            ? 'flex min-h-0 flex-col gap-4 overflow-hidden'
+            : 'space-y-4'}`}
+          style={isScrollableEditorSection ? { maxHeight: SCROLLABLE_EDITOR_MAX_HEIGHT } : undefined}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
