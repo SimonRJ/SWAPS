@@ -19,6 +19,8 @@ function createStore() {
 const store = createStore();
 const ADMIN_DELETE_PASSWORD = process.env.ADMIN_DELETE_PASSWORD;
 const ADMIN_TEAM_PASSWORD_CODE = process.env.ADMIN_TEAM_PASSWORD_CODE || ADMIN_DELETE_PASSWORD;
+const SECURITY_LOG_PREFIX = 'security-logs/';
+const SECURITY_SNAPSHOT_PREFIX = 'security-snapshots/';
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -34,6 +36,133 @@ function normalizeTeamId(value) {
 
 function teamKey(teamId) {
   return `teams/${teamId}`;
+}
+
+function securityLogKey(teamId, logId) {
+  return `${SECURITY_LOG_PREFIX}${teamId}/${logId}`;
+}
+
+function securitySnapshotKey(teamId, logId) {
+  return `${SECURITY_SNAPSHOT_PREFIX}${teamId}/${logId}`;
+}
+
+function buildLogId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function summarizeNames(names) {
+  if (!names.length) return '';
+  if (names.length <= 3) return names.join(', ');
+  return `${names.slice(0, 3).join(', ')} +${names.length - 3} more`;
+}
+
+function areSchedulesEqual(a, b) {
+  return JSON.stringify(a || []) === JSON.stringify(b || []);
+}
+
+function buildImportantEvents(previous, next) {
+  const events = [];
+  const prevTeam = previous?.team || {};
+  const nextTeam = next?.team || {};
+  const prevPlayers = Array.isArray(previous?.players) ? previous.players : [];
+  const nextPlayers = Array.isArray(next?.players) ? next.players : [];
+  const prevGames = Array.isArray(previous?.gameHistory) ? previous.gameHistory : [];
+  const nextGames = Array.isArray(next?.gameHistory) ? next.gameHistory : [];
+  const prevCancelled = Array.isArray(previous?.cancelledGameDetails) ? previous.cancelledGameDetails : [];
+  const nextCancelled = Array.isArray(next?.cancelledGameDetails) ? next.cancelledGameDetails : [];
+
+  if ((prevTeam.name || '') !== (nextTeam.name || '')) {
+    events.push(`Team name changed to ${nextTeam.name || 'Unnamed team'}.`);
+  }
+  if ((prevTeam.logoUrl || '') !== (nextTeam.logoUrl || '')) {
+    events.push('Team logo was updated.');
+  }
+  if ((prevTeam.fieldPlayers || 0) !== (nextTeam.fieldPlayers || 0)) {
+    events.push(`Field player count changed from ${prevTeam.fieldPlayers || 0} to ${nextTeam.fieldPlayers || 0}.`);
+  }
+  if ((prevTeam.gamesPerSeason || 0) !== (nextTeam.gamesPerSeason || 0)) {
+    events.push(`Season game count changed from ${prevTeam.gamesPerSeason || 0} to ${nextTeam.gamesPerSeason || 0}.`);
+  }
+  if ((prevTeam.passcodeHash || '') !== (nextTeam.passcodeHash || '')) {
+    events.push('Team passcode was changed.');
+  }
+  if (!areSchedulesEqual(previous?.seasonSchedule, next?.seasonSchedule)) {
+    events.push('Season schedule was updated.');
+  }
+
+  const prevById = new Map(prevPlayers.map(player => [player.id, player]));
+  const nextById = new Map(nextPlayers.map(player => [player.id, player]));
+  const removedPlayers = prevPlayers.filter(player => !nextById.has(player.id));
+  const addedPlayers = nextPlayers.filter(player => !prevById.has(player.id));
+
+  if (removedPlayers.length > 0) {
+    events.push(`Removed player${removedPlayers.length === 1 ? '' : 's'}: ${summarizeNames(removedPlayers.map(player => player.name || 'Unknown'))}.`);
+  }
+  if (addedPlayers.length > 0) {
+    events.push(`Added player${addedPlayers.length === 1 ? '' : 's'}: ${summarizeNames(addedPlayers.map(player => player.name || 'Unknown'))}.`);
+  }
+
+  let renamedCount = 0;
+  let statusChangedCount = 0;
+  let shirtChangedCount = 0;
+  for (const nextPlayer of nextPlayers) {
+    const prevPlayer = prevById.get(nextPlayer.id);
+    if (!prevPlayer) continue;
+    if ((prevPlayer.name || '') !== (nextPlayer.name || '')) renamedCount += 1;
+    if (Boolean(prevPlayer.isActive) !== Boolean(nextPlayer.isActive)) statusChangedCount += 1;
+    if (String(prevPlayer.shirtNumber || '') !== String(nextPlayer.shirtNumber || '')) shirtChangedCount += 1;
+  }
+  if (renamedCount > 0) {
+    events.push(`Renamed ${renamedCount} player${renamedCount === 1 ? '' : 's'}.`);
+  }
+  if (statusChangedCount > 0) {
+    events.push(`Changed active status for ${statusChangedCount} player${statusChangedCount === 1 ? '' : 's'}.`);
+  }
+  if (shirtChangedCount > 0) {
+    events.push(`Updated shirt number${shirtChangedCount === 1 ? '' : 's'} for ${shirtChangedCount} player${shirtChangedCount === 1 ? '' : 's'}.`);
+  }
+
+  if (nextGames.length > prevGames.length) {
+    const difference = nextGames.length - prevGames.length;
+    events.push(`Added ${difference} completed game${difference === 1 ? '' : 's'} to history.`);
+  }
+  if (nextGames.length < prevGames.length) {
+    const difference = prevGames.length - nextGames.length;
+    events.push(`Deleted ${difference} game${difference === 1 ? '' : 's'} from history.`);
+  }
+  if (nextGames.length === prevGames.length && JSON.stringify(prevGames) !== JSON.stringify(nextGames)) {
+    events.push('Updated game history details.');
+  }
+  if (nextCancelled.length !== prevCancelled.length) {
+    events.push('Updated cancelled game records.');
+  }
+  if (!previous?.currentGame && next?.currentGame) {
+    events.push(`Started live game ${next.currentGame.gameNumber || ''}.`.trim());
+  }
+  if (previous?.currentGame && !next?.currentGame) {
+    events.push('Ended live game session.');
+  }
+
+  return events;
+}
+
+async function listSecurityLogsForTeam(teamId) {
+  const entries = [];
+  let cursor;
+  const prefix = `${SECURITY_LOG_PREFIX}${teamId}/`;
+
+  do {
+    const page = await store.list({ prefix, cursor });
+    for (const blob of page?.blobs || []) {
+      if (!blob?.key) continue;
+      const entry = await store.get(blob.key, { type: 'json' });
+      if (entry) entries.push(entry);
+    }
+    cursor = page?.cursor;
+  } while (cursor);
+
+  entries.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+  return entries.slice(0, 120);
 }
 
 function validateDataShape(data) {
@@ -89,6 +218,16 @@ export default async (req) => {
       return jsonResponse({ error: 'Team code already exists.', code: 'TEAM_EXISTS' }, 409);
     }
     await store.setJSON(key, data);
+    const logId = buildLogId();
+    await store.setJSON(securityLogKey(teamId, logId), {
+      id: logId,
+      teamId,
+      timestamp: new Date().toISOString(),
+      type: 'team_create',
+      summary: 'Team was created.',
+      details: ['Initial team setup was created.'],
+      actor: 'team_admin',
+    });
     return jsonResponse({ data });
   }
 
@@ -107,6 +246,50 @@ export default async (req) => {
     }
     await store.delete(key);
     return jsonResponse({ ok: true });
+  }
+
+  if (action === 'securityLogList' || action === 'securityRestore') {
+    if (!ADMIN_DELETE_PASSWORD) {
+      return jsonResponse({ error: 'Administrator delete password is not configured.' }, 500);
+    }
+    const adminPassword = String(payload?.adminPassword || '');
+    if (adminPassword !== ADMIN_DELETE_PASSWORD) {
+      return jsonResponse({ error: 'Invalid administrator password.', code: 'INVALID_ADMIN_PASSWORD' }, 401);
+    }
+  }
+
+  if (action === 'securityLogList') {
+    const entries = await listSecurityLogsForTeam(teamId);
+    return jsonResponse({ entries });
+  }
+
+  if (action === 'securityRestore') {
+    const logId = String(payload?.logId || '').trim();
+    if (!logId) return jsonResponse({ error: 'Log entry is required.' }, 400);
+    const restoreSource = await store.get(securityLogKey(teamId, logId), { type: 'json' });
+    const snapshotKey = restoreSource?.snapshotKey || securitySnapshotKey(teamId, logId);
+    const snapshot = await store.get(snapshotKey, { type: 'json' });
+    if (!snapshot) {
+      return jsonResponse({ error: 'Snapshot not found for this log entry.', code: 'SNAPSHOT_NOT_FOUND' }, 404);
+    }
+
+    const restoreLogId = buildLogId();
+    const restoreSnapshotKey = securitySnapshotKey(teamId, restoreLogId);
+    await store.setJSON(restoreSnapshotKey, existing);
+    await store.setJSON(key, snapshot);
+    await store.setJSON(securityLogKey(teamId, restoreLogId), {
+      id: restoreLogId,
+      teamId,
+      timestamp: new Date().toISOString(),
+      type: 'restore',
+      summary: 'Restored team data from a security snapshot.',
+      details: [`Restored state captured before log ${logId}.`],
+      restoredLogId: logId,
+      snapshotKey: restoreSnapshotKey,
+      actor: 'system_admin',
+    });
+
+    return jsonResponse({ ok: true, restoredLogId: logId });
   }
 
   const passcodeHash = String(payload?.passcodeHash || '');
@@ -136,6 +319,23 @@ export default async (req) => {
       if (adminCode !== ADMIN_TEAM_PASSWORD_CODE) {
         return jsonResponse({ error: 'Invalid administrator code.', code: 'INVALID_ADMIN_CODE' }, 401);
       }
+    }
+
+    const securityEvents = buildImportantEvents(existing, data);
+    if (securityEvents.length > 0) {
+      const logId = buildLogId();
+      const snapshotKey = securitySnapshotKey(teamId, logId);
+      await store.setJSON(snapshotKey, existing);
+      await store.setJSON(securityLogKey(teamId, logId), {
+        id: logId,
+        teamId,
+        timestamp: new Date().toISOString(),
+        type: 'team_update',
+        summary: securityEvents[0],
+        details: securityEvents.slice(0, 10),
+        snapshotKey,
+        actorHashSuffix: passcodeHash.slice(-6),
+      });
     }
 
     await store.setJSON(key, data);
