@@ -241,12 +241,6 @@ export default function TeamTab({ data, onUpdate }) {
     setScheduleError('');
   }
 
-  function updateAllScheduleRounds(updater) {
-    setScheduleForm(current => current.map((item, index) => updater(item, index)));
-    setScheduleStatus('');
-    setScheduleError('');
-  }
-
   function openRoundDatePicker(round) {
     const input = dateInputRefs.current[round];
     if (!input) return;
@@ -731,96 +725,118 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'schedule' && (
-  <div className="min-h-0 flex-1 overflow-y-auto space-y-4 pr-1">
+            <form onSubmit={saveSchedule} className="min-h-0 flex flex-1 flex-col gap-4 overflow-hidden rounded-xl border border-gray-200 p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border p-3 text-center">
+                  <p className="text-xs text-gray-500">ROUNDS</p>
+                  <p className="text-xl font-bold">{scheduleCounts.total}</p>
+                </div>
+                <div className="rounded-xl border p-3 text-center">
+                  <p className="text-xs text-gray-500">COMPLETE</p>
+                  <p className="text-xl font-bold">{scheduleCounts.complete}</p>
+                </div>
+                <div className="rounded-xl border p-3 text-center">
+                  <p className="text-xs text-gray-500">NEED OPPONENT</p>
+                  <p className="text-xl font-bold">{scheduleCounts.missingOpponent}</p>
+                </div>
+                <div className="rounded-xl border p-3 text-center">
+                  <p className="text-xs text-gray-500">NEED DATE</p>
+                  <p className="text-xl font-bold">{scheduleCounts.missingDate}</p>
+                </div>
+              </div>
 
-    {/* Summary boxes */}
-    <div className="grid grid-cols-2 gap-2">
-      <div className="rounded-xl border p-3 text-center">
-        <p className="text-xs text-gray-500">ROUNDS</p>
-        <p className="text-xl font-bold">{team.gamesPerSeason}</p>
-      </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Games per Season</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={teamForm.gamesPerSeason}
+                    onChange={e => {
+                      setTeamForm(current => ({ ...current, gamesPerSeason: Number(e.target.value) }));
+                      setScheduleStatus('');
+                      setScheduleError('');
+                    }}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Filter</label>
+                  <select
+                    className="input-field"
+                    value={scheduleFilter}
+                    onChange={e => setScheduleFilter(e.target.value)}
+                  >
+                    <option value="all">All rounds</option>
+                    <option value="attention">Needs attention</option>
+                    <option value="complete">Complete only</option>
+                  </select>
+                </div>
+              </div>
 
-      <div className="rounded-xl border p-3 text-center">
-        <p className="text-xs text-gray-500">COMPLETE</p>
-        <p className="text-xl font-bold">{scheduleForm.completed}</p>
-      </div>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                {visibleScheduleRounds.length === 0 ? (
+                  <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                    No rounds match this filter.
+                  </p>
+                ) : (
+                  visibleScheduleRounds.map(round => (
+                    <div key={round.round} className="space-y-3 rounded-xl border border-gray-200 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-900">Round {round.round}</p>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-pitch-700"
+                          onClick={() => openRoundDatePicker(round.round)}
+                        >
+                          Pick date
+                        </button>
+                      </div>
 
-      <div className="rounded-xl border p-3 text-center">
-        <p className="text-xs text-gray-500">NEED OPPONENT</p>
-        <p className="text-xl font-bold">{scheduleForm.needOpponent}</p>
-      </div>
+                      <OpponentTeamInput
+                        team={{
+                          name: round.opponentName || '',
+                          logoUrl: round.opponentLogoUrl || '',
+                          confirmed: round.opponentConfirmed ?? Boolean((round.opponentName || '').trim()),
+                        }}
+                        onTeamChange={(nextTeam) => updateScheduleRound(round.round, {
+                          opponentName: nextTeam?.name || '',
+                          opponentLogoUrl: nextTeam?.logoUrl || '',
+                          opponentConfirmed: Boolean(nextTeam?.confirmed),
+                        })}
+                      />
 
-      <div className="rounded-xl border p-3 text-center">
-        <p className="text-xs text-gray-500">NEED DATE</p>
-        <p className="text-xl font-bold">{scheduleForm.needDate}</p>
-      </div>
-    </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Date</label>
+                        <input
+                          ref={node => {
+                            if (node) {
+                              dateInputRefs.current[round.round] = node;
+                            } else {
+                              delete dateInputRefs.current[round.round];
+                            }
+                          }}
+                          type="date"
+                          value={round.date || ''}
+                          onChange={e => updateScheduleRound(round.round, { date: e.target.value })}
+                          className="input-field"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">{formatRoundDateLabel(round.date)}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
 
-    {/* Games per season */}
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Games per Season
-      </label>
-      <input
-        type="number"
-        value={teamForm.gamesPerSeason}
-        onChange={e =>
-          setTeamForm({ ...teamForm, gamesPerSeason: Number(e.target.value) })
-        }
-        className="w-full rounded-xl border border-gray-300 p-2"
-      />
-    </div>
+              {scheduleError && <p className="text-sm text-red-600">{scheduleError}</p>}
+              {scheduleStatus && <p className="text-sm text-emerald-700">{scheduleStatus}</p>}
 
-    {/* Schedule editor */}
-    <div className="space-y-4">
-      {scheduleForm.rounds.map((round, index) => (
-        <div
-          key={index}
-          className="rounded-xl border p-3 space-y-3 bg-white"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">
-              Round {index + 1}
-            </h3>
-          </div>
-
-          {/* Opponent */}
-          <OpponentTeamInput
-            value={round.opponent}
-            onChange={value =>
-              updateRound(index, { ...round, opponent: value })
-            }
-          />
-
-          {/* Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date
-            </label>
-            <input
-              type="date"
-              value={round.date || ''}
-              onChange={e =>
-                updateRound(index, { ...round, date: e.target.value })
-              }
-              className="w-full rounded-xl border border-gray-300 p-2"
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-
-    {/* Save button */}
-    <button
-      type="button"
-      onClick={saveSchedule}
-      className="btn-primary w-full"
-      disabled={savingSchedule}
-    >
-      {savingSchedule ? 'Saving…' : 'Save Schedule'}
-    </button>
-  </div>
-)}
+              <button type="submit" className="btn-primary w-full" disabled={savingSchedule}>
+                {savingSchedule ? 'Saving Schedule...' : 'Save Schedule'}
+              </button>
+            </form>
+          )}
 
 
           {activeSection === 'login-details' && (
