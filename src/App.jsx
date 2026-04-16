@@ -73,19 +73,30 @@ export default function App() {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginSession));
   }, []);
 
-  const handleUpdate = useCallback(async (newData) => {
-    setData(newData);
+  const handleUpdate = useCallback(async (newData, options = {}) => {
+    const optimistic = options?.optimistic !== false;
+    if (optimistic) {
+      setData(newData);
+    }
     if (!session) return;
     try {
-      const updatedSession = await saveTeamData(session, newData);
+      const updatedSession = await saveTeamData(session, newData, options);
       setSyncError('');
+      if (!optimistic) {
+        setData(newData);
+      }
       if (updatedSession.passcodeHash !== session.passcodeHash) {
         setSession(updatedSession);
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
       }
+      return { ok: true };
     } catch (error) {
       console.error(error);
-      setSyncError('Could not sync latest change to Netlify. Refresh and try again.');
+      setSyncError(error?.message || 'Could not sync latest change to Netlify. Refresh and try again.');
+      return {
+        ok: false,
+        error,
+      };
     }
   }, [session]);
 

@@ -57,12 +57,14 @@ export async function loginWithSession(session) {
   return result.data;
 }
 
-export async function saveTeamData(session, data) {
+export async function saveTeamData(session, data, options = {}) {
+  const adminCode = String(options?.adminCode || '').trim();
   const result = await callTeamFunction({
     action: 'save',
     teamId: session.teamId,
     passcodeHash: session.passcodeHash,
     data,
+    ...(adminCode ? { adminCode } : {}),
   });
   return {
     ...session,

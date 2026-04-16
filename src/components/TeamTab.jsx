@@ -24,6 +24,8 @@ export default function TeamTab({ data, onUpdate }) {
   const [teamForm, setTeamForm] = useState(normalizeTeamForm(team));
   const [scheduleForm, setScheduleForm] = useState(() => buildSeasonSchedule(team.gamesPerSeason, data.seasonSchedule));
   const [newPasscode, setNewPasscode] = useState('');
+  const [adminCode, setAdminCode] = useState('');
+  const [teamEditError, setTeamEditError] = useState('');
   const [showAddPlayer, setShowAddPlayer] = useState(false);
 
   function addPlayer(e) {
@@ -73,22 +75,47 @@ export default function TeamTab({ data, onUpdate }) {
 
   async function saveTeam(e) {
     e.preventDefault();
+    setTeamEditError('');
+    const wantsPasscodeChange = Boolean(newPasscode.trim());
+    if (wantsPasscodeChange && !adminCode.trim()) {
+      setTeamEditError('Administrator code is required to change the team passcode.');
+      return;
+    }
+
     let updatedTeam = { ...teamForm };
     const hasSelectedGoalkeeper = players.some(p => p.id === updatedTeam.fixedGKPlayerId);
     if (!hasSelectedGoalkeeper) {
       updatedTeam.fixedGKPlayerId = '';
     }
-    if (newPasscode.trim()) {
+    if (wantsPasscodeChange) {
       updatedTeam.passcodeHash = await hashPasscode(newPasscode.trim());
     }
     // Remove any legacy clear-text passcode field
     delete updatedTeam.passcode;
-    onUpdate({
+    const updateResult = await onUpdate({
       ...data,
       team: updatedTeam,
       seasonSchedule: buildSeasonSchedule(updatedTeam.gamesPerSeason, scheduleForm),
-    });
+    }, wantsPasscodeChange
+      ? { adminCode: adminCode.trim(), optimistic: false }
+      : undefined);
+    if (updateResult?.ok === false) {
+      const errorCode = updateResult?.error?.code;
+      if (errorCode === 'ADMIN_CODE_REQUIRED') {
+        setTeamEditError('Administrator code is required to change the team passcode.');
+      } else if (errorCode === 'INVALID_ADMIN_CODE') {
+        setTeamEditError('Administrator code is incorrect.');
+      } else if (errorCode === 'ADMIN_CODE_NOT_CONFIGURED') {
+        setTeamEditError('Administrator code has not been configured.');
+      } else {
+        setTeamEditError(updateResult?.error?.message || 'Unable to save team settings.');
+      }
+      return;
+    }
+
     setNewPasscode('');
+    setAdminCode('');
+    setTeamEditError('');
     setEditingTeam(false);
   }
 
@@ -113,6 +140,8 @@ export default function TeamTab({ data, onUpdate }) {
                 setTeamForm(nextTeamForm);
                 setScheduleForm(buildSeasonSchedule(nextTeamForm.gamesPerSeason, data.seasonSchedule));
                 setNewPasscode('');
+                setAdminCode('');
+                setTeamEditError('');
                 setEditingTeam(true);
               }}
               className="text-pitch-600 text-sm font-semibold">
@@ -140,9 +169,21 @@ export default function TeamTab({ data, onUpdate }) {
               onChange={logoUrl => setTeamForm(f => ({ ...f, logoUrl }))}
             />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">New Passcode (leave blank to keep current)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Change Team Passcode (Admin only)</label>
               <input type="password" className="input-field" value={newPasscode} placeholder="Enter new passcode"
-                onChange={e => setNewPasscode(e.target.value)} autoComplete="new-password" />
+                onChange={e => {
+                  setNewPasscode(e.target.value);
+                  setTeamEditError('');
+                }} autoComplete="new-password" />
+              <p className="mt-1 text-xs text-gray-500">Leave blank to keep current passcode.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Administrator Code</label>
+              <input type="password" className="input-field" value={adminCode} placeholder="Required when changing passcode"
+                onChange={e => {
+                  setAdminCode(e.target.value);
+                  setTeamEditError('');
+                }} autoComplete="off" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -277,9 +318,23 @@ export default function TeamTab({ data, onUpdate }) {
                 )}
               </div>
             )}
+            {teamEditError && (
+              <p className="text-sm text-red-600">{teamEditError}</p>
+            )}
             <div className="flex gap-2 pt-1">
               <button type="submit" className="btn-primary flex-1">Save</button>
-              <button type="button" className="btn-secondary flex-1" onClick={() => setEditingTeam(false)}>Cancel</button>
+              <button
+                type="button"
+                className="btn-secondary flex-1"
+                onClick={() => {
+                  setTeamEditError('');
+                  setNewPasscode('');
+                  setAdminCode('');
+                  setEditingTeam(false);
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </form>
         ) : (
