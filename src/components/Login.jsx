@@ -175,24 +175,17 @@ export default function Login({ onLogin }) {
   }
 
   return (
-    <div className="min-h-[100svh] bg-[radial-gradient(circle_at_top,_#1b5e20_0%,_#12281f_48%,_#0b1016_100%)] flex items-center justify-center px-4 py-6 sm:py-10">
-      <div className="w-full max-w-6xl grid gap-4 sm:gap-6 lg:grid-cols-[1.1fr_1fr] items-center">
-        <div className="rounded-3xl border border-white/20 bg-white/10 backdrop-blur-md p-4 sm:p-6 text-white shadow-2xl">
-          <img
-            src={wizardHero}
-            alt="AI-generated 3D wizard with a soccer ball"
-            className="w-full rounded-2xl border border-white/20 shadow-2xl"
-          />
-          <p className="mt-4 text-xs uppercase tracking-[0.2em] text-pitch-100 font-semibold">
-            AI 3D Hero Artwork
-          </p>
-          <h1 className="mt-1 text-3xl sm:text-4xl font-black leading-tight">
-            Welcome to SWAPS
-          </h1>
-          <p className="mt-2 text-sm sm:text-base text-pitch-50/90">
-            Build your team, manage substitutions, and stay game-ready from kickoff to final whistle.
-          </p>
-        </div>
+    <div className="relative min-h-[100svh] overflow-y-auto bg-[#0b1016]">
+      <div className="absolute inset-0">
+        <img
+          src={wizardHero}
+          alt="AI-generated 3D wizard with a soccer ball"
+          className="h-full w-full object-contain object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/35 to-black/55" />
+      </div>
+
+      <div className="relative z-10 min-h-[100svh] flex items-end justify-center px-4 pt-[36svh] pb-5 sm:pt-[40svh] sm:pb-8">
         <div className="w-full max-w-xl mx-auto bg-white/95 backdrop-blur rounded-3xl shadow-2xl p-5 sm:p-8 border border-white/40">
           <div className="mb-5 flex items-center justify-center">
             <TeamAvatar
