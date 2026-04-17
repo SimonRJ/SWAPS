@@ -134,6 +134,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [goalForm, setGoalForm] = useState({ playerId: '', minute: '' });
   const [saveForm, setSaveForm] = useState({ playerId: '', saves: 1 });
+  const [saveFormError, setSaveFormError] = useState('');
   const [deletePromptIndex, setDeletePromptIndex] = useState(null);
   const [deleteAdminPassword, setDeleteAdminPassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
@@ -415,8 +416,10 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setEditingGameIndex(originalIndex);
     setShowGoalForm(false);
     setShowSaveForm(false);
-    setGoalForm({ playerId: players[0]?.id ?? '', minute: '' });
-    setSaveForm({ playerId: players[0]?.id ?? '', saves: 1 });
+    const defaultPlayerId = players.length > 0 ? players[0].id : null;
+    setGoalForm({ playerId: defaultPlayerId, minute: '' });
+    setSaveForm({ playerId: defaultPlayerId, saves: 1 });
+    setSaveFormError('');
     const matchedClub = findOpponentClubByName(game.opponentName || '');
     setEditDraft({
       ...game,
@@ -433,6 +436,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setEditDraft(null);
     setShowGoalForm(false);
     setShowSaveForm(false);
+    setSaveFormError('');
   }
 
   function openDeletePrompt(originalIndex) {
@@ -749,7 +753,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                         <select
                           className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                          value={goalForm.playerId}
+                          value={goalForm.playerId || ''}
                           onChange={e => setGoalForm(form => ({ ...form, playerId: e.target.value }))}
                         >
                           {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -838,6 +842,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                       onClick={() => {
                         if (keeperOptions.length === 0) return;
                         setSaveForm({ playerId: keeperOptions[0].id, saves: 1 });
+                        setSaveFormError('');
                         setShowSaveForm(true);
                       }}
                       disabled={keeperOptions.length === 0}
@@ -855,8 +860,11 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
                         <select
                           className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                          value={saveForm.playerId}
-                          onChange={e => setSaveForm(form => ({ ...form, playerId: e.target.value }))}
+                          value={saveForm.playerId || ''}
+                          onChange={e => {
+                            setSaveForm(form => ({ ...form, playerId: e.target.value }));
+                            if (saveFormError) setSaveFormError('');
+                          }}
                         >
                           {keeperOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
@@ -865,16 +873,22 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                           min={1}
                           className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                           value={saveForm.saves}
-                          onChange={e => setSaveForm(form => ({ ...form, saves: e.target.value }))}
+                          onChange={e => {
+                            setSaveForm(form => ({ ...form, saves: e.target.value }));
+                            if (saveFormError) setSaveFormError('');
+                          }}
                         />
                       </div>
+                      {saveFormError && (
+                        <p className="text-xs text-red-600 dark:text-red-300">{saveFormError}</p>
+                      )}
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
                             if (!saveForm.playerId) return;
                             const toAdd = sanitizeScore(saveForm.saves);
                             if (toAdd < 1) {
-                              window.alert('Enter a save count of at least 1.');
+                              setSaveFormError('Enter a save count of at least 1.');
                               return;
                             }
                             setEditDraft(d => {
