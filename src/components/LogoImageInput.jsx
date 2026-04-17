@@ -8,6 +8,8 @@ export default function LogoImageInput({
   label = 'Logo',
   helperText = 'Upload from photos, or tap and paste an image.',
   previewName = 'Team',
+  hidePreview = false,
+  compact = false,
 }) {
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
@@ -15,6 +17,7 @@ export default function LogoImageInput({
   async function applyFile(file) {
     if (!file) return;
     setError('');
+
     try {
       const dataUrl = await readImageFileAsDataUrl(file);
       onChange(dataUrl);
@@ -24,9 +27,14 @@ export default function LogoImageInput({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
+    <div className={compact ? 'space-y-2' : 'space-y-2'}>
+      <div className="flex items-center justify-between gap-3">
+        {label ? (
+          <label className="block text-sm font-medium text-gray-700">{label}</label>
+        ) : (
+          <span />
+        )}
+
         {value && (
           <button
             type="button"
@@ -40,51 +48,30 @@ export default function LogoImageInput({
           </button>
         )}
       </div>
+
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={e => {
+        onChange={(e) => {
           const [file] = Array.from(e.target.files || []);
           applyFile(file);
           e.target.value = '';
         }}
       />
+
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="btn-secondary w-full"
+        className={compact ? 'btn-secondary w-full !py-2 text-sm' : 'btn-secondary w-full'}
       >
-        Upload Logo Image
+        {value ? 'Change Logo Image' : 'Upload Logo Image'}
       </button>
-      {value && (
+
+      {!hidePreview && value && (
         <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Current Logo</p>
-          <div className="flex items-center gap-3">
-            <TeamAvatar
-              src={value}
-              name={previewName}
-              alt={`${previewName} logo`}
-              sizeClass="w-12 h-12"
-            />
-            <p className="text-xs text-gray-600">Uploaded image will be used across the app.</p>
-          </div>
-        </div>
-      )}
-      <div
-        tabIndex={0}
-        onPaste={e => {
-          const file = getClipboardImageFile(e.clipboardData);
-          if (!file) return;
-          e.preventDefault();
-          applyFile(file);
-        }}
-        className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-pitch-300"
-      >
-        {helperText}
-      </div>
-      {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
-  );
-}
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            Current Logo
+          </p>
+          <div class
