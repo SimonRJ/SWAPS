@@ -177,6 +177,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const locationText = (round.location || '').trim() || 'Location not set';
   const formattedDate = round.date ? formatRoundDateLabel(round.date) : '';
   const dateLabel = formattedDate || 'Select date';
+  const dateHelpId = `round-${round.round}-date-help`;
   const [isDateEditing, setIsDateEditing] = useState(false);
   const dateInputRef = useRef(null);
   const shouldOpenDatePickerRef = useRef(false);
@@ -322,6 +323,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                     shouldOpenDatePickerRef.current = true;
                     setIsDateEditing(true);
                   }}
+                  aria-describedby={dateHelpId}
                   className={`input-field text-left ${
                     round.date
                       ? 'text-gray-900 dark:text-slate-100'
@@ -329,6 +331,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                   }`}
                 >
                   <span>{dateLabel}</span>
+                  <span id={dateHelpId} className="sr-only">Opens date picker for match date.</span>
                 </button>
               )}
             </div>
