@@ -12,6 +12,7 @@ export default function OpponentTeamInput({
   logoInline = false,
 }) {
   const matchedClub = findOpponentClubByName(team?.name || '');
+  const hasCustomName = Boolean((team?.name || '').trim()) && !matchedClub;
   const selectedClubId = matchedClub?.id || '__custom__';
   const displayLogoUrl = team?.logoUrl || matchedClub?.logoUrl || '';
   const displayName = team?.name || matchedClub?.name || 'Opponent';
@@ -19,7 +20,7 @@ export default function OpponentTeamInput({
   function handleClubChange(clubId) {
     if (clubId === '__custom__') {
       onTeamChange({
-        name: team?.name || '',
+        name: matchedClub ? '' : (team?.name || ''),
         logoUrl: team?.logoUrl || '',
         confirmed: false,
       });
@@ -36,6 +37,14 @@ export default function OpponentTeamInput({
     });
   }
 
+  function handleCustomNameChange(name) {
+    onTeamChange({
+      name,
+      logoUrl: team?.logoUrl || '',
+      confirmed: Boolean(name.trim()),
+    });
+  }
+
   function handleLogoChange(logoUrl) {
     onTeamChange({
       name: team?.name || '',
@@ -44,44 +53,49 @@ export default function OpponentTeamInput({
     });
   }
 
-  if (compact) {
-    return (
-      <div className="space-y-2">
-        {label ? (
-          <label className="block text-sm font-medium text-gray-700">{label}</label>
-        ) : null}
+  return (
+    <div className="space-y-2">
+      {label ? (
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+      ) : null}
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-3">
-          <div className="flex items-center gap-3">
-            {logoInline && (
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
-                <TeamAvatar
-                  src={displayLogoUrl}
-                  alt={`${displayName} logo`}
-                  name={displayName}
-                  sizeClass="w-11 h-11"
-                />
-              </div>
+      <div className={`rounded-2xl border border-gray-200 bg-white ${compact ? 'p-3' : 'p-4'}`}>
+        <div className="flex items-start gap-3">
+          {logoInline && (
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              <TeamAvatar
+                src={displayLogoUrl}
+                alt={`${displayName} logo`}
+                name={displayName}
+                sizeClass="w-11 h-11"
+              />
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1 space-y-3">
+            <select
+              className="input-field"
+              value={selectedClubId}
+              onChange={(e) => handleClubChange(e.target.value)}
+            >
+              <option value="__custom__">Custom opponent</option>
+              {OPPONENT_CLUBS.map((club) => (
+                <option key={club.id} value={club.id}>
+                  {club.name}
+                </option>
+              ))}
+            </select>
+
+            {selectedClubId === '__custom__' && (
+              <input
+                className="input-field"
+                placeholder="Enter opponent team name"
+                value={hasCustomName ? team?.name || '' : ''}
+                onChange={(e) => handleCustomNameChange(e.target.value)}
+              />
             )}
 
-            <div className="min-w-0 flex-1">
-              <select
-                className="input-field"
-                value={selectedClubId}
-                onChange={(e) => handleClubChange(e.target.value)}
-              >
-                <option value="__custom__">Select opponent club</option>
-                {OPPONENT_CLUBS.map((club) => (
-                  <option key={club.id} value={club.id}>
-                    {club.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {showLogoInput && (
-            <div className="mt-3">
+            {showLogoInput && (
               <LogoImageInput
                 label="Club Logo"
                 helperText=""
@@ -91,33 +105,12 @@ export default function OpponentTeamInput({
                 compact
                 onChange={handleLogoChange}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="space-y-2">
-      {label ? (
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
-      ) : null}
-
-      <select
-        className="input-field"
-        value={selectedClubId}
-        onChange={(e) => handleClubChange(e.target.value)}
-      >
-        <option value="__custom__">Select opponent club</option>
-        {OPPONENT_CLUBS.map((club) => (
-          <option key={club.id} value={club.id}>
-            {club.name}
-          </option>
-        ))}
-      </select>
-
-      {!hidePreview && matchedClub && (
+      {!hidePreview && matchedClub && !compact && (
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
           <TeamAvatar
             src={displayLogoUrl}
@@ -130,18 +123,6 @@ export default function OpponentTeamInput({
             <span className="font-semibold text-gray-800">{matchedClub.name}</span>
           </p>
         </div>
-      )}
-
-      {showLogoInput && (
-        <LogoImageInput
-          label="Opponent Logo"
-          helperText="Upload an image for this opponent club logo."
-          value={team?.logoUrl || ''}
-          previewName={displayName}
-          hidePreview={hidePreview}
-          compact={compact}
-          onChange={handleLogoChange}
-        />
       )}
     </div>
   );
