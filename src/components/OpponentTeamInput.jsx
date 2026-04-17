@@ -56,13 +56,13 @@ export default function OpponentTeamInput({
   return (
     <div className="space-y-2">
       {label ? (
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">{label}</label>
       ) : null}
 
-      <div className={`rounded-2xl border border-gray-200 bg-white ${compact ? 'p-3' : 'p-4'}`}>
+      <div className={`rounded-2xl border border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900 ${compact ? 'p-3' : 'p-4'}`}>
         <div className="flex items-start gap-3">
           {logoInline && (
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
               <TeamAvatar
                 src={displayLogoUrl}
                 alt={`${displayName} logo`}
@@ -111,16 +111,16 @@ export default function OpponentTeamInput({
       </div>
 
       {!hidePreview && matchedClub && !compact && (
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
           <TeamAvatar
             src={displayLogoUrl}
             alt={`${matchedClub.name} logo`}
             name={matchedClub.name}
             sizeClass="w-8 h-8"
           />
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-600 dark:text-slate-300">
             Selected opponent:{' '}
-            <span className="font-semibold text-gray-800">{matchedClub.name}</span>
+            <span className="font-semibold text-gray-800 dark:text-slate-100">{matchedClub.name}</span>
           </p>
         </div>
       )}

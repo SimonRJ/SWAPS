@@ -156,11 +156,11 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
   }
 
   function posTagColor(pos) {
-    if (pos === 'GK') return 'bg-yellow-100 text-yellow-800';
-    if (pos === 'DEF') return 'bg-blue-100 text-blue-800';
-    if (pos === 'MID') return 'bg-purple-100 text-purple-800';
-    if (pos === 'ATK') return 'bg-red-100 text-red-800';
-    return 'bg-gray-100 text-gray-600';
+    if (pos === 'GK') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200';
+    if (pos === 'DEF') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
+    if (pos === 'MID') return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200';
+    if (pos === 'ATK') return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
+    return 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300';
   }
 
   // --- Step: Is Anyone Away Today? ---
@@ -170,9 +170,9 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="card text-center py-10 space-y-6 w-full max-w-md">
             <div className="text-6xl">📋</div>
-            <h2 className="text-2xl font-black text-gray-900">Game {nextRound}</h2>
-            <p className="text-lg font-semibold text-gray-700">Is anyone away today?</p>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-2xl font-black text-gray-900 dark:text-slate-100">Game {nextRound}</h2>
+            <p className="text-lg font-semibold text-gray-700 dark:text-slate-200">Is anyone away today?</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               {activePlayers.length} active player{activePlayers.length !== 1 ? 's' : ''} · Formation 3-3-2
             </p>
             <div className="flex gap-3 pt-2">
@@ -185,7 +185,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
             </div>
           </div>
         </div>
-        <div className="shrink-0 px-4 py-3 border-t border-gray-200 bg-white">
+        <div className="shrink-0 px-4 py-3 border-t border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
           <button onClick={onCancel} className="btn-secondary w-full">Cancel</button>
         </div>
       </div>
@@ -197,28 +197,28 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
     return (
       <div className="max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto h-[calc(100dvh-var(--app-header-height)-var(--app-tabbar-height))] flex flex-col overflow-hidden">
         <div className="px-4 pt-4 space-y-2 shrink-0">
-          <h2 className="text-xl font-bold text-gray-900">Select Away Players</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Select Away Players</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             Tap players who are away today ({awayPlayerIds.size} selected as away)
           </p>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-2 pt-2">
           <div className="card">
-            <ul className="divide-y divide-gray-100 md:grid md:grid-cols-2 md:gap-x-4 md:divide-y-0">
+            <ul className="divide-y divide-gray-100 dark:divide-slate-800 md:grid md:grid-cols-2 md:gap-x-4 md:divide-y-0">
               {activePlayers.map(p => (
                 <li key={p.id}
                   onClick={() => toggleAwayPlayer(p.id)}
                   className="flex items-center gap-3 py-3 cursor-pointer">
-                  <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${awayPlayerIds.has(p.id) ? 'bg-red-500 border-red-500' : 'border-gray-300'}`}>
+                  <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-colors ${awayPlayerIds.has(p.id) ? 'bg-red-500 border-red-500' : 'border-gray-300 dark:border-slate-600'}`}>
                     {awayPlayerIds.has(p.id) && <span className="text-white text-xs font-bold">✗</span>}
                   </div>
                   <PlayerAvatar
                     player={p}
                     sizeClass="w-8 h-8"
-                    className={awayPlayerIds.has(p.id) ? 'bg-red-100 text-red-400 opacity-50' : 'bg-pitch-100 text-pitch-700'}
+                    className={awayPlayerIds.has(p.id) ? 'bg-red-100 text-red-400 opacity-50 dark:bg-red-900/40 dark:text-red-300' : 'bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200'}
                     textClassName="text-sm"
                   />
-                  <span className={`font-medium flex-1 ${awayPlayerIds.has(p.id) ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                  <span className={`font-medium flex-1 ${awayPlayerIds.has(p.id) ? 'text-gray-400 dark:text-slate-500 line-through' : 'text-gray-900 dark:text-slate-100'}`}>
                     {p.name}
                   </span>
                   {awayPlayerIds.has(p.id) && (
@@ -228,18 +228,18 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
               ))}
             </ul>
             {awayPlayerIds.size > 0 && (
-              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <p className="text-xs text-amber-700 font-semibold mb-1">
+              <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 dark:bg-amber-900/40 dark:border-amber-800">
+                <p className="text-xs text-amber-700 font-semibold mb-1 dark:text-amber-300">
                   ⚠️ {awayPlayerIds.size} player{awayPlayerIds.size !== 1 ? 's' : ''} marked as away
                 </p>
-                <p className="text-xs text-amber-600">
+                <p className="text-xs text-amber-600 dark:text-amber-200">
                   Absent players will have their scheduled minutes recorded as Sick/Injured to keep season tracking fair.
                 </p>
               </div>
             )}
           </div>
         </div>
-        <div className="shrink-0 px-4 py-3 border-t border-gray-200 bg-white flex gap-3">
+        <div className="shrink-0 px-4 py-3 border-t border-gray-200 bg-white flex gap-3 dark:border-slate-800 dark:bg-slate-900">
           <button onClick={() => { clearPendingSetup(); setStep('away_prompt'); }} className="btn-secondary flex-1">
             ← Back
           </button>
@@ -291,12 +291,12 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
       <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
         <div className="card space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Round {nextRound} Team Sheet</h2>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Round {nextRound} Team Sheet</h2>
             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${roundInfo?.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
               {roundInfo?.homeAway === 'AWAY' ? 'Away' : 'Home'}
             </span>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             Formation: {FORCED_FORMATION_STR} · {team.gameDuration} min game
           </p>
           <OpponentTeamInput
@@ -305,8 +305,8 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
             showLogoInput={false}
           />
           {absentPlayers.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-              <p className="text-xs text-amber-700 font-semibold">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 dark:bg-amber-900/40 dark:border-amber-800">
+              <p className="text-xs text-amber-700 font-semibold dark:text-amber-300">
                 ⚠️ Away players: {absentPlayers.map(player => player.name).join(', ')}
               </p>
             </div>
@@ -315,7 +315,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
 
         {!gamePlan ? (
           <div className="card text-center py-6 space-y-3">
-            <p className="text-gray-400 text-sm">Not enough active players to generate a team sheet. Need at least {minFieldCount}.</p>
+            <p className="text-gray-400 text-sm dark:text-slate-500">Not enough active players to generate a team sheet. Need at least {minFieldCount}.</p>
             <button
               onClick={() => {
                 clearPendingSetup();
@@ -343,15 +343,15 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
                   🟢 Start Game
                 </button>
               </div>
-              <h3 className="font-bold text-gray-900 mb-3">Starting Lineup</h3>
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Starting Lineup</h3>
               <div className="space-y-2">
                 {gamePlan[0].onField.map(({ playerId, position }) => {
                   const player = getPlayer(playerId);
                   return (
                     <div key={playerId} className="flex items-center gap-3 py-1">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${posTagColor(position)}`}>{posLabel(position)}</span>
-                      <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-pitch-100 text-pitch-700" textClassName="text-xs" />
-                      <span className="text-sm font-semibold text-gray-900">{player?.name || '?'}</span>
+                      <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200" textClassName="text-xs" />
+                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                     </div>
                   );
                 })}
@@ -360,15 +360,15 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
 
             {gamePlan[0].onBench.length > 0 && (
               <div className="card">
-                <h3 className="font-bold text-gray-900 mb-3">Starting on Bench</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Starting on Bench</h3>
                 <div className="space-y-2">
                   {gamePlan[0].onBench.map(id => {
                     const player = getPlayer(id);
                     return (
                       <div key={id} className="flex items-center gap-3 py-1">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">BENCH</span>
-                        <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-gray-100 text-gray-600" textClassName="text-xs" />
-                        <span className="text-sm font-semibold text-gray-900">{player?.name || '?'}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300">BENCH</span>
+                        <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300" textClassName="text-xs" />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                       </div>
                     );
                   })}
@@ -378,13 +378,13 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
 
             {subChanges.length > 0 && (
               <div className="card">
-                <h3 className="font-bold text-gray-900 mb-3">Substitution Plan</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Substitution Plan</h3>
                 <div className="space-y-3">
                   {subChanges.map(({ minute, subs }) => (
-                    <div key={minute} className="rounded-xl border border-gray-200 p-3">
+                    <div key={minute} className="rounded-xl border border-gray-200 p-3 dark:border-slate-800">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="bg-pitch-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{minute}&apos;</span>
-                        <span className="text-xs text-gray-500 font-medium">{subs.length} sub{subs.length > 1 ? 's' : ''}</span>
+                        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">{subs.length} sub{subs.length > 1 ? 's' : ''}</span>
                       </div>
                       <div className="space-y-1.5">
                         {subs.map((sub, idx) => {
@@ -393,10 +393,10 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
                           return (
                             <div key={idx} className="flex items-center gap-2 text-sm">
                               <span className="text-red-500 font-bold text-xs">↓</span>
-                              <span className="text-gray-700">{offPlayer?.name || '?'}</span>
-                              <span className="text-gray-400 text-xs">→</span>
+                              <span className="text-gray-700 dark:text-slate-200">{offPlayer?.name || '?'}</span>
+                              <span className="text-gray-400 dark:text-slate-500 text-xs">→</span>
                               <span className="text-emerald-600 font-bold text-xs">↑</span>
-                              <span className="text-gray-700">{onPlayer?.name || '?'}</span>
+                              <span className="text-gray-700 dark:text-slate-200">{onPlayer?.name || '?'}</span>
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${posTagColor(sub.position)}`}>{posLabel(sub.position)}</span>
                             </div>
                           );
@@ -409,7 +409,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
             )}
 
             <div className="card">
-              <h3 className="font-bold text-gray-900 mb-3">Estimated Minutes</h3>
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Estimated Minutes</h3>
               <div className="space-y-2">
                 {selectedPlayers
                   .slice()
@@ -419,10 +419,10 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
                     if (!mins) return null;
                     const posEntries = Object.entries(mins.positions || {}).filter(([, value]) => value > 0);
                     return (
-                      <div key={player.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                      <div key={player.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0 dark:border-slate-800">
                         <div className="flex items-center gap-2">
-                          <PlayerAvatar player={player} sizeClass="w-6 h-6" className="bg-pitch-100 text-pitch-700" textClassName="text-[10px]" />
-                          <span className="text-sm font-semibold text-gray-900">{player.name}</span>
+                          <PlayerAvatar player={player} sizeClass="w-6 h-6" className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200" textClassName="text-[10px]" />
+                          <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{player.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex gap-1">
@@ -433,9 +433,9 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
                             ))}
                           </div>
                           <div className="text-right">
-                            <span className="text-sm font-bold text-pitch-700">{mins.field}&#39;</span>
+                            <span className="text-sm font-bold text-pitch-700 dark:text-emerald-200">{mins.field}&#39;</span>
                             {mins.bench > 0 && (
-                              <span className="text-xs text-gray-400 ml-1">({mins.bench}&#39; bench)</span>
+                              <span className="text-xs text-gray-400 dark:text-slate-500 ml-1">({mins.bench}&#39; bench)</span>
                             )}
                           </div>
                         </div>

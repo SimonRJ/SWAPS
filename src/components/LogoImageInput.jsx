@@ -30,7 +30,7 @@ export default function LogoImageInput({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         {label ? (
-          <label className="block text-sm font-medium text-gray-700">{label}</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-slate-200">{label}</label>
         ) : (
           <span />
         )}
@@ -42,7 +42,7 @@ export default function LogoImageInput({
               setError('');
               onChange('');
             }}
-            className="text-xs font-semibold text-red-600"
+            className="text-xs font-semibold text-red-600 dark:text-red-300"
           >
             Remove
           </button>
@@ -70,8 +70,8 @@ export default function LogoImageInput({
       </button>
 
       {!hidePreview && value && (
-        <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+        <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 dark:border-slate-800 dark:bg-slate-900">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
             Current Logo
           </p>
           <div className="flex items-center gap-3">
@@ -81,7 +81,7 @@ export default function LogoImageInput({
               alt={`${previewName} logo`}
               sizeClass="w-12 h-12"
             />
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-600 dark:text-slate-300">
               Uploaded image will be used across the app.
             </p>
           </div>
@@ -97,7 +97,7 @@ export default function LogoImageInput({
             e.preventDefault();
             applyFile(file);
           }}
-          className={`rounded-xl border border-dashed border-gray-300 bg-gray-50 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-pitch-300 ${
+          className={`rounded-xl border border-dashed border-gray-300 bg-gray-50 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-pitch-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 ${
             compact ? 'px-3 py-2' : 'px-3 py-2'
           }`}
         >
@@ -105,7 +105,7 @@ export default function LogoImageInput({
         </div>
       ) : null}
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500 dark:text-red-300">{error}</p>}
     </div>
   );
 }

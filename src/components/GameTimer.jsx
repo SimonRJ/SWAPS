@@ -570,8 +570,8 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
     return (
       <div className="h-full overflow-y-auto pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
         <div className="card text-center space-y-3">
-          <h2 className="text-2xl font-black text-gray-900">Match Summary</h2>
-          <div className="text-sm text-gray-500">Game {currentGame.gameNumber}</div>
+          <h2 className="text-2xl font-black text-gray-900 dark:text-slate-100">Match Summary</h2>
+          <div className="text-sm text-gray-500 dark:text-slate-400">Game {currentGame.gameNumber}</div>
 
           {/* Final Score */}
           <div className="bg-pitch-700 rounded-2xl p-6 text-white">
@@ -613,13 +613,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
         {/* Goals */}
         {goals.length > 0 && (
           <div className="card">
-            <h3 className="font-bold text-gray-900 mb-3">⚽ Goals</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">⚽ Goals</h3>
             <ul className="space-y-2">
               {goals.map((g, i) => (
                 <li key={i} className="flex items-center gap-2 text-sm">
                   <span className="text-lg">⚽</span>
-                  <span className="font-medium text-gray-900">{g.playerName}</span>
-                  <span className="text-gray-400">{g.minute}&#39;</span>
+                  <span className="font-medium text-gray-900 dark:text-slate-100">{g.playerName}</span>
+                  <span className="text-gray-400 dark:text-slate-500">{g.minute}&#39;</span>
                 </li>
               ))}
             </ul>
@@ -628,14 +628,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
 
         {totalSaves > 0 && (
           <div className="card">
-            <h3 className="font-bold text-gray-900 mb-3">🧤 Saves</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">🧤 Saves</h3>
             <ul className="space-y-2">
               {Object.entries(gkSaves)
                 .filter(([, count]) => Number(count) > 0)
                 .map(([playerId, count]) => (
                   <li key={playerId} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-900">{getPlayer(playerId)?.name || '?'}</span>
-                    <span className="text-gray-600 font-semibold">🧤 {count}</span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">{getPlayer(playerId)?.name || '?'}</span>
+                    <span className="text-gray-600 dark:text-slate-300 font-semibold">🧤 {count}</span>
                   </li>
                 ))}
             </ul>
@@ -644,7 +644,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
 
         {/* Player Time Breakdown */}
         <div className="card">
-          <h3 className="font-bold text-gray-900 mb-3">⏱ Player Time</h3>
+          <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">⏱ Player Time</h3>
           <ul className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
             {availablePlayers.map(id => {
               const player = getPlayer(id);
@@ -656,7 +656,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                 <li key={id}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">{player?.name || '?'}</span>
+                      <span className="font-semibold text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                       {playerGoals > 0 && (
                         <span className="text-sm">
                           {Array.from({ length: playerGoals }, () => '⚽').join('')}
@@ -666,7 +666,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                         <span className="text-sm font-semibold text-emerald-700">🧤 {playerSaves}</span>
                       )}
                     </div>
-                    <span className="text-sm text-gray-500 font-medium">{totalMin} min</span>
+                    <span className="text-sm text-gray-500 dark:text-slate-400 font-medium">{totalMin} min</span>
                   </div>
                   <div className="flex gap-1 h-4">
                     {['GK', 'DEF', 'MID', 'ATK'].map(pos => {
@@ -1135,8 +1135,8 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
           <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-4">
               <div className="text-4xl mb-1">⚽</div>
-              <h3 className="text-xl font-black text-gray-900">Who scored?</h3>
-              <p className="text-sm text-gray-500">{Math.floor(elapsedSeconds / 60)}&#39; minute</p>
+              <h3 className="text-xl font-black text-gray-900 dark:text-slate-100">Who scored?</h3>
+              <p className="text-sm text-gray-500 dark:text-slate-400">{Math.floor(elapsedSeconds / 60)}&#39; minute</p>
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {fieldAssignments.map(a => {
@@ -1145,7 +1145,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                   <button
                     key={a.playerId}
                     onClick={() => addGoal(a.playerId)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-pitch-50 active:bg-pitch-100 transition-colors"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-pitch-50 active:bg-pitch-100 transition-colors dark:bg-slate-900 dark:hover:bg-emerald-900/40"
                   >
                     <PlayerAvatar
                       player={player}
@@ -1153,7 +1153,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                       className={posColor(a.position)}
                       textClassName="text-xs font-bold"
                     />
-                    <span className="font-medium text-gray-900">{player?.name || '?'}</span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                     <span className={`position-badge ${posLabelSmall(a.position)} ml-auto`}>{a.position}</span>
                   </button>
                 );
@@ -1164,15 +1164,15 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                   <button
                     key={id}
                     onClick={() => addGoal(id)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-pitch-50 active:bg-pitch-100 transition-colors"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-pitch-50 active:bg-pitch-100 transition-colors dark:bg-slate-900 dark:hover:bg-emerald-900/40"
                   >
                     <PlayerAvatar
                       player={player}
                       sizeClass="w-8 h-8"
-                      className="bg-gray-400 text-white"
+                      className="bg-gray-400 text-white dark:bg-slate-600"
                       textClassName="text-xs font-bold"
                     />
-                    <span className="font-medium text-gray-900">{player?.name || '?'}</span>
+                    <span className="font-medium text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                     <span className="position-badge pos-bench ml-auto">BENCH</span>
                   </button>
                 );
@@ -1191,15 +1191,15 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-4">
               <div className="text-4xl mb-1">🔄</div>
-              <h3 className="text-xl font-black text-gray-900">
+              <h3 className="text-xl font-black text-gray-900 dark:text-slate-100">
                 {subAlertType === 'upcoming_2min' ? 'Sub in 2 Minutes' : subAlertType === 'upcoming' ? 'Sub Reminder — 1 Minute!' : 'Substitution Time!'}
               </h3>
-              <p className="text-sm text-gray-500">Block {(pendingBlockIndex || 0) + 1} of {plan.length}</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Block {(pendingBlockIndex || 0) + 1} of {plan.length}</p>
             </div>
             {currentSubs.length > 0 ? (
               <ul className="space-y-3 mb-5">
                 {currentSubs.map((sub, i) => (
-                  <li key={i} className="bg-gray-50 rounded-xl p-3">
+                  <li key={i} className="bg-gray-50 rounded-xl p-3 dark:bg-slate-900">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-bold text-red-500">
                         ↓ OFF: {getPlayer(sub.off)?.name || 'Unknown'}
@@ -1216,8 +1216,8 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                 ))}
               </ul>
             ) : (
-              <div className="text-center mb-5 py-3 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-500 font-medium">No player changes for this block</p>
+              <div className="text-center mb-5 py-3 bg-gray-50 rounded-xl dark:bg-slate-900">
+                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">No player changes for this block</p>
               </div>
             )}
             {subAlertType === 'due' ? (

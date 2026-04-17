@@ -198,7 +198,7 @@ export default function App() {
       >
         {syncError && (
           <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3">
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{syncError}</p>
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300">{syncError}</p>
           </div>
         )}
         {activeTab === 'team' && (
