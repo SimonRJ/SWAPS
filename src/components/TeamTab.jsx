@@ -277,7 +277,7 @@ export default function TeamTab({ data, onUpdate }) {
     () => buildSquadPreviewStats(players, gameHistory),
     [players, gameHistory],
   );
-  const isScrollableEditorSection = editingTeam && (activeSection === 'schedule' || activeSection === 'players');
+  const isScrollableEditorSection = false; 
 
   useEffect(() => {
     if (focusedRound > teamForm.gamesPerSeason) {
