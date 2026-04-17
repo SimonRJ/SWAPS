@@ -918,7 +918,7 @@ export default function TeamTab({ data, onUpdate }) {
               {playerForm.length === 0 ? (
                 <p className="text-gray-500 text-sm text-center py-3">No players yet. Add your squad.</p>
               ) : (
-<ul className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-100 pb-20">
+<ul className="divide-y divide-gray-100 pb-20">
 
                   {playerForm.map(player => (
                     <li key={player.id} className="flex items-center gap-3 py-3">
