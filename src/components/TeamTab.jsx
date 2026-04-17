@@ -176,6 +176,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const opponentName = (round.opponentName || '').trim() || 'Opponent not set';
   const locationText = (round.location || '').trim() || 'Location not set';
   const dateLabel = formatRoundDateLabel(round.date);
+  const dateButtonAriaLabel = round.date ? `Select date: ${dateLabel}` : 'Select date';
   const [showDatePicker, setShowDatePicker] = useState(false);
   const dateInputRef = useRef(null);
   const handleOpenRound = () => {
@@ -312,6 +313,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                 <button
                   type="button"
                   onClick={() => setShowDatePicker(true)}
+                  aria-label={dateButtonAriaLabel}
                   className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   Date

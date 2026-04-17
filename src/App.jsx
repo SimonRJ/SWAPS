@@ -387,7 +387,7 @@ export default function App() {
               End match early?
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">
-              This will end the current match and save stats. Are you sure you want to end this match early
+              This will end the current match and save stats. Are you sure you want to end this match early?
             </p>
             {logoutError && (
               <p className="mt-3 text-xs font-medium text-red-600 dark:text-red-300">{logoutError}</p>
