@@ -27,7 +27,7 @@ export default function LogoImageInput({
   }
 
   return (
-    <div className={compact ? 'space-y-2' : 'space-y-2'}>
+    <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         {label ? (
           <label className="block text-sm font-medium text-gray-700">{label}</label>
@@ -74,4 +74,38 @@ export default function LogoImageInput({
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             Current Logo
           </p>
-          <div class
+          <div className="flex items-center gap-3">
+            <TeamAvatar
+              src={value}
+              name={previewName}
+              alt={`${previewName} logo`}
+              sizeClass="w-12 h-12"
+            />
+            <p className="text-xs text-gray-600">
+              Uploaded image will be used across the app.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {helperText ? (
+        <div
+          tabIndex={0}
+          onPaste={(e) => {
+            const file = getClipboardImageFile(e.clipboardData);
+            if (!file) return;
+            e.preventDefault();
+            applyFile(file);
+          }}
+          className={`rounded-xl border border-dashed border-gray-300 bg-gray-50 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-pitch-300 ${
+            compact ? 'px-3 py-2' : 'px-3 py-2'
+          }`}
+        >
+          {helperText}
+        </div>
+      ) : null}
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  );
+}
