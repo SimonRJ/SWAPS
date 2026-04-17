@@ -17,6 +17,8 @@ import {
 
 const MIN_TEAM_CODE_LENGTH = 3;
 const MAX_TEAM_CODE_LENGTH = 24;
+const MIN_PASSCODE_LENGTH = 4;
+const MAX_PASSCODE_LENGTH = 12;
 const FIXED_CLUB_ID = 'murdoch-melville';
 const FIXED_CLUB = {
   id: FIXED_CLUB_ID,
@@ -103,7 +105,7 @@ export default function AdminPanel({ onBack }) {
 
   const selectedClub = FIXED_CLUB;
   const sortedTeamCodes = useMemo(() => [...teamCodes].sort((a, b) => a.localeCompare(b)), [teamCodes]);
-  const passcodeByTeamId = useMemo(
+  const passcodesByTeamId = useMemo(
     () => new Map((securityTeams || []).map(teamEntry => [teamEntry.teamId, teamEntry.passcode || ''])),
     [securityTeams],
   );
@@ -138,8 +140,8 @@ export default function AdminPanel({ onBack }) {
       setLimitError('');
       return;
     }
-    if (trimmedPasscode.length < 4 || trimmedPasscode.length > 12) {
-      setError('Passcode must be 4 - 12 characters.');
+    if (trimmedPasscode.length < MIN_PASSCODE_LENGTH || trimmedPasscode.length > MAX_PASSCODE_LENGTH) {
+      setError(`Passcode must be ${MIN_PASSCODE_LENGTH} - ${MAX_PASSCODE_LENGTH} characters.`);
       setStatus('');
       setLimitError('');
       return;
@@ -692,7 +694,7 @@ export default function AdminPanel({ onBack }) {
                 {requestEntries.length > 0 && (
                   <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-slate-800 dark:bg-slate-900">
                     {requestEntries.map(request => {
-                      const passcode = passcodeByTeamId.get(request.teamId) || '';
+                      const passcode = passcodesByTeamId.get(request.teamId) || '';
                       return (
                         <div key={request.id} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
                           <div className="flex items-center justify-between gap-2">

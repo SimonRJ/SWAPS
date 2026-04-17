@@ -27,6 +27,7 @@ const TEAM_PASSCODE_PREFIX = 'team-passcodes/';
 const ADMIN_SETTINGS_KEY = 'admin-settings';
 const DEFAULT_MAX_TEAMS = 10;
 const MAX_ALLOWED_TEAMS = 100;
+const MAX_REQUEST_ENTRIES = 200;
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -62,6 +63,13 @@ function adminRequestKey(requestId) {
 
 function teamPasscodeKey(teamId) {
   return `${TEAM_PASSCODE_PREFIX}${teamId}`;
+}
+
+function normalizeMaxTeams(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  if (parsed <= 0) return null;
+  return Math.min(Math.max(1, Math.round(parsed)), MAX_ALLOWED_TEAMS);
 }
 
 function buildLogId() {
@@ -237,11 +245,8 @@ async function listDeletedTeamCodes() {
 
 async function getAdminSettings() {
   const settings = await store.get(ADMIN_SETTINGS_KEY, { type: 'json' });
-  const maxTeams = Number(settings?.maxTeams);
-  if (!Number.isFinite(maxTeams) || maxTeams <= 0) {
-    return { maxTeams: DEFAULT_MAX_TEAMS };
-  }
-  return { maxTeams: Math.min(Math.max(1, Math.round(maxTeams)), MAX_ALLOWED_TEAMS) };
+  const maxTeams = normalizeMaxTeams(settings?.maxTeams);
+  return { maxTeams: maxTeams ?? DEFAULT_MAX_TEAMS };
 }
 
 async function setAdminSettings(nextSettings) {
@@ -276,7 +281,7 @@ async function listAdminRequests() {
     cursor = page?.cursor;
   } while (cursor);
   entries.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-  return entries.slice(0, 200);
+  return entries.slice(0, MAX_REQUEST_ENTRIES);
 }
 
 function validateDataShape(data) {
@@ -394,11 +399,10 @@ export default async (req) => {
     }
 
     if (action === 'adminSettingsUpdate') {
-      const maxTeams = Number(payload?.maxTeams);
-      if (!Number.isFinite(maxTeams)) {
+      const normalizedMaxTeams = normalizeMaxTeams(payload?.maxTeams);
+      if (!normalizedMaxTeams) {
         return jsonResponse({ error: 'Valid maximum team count is required.' }, 400);
       }
-      const normalizedMaxTeams = Math.min(Math.max(1, Math.round(maxTeams)), MAX_ALLOWED_TEAMS);
       await setAdminSettings({ maxTeams: normalizedMaxTeams });
       return jsonResponse({ maxTeams: normalizedMaxTeams });
     }
