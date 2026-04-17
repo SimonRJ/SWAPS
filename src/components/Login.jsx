@@ -84,12 +84,12 @@ export default function Login({ onLogin, onOpenAdmin }) {
           <div className="mt-3 space-y-2.5">
             <div>
               <label className="mb-0.5 block text-xs font-medium text-white/95">Team Code</label>
-              <select
-                className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400"
-                value={teamId}
-                onChange={e => setTeamId(normalizeTeamCode(e.target.value))}
-                disabled={loadingTeamCodes}
-              >
+                <select
+                  className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700"
+                  value={teamId}
+                  onChange={e => setTeamId(normalizeTeamCode(e.target.value))}
+                  disabled={loadingTeamCodes}
+                >
                 <option value="">
                   {loadingTeamCodes ? 'Loading team codes...' : 'Select your team code'}
                 </option>
@@ -103,13 +103,13 @@ export default function Login({ onLogin, onOpenAdmin }) {
 
             <div>
               <label className="mb-0.5 block text-xs font-medium text-white/95">Team Passcode</label>
-              <input
-                type="password"
-                className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400"
-                placeholder="Enter passcode"
-                value={loginPasscode}
-                onChange={e => setLoginPasscode(e.target.value)}
-                autoComplete="current-password"
+                <input
+                  type="password"
+                  className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700"
+                  placeholder="Enter passcode"
+                  value={loginPasscode}
+                  onChange={e => setLoginPasscode(e.target.value)}
+                  autoComplete="current-password"
               />
             </div>
 
