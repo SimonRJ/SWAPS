@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AGE_CATEGORIES,
   FIXED_GAME_DURATION,
@@ -175,6 +175,22 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const status = getRoundStatus(round);
   const opponentName = (round.opponentName || '').trim() || 'Opponent not set';
   const locationText = (round.location || '').trim() || 'Location not set';
+  const [isDateEditing, setIsDateEditing] = useState(false);
+  const dateInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!isDateEditing) return;
+    const input = dateInputRef.current;
+    if (!input) return;
+    input.focus();
+    if (typeof input.showPicker === 'function') {
+      try {
+        input.showPicker();
+      } catch {
+        // Ignore browsers that block programmatic date picker opening.
+      }
+    }
+  }, [isDateEditing]);
 
   return (
     <div className={`rounded-2xl border shadow-sm transition ${getVenueClasses(venue, isExpanded)}`}>
@@ -277,12 +293,32 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
 
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Date of Match</label>
-              <input
-                type="date"
-                value={round.date || ''}
-                onChange={(e) => onChange({ date: e.target.value })}
-                className="input-field"
-              />
+              {isDateEditing ? (
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={round.date || ''}
+                  onChange={(e) => {
+                    onChange({ date: e.target.value });
+                    setIsDateEditing(false);
+                  }}
+                  onBlur={() => setIsDateEditing(false)}
+                  className="input-field"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsDateEditing(true)}
+                  className={`input-field flex items-center justify-between text-left ${
+                    round.date
+                      ? 'text-gray-900 dark:text-slate-100'
+                      : 'text-gray-500 dark:text-slate-400'
+                  }`}
+                >
+                  <span>{round.date ? formatRoundDateLabel(round.date) : 'Select date'}</span>
+                  <span className="text-base">📅</span>
+                </button>
+              )}
             </div>
 
             <div>
