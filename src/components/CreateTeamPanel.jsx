@@ -133,7 +133,7 @@ export default function CreateTeamPanel({ onBack }) {
 
   async function handleSendLimitRequest() {
     if (!createTeamCode && !teamName) {
-      setLimitError('Add a team name or code before requesting.');
+      setLimitError('Add a team name or team code before requesting.');
       return;
     }
     setLimitRequesting(true);
