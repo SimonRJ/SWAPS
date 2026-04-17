@@ -326,14 +326,13 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                     setIsDateEditing(true);
                   }}
                   aria-label={dateAriaLabel}
-                  className={`input-field flex items-center justify-between text-left ${
+                  className={`input-field text-left ${
                     round.date
                       ? 'text-gray-900 dark:text-slate-100'
                       : 'text-gray-500 dark:text-slate-400'
                   }`}
                 >
                   <span>{dateLabel}</span>
-                  <span aria-hidden="true" className="text-base">📅</span>
                 </button>
               )}
             </div>
