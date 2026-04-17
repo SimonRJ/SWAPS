@@ -669,6 +669,7 @@ export default function TeamTab({ data, onUpdate }) {
         },
         {
           adminCode: adminCode.trim(),
+          passcode: newPasscode.trim(),
           optimistic: false,
         },
       );
