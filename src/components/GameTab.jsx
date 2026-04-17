@@ -415,8 +415,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setEditingGameIndex(originalIndex);
     setShowGoalForm(false);
     setShowSaveForm(false);
-    setGoalForm({ playerId: players[0]?.id || '', minute: '' });
-    setSaveForm({ playerId: players[0]?.id || '', saves: 1 });
+    setGoalForm({ playerId: players[0]?.id ?? '', minute: '' });
+    setSaveForm({ playerId: players[0]?.id ?? '', saves: 1 });
     const matchedClub = findOpponentClubByName(game.opponentName || '');
     setEditDraft({
       ...game,
@@ -873,8 +873,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                           onClick={() => {
                             if (!saveForm.playerId) return;
                             const toAdd = sanitizeScore(saveForm.saves);
-                            if (toAdd <= 0) {
-                              window.alert('Enter a save count greater than 0.');
+                            if (toAdd < 1) {
+                              window.alert('Enter a save count of at least 1.');
                               return;
                             }
                             setEditDraft(d => {
