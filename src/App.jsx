@@ -7,10 +7,12 @@ import TeamTab from './components/TeamTab.jsx';
 import GameTab from './components/GameTab.jsx';
 import StatsTab from './components/StatsTab.jsx';
 import ClubLogo from './components/ClubLogo.jsx';
+import ThemeToggle from './components/ThemeToggle.jsx';
 import { FOOTBALL_WEST_LOGO_URL } from './utils/clubLogos.js';
 import { loginWithSession, saveTeamData } from './utils/netlifyData.js';
 
 const SESSION_KEY = 'soccerSubsSession';
+const THEME_KEY = 'soccerSubsTheme';
 
 function readStoredSession() {
   try {
@@ -21,6 +23,18 @@ function readStoredSession() {
   }
 }
 
+function getInitialTheme() {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark' || stored === 'light') return stored;
+  } catch {
+    // ignore
+  }
+  if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
+  return 'light';
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -29,9 +43,14 @@ export default function App() {
   const [syncError, setSyncError] = useState('');
   const [authScreen, setAuthScreen] = useState('login');
   const [activeTab, setActiveTab] = useState('game');
+  const [theme, setTheme] = useState(() => getInitialTheme());
+  const isDarkTheme = theme === 'dark';
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
   const switchToGame = useCallback(() => setActiveTab('game'), []);
+  const toggleTheme = useCallback(() => {
+    setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   useEffect(() => {
     if (!session) {
@@ -62,6 +81,16 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab, loggedIn]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', isDarkTheme);
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // ignore
+    }
+  }, [isDarkTheme, theme]);
 
   const handleLogin = useCallback(({ data: loginData, session: loginSession }) => {
     const migrated = migrateData(loginData);
@@ -112,21 +141,35 @@ export default function App() {
 
   if (checkingSession) {
     return (
-      <div className="min-h-[100svh] bg-gray-50 flex items-center justify-center px-4">
-        <p className="text-sm text-gray-600">Loading team data...</p>
+      <div className="min-h-[100svh] bg-gray-50 dark:bg-slate-950 flex items-center justify-center px-4">
+        <p className="text-sm text-gray-600 dark:text-slate-300">Loading team data...</p>
       </div>
     );
   }
 
   if (!loggedIn) {
     if (authScreen === 'admin') {
-      return <AdminPanel onBack={() => setAuthScreen('login')} />;
+      return (
+        <div className="relative">
+          <AdminPanel onBack={() => setAuthScreen('login')} />
+          <div className="fixed right-3 top-3 z-50">
+            <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} className="text-white" />
+          </div>
+        </div>
+      );
     }
-    return <Login onLogin={handleLogin} onOpenAdmin={() => setAuthScreen('admin')} />;
+    return (
+      <div className="relative">
+        <Login onLogin={handleLogin} onOpenAdmin={() => setAuthScreen('admin')} />
+        <div className="fixed right-3 top-3 z-50">
+          <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} className="text-white" />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className={`${isLiveGameScreen ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-gray-50`}>
+    <div className={`${isLiveGameScreen ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-gray-50 dark:bg-slate-950`}>
       {/* Header */}
       <header className="bg-pitch-700 text-white px-3 pt-safe-top sticky top-0 z-40 shadow-md">
         <div className="flex items-center justify-between max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto py-1">
@@ -139,9 +182,12 @@ export default function App() {
             />
             <span className="font-semibold text-sm tracking-tight">{data?.team?.name || 'Soccer Subs'}</span>
           </div>
-          <button onClick={handleLogout} className="text-pitch-200 text-xs font-medium">
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} />
+            <button onClick={handleLogout} className="text-pitch-200 text-xs font-medium">
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -152,7 +198,7 @@ export default function App() {
       >
         {syncError && (
           <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3">
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{syncError}</p>
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300">{syncError}</p>
           </div>
         )}
         {activeTab === 'team' && (

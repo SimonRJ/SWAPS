@@ -244,17 +244,17 @@ export default function AdminPanel({ onBack }) {
   }
 
   return (
-    <div className="min-h-[100svh] bg-gray-100 px-4 py-6 sm:py-8">
-      <div className="mx-auto w-full max-w-xl rounded-2xl border border-gray-200 bg-white p-5 shadow-lg sm:p-6">
+    <div className="min-h-[100svh] bg-gray-100 dark:bg-slate-950 px-4 py-6 sm:py-8">
+      <div className="mx-auto w-full max-w-xl rounded-2xl border border-gray-200 bg-white p-5 shadow-lg sm:p-6 dark:border-slate-800 dark:bg-slate-900">
         <div className="mb-5 flex items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Admin</p>
-            <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-slate-400">Admin</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Team Management</h1>
           </div>
           <button
             type="button"
             onClick={onBack}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-700 hover:bg-gray-100"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-700 hover:bg-gray-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
           >
             Back to Login
           </button>
@@ -262,7 +262,7 @@ export default function AdminPanel({ onBack }) {
 
         <form onSubmit={handleCreate} className="space-y-3">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Club</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Club</label>
             <select
               className="input-field"
               value={clubId}
@@ -288,7 +288,7 @@ export default function AdminPanel({ onBack }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Team Name</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Team Name</label>
             <input
               type="text"
               className="input-field"
@@ -299,7 +299,7 @@ export default function AdminPanel({ onBack }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Create Team Code</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Create Team Code</label>
             <input
               type="text"
               className="input-field uppercase"
@@ -318,7 +318,7 @@ export default function AdminPanel({ onBack }) {
           />
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Choose a Passcode</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Choose a Passcode</label>
             <input
               type="password"
               className="input-field"
@@ -337,11 +337,11 @@ export default function AdminPanel({ onBack }) {
           </button>
         </form>
 
-        <form onSubmit={handleDeleteTeam} className="mt-6 border-t border-gray-200 pt-5 space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">Delete Team</p>
+        <form onSubmit={handleDeleteTeam} className="mt-6 border-t border-gray-200 pt-5 space-y-3 dark:border-slate-800">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500 dark:text-slate-400">Delete Team</p>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Team Code</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Team Code</label>
             <select
               className="input-field uppercase"
               value={deleteTeamId}
@@ -360,7 +360,7 @@ export default function AdminPanel({ onBack }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Official Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Official Password</label>
             <input
               type="password"
               className="input-field"
@@ -386,14 +386,14 @@ export default function AdminPanel({ onBack }) {
           </button>
         </form>
 
-        <form onSubmit={handleLoadSecurityLogs} className="mt-6 border-t border-gray-200 pt-5 space-y-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">Security Log</p>
-          <p className="text-xs text-gray-500">
+        <form onSubmit={handleLoadSecurityLogs} className="mt-6 border-t border-gray-200 pt-5 space-y-3 dark:border-slate-800">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500 dark:text-slate-400">Security Log</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             Tracks key team changes and lets an admin restore earlier snapshots.
           </p>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Team Code</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Team Code</label>
             <select
               className="input-field uppercase"
               value={securityTeamId}
@@ -412,7 +412,7 @@ export default function AdminPanel({ onBack }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Official Password</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Official Password</label>
             <input
               type="password"
               className="input-field"
@@ -431,24 +431,24 @@ export default function AdminPanel({ onBack }) {
             {securityLoading ? 'Loading Logs...' : 'Load Security Log'}
           </button>
 
-          {securityError && <p className="text-sm text-red-600">{securityError}</p>}
-          {securityStatus && <p className="text-sm text-green-700">{securityStatus}</p>}
+          {securityError && <p className="text-sm text-red-600 dark:text-red-300">{securityError}</p>}
+          {securityStatus && <p className="text-sm text-green-700 dark:text-emerald-300">{securityStatus}</p>}
 
           {securityLogs.length > 0 && (
-            <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2">
+            <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-slate-800 dark:bg-slate-900">
               {securityLogs.map(log => (
-                <div key={log.id} className="rounded-lg border border-gray-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-gray-500">{formatLogTime(log.timestamp)}</p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">{log.summary || 'Team update'}</p>
+                <div key={log.id} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">{formatLogTime(log.timestamp)}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-slate-100">{log.summary || 'Team update'}</p>
                   {Array.isArray(log.details) && log.details.length > 0 && (
-                    <p className="mt-1 text-xs text-gray-600">{log.details.join(' · ')}</p>
+                    <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">{log.details.join(' · ')}</p>
                   )}
                   {log.snapshotKey && (
                     <button
                       type="button"
                       onClick={() => handleRestoreLog(log.id)}
                       disabled={restoringLogId === log.id}
-                      className="mt-2 rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                      className="mt-2 rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
                     >
                       {restoringLogId === log.id ? 'Restoring...' : 'Restore This Snapshot'}
                     </button>

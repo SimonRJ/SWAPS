@@ -142,21 +142,21 @@ function buildSquadPreviewStats(players, gameHistory) {
 function getVenueClasses(venue, expanded = false) {
   if (venue === 'away') {
     return expanded
-      ? 'border-amber-300 bg-amber-50'
-      : 'border-amber-200 bg-amber-50/70';
+      ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/40'
+      : 'border-amber-200 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-900/30';
   }
   if (venue === 'home') {
     return expanded
-      ? 'border-emerald-300 bg-emerald-50'
-      : 'border-emerald-200 bg-emerald-50/70';
+      ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/40'
+      : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-900/30';
   }
-  return expanded ? 'border-gray-300 bg-gray-50' : 'border-gray-200 bg-white';
+  return expanded ? 'border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-900' : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900';
 }
 
 function getVenueBadgeClasses(venue) {
-  if (venue === 'away') return 'bg-amber-100 text-amber-800';
-  if (venue === 'home') return 'bg-emerald-100 text-emerald-800';
-  return 'bg-gray-100 text-gray-700';
+  if (venue === 'away') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+  if (venue === 'home') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
+  return 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200';
 }
 
 function getRoundStatus(round) {
@@ -183,7 +183,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-bold text-gray-900">Round {round.round}</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-slate-100">Round {round.round}</p>
                 <span
                   className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getVenueBadgeClasses(venue)}`}
                 >
@@ -199,22 +199,22 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                   sizeClass="w-11 h-11"
                 />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900">{opponentName}</p>
-                  <p className="text-xs text-gray-500">{formatRoundDateLabel(round.date)}</p>
+                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{opponentName}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">{formatRoundDateLabel(round.date)}</p>
                 </div>
               </div>
 
-              <div className="mt-3 space-y-1 text-xs text-gray-600">
+              <div className="mt-3 space-y-1 text-xs text-gray-600 dark:text-slate-300">
                 <p>
-                  <span className="font-semibold text-gray-700">Location:</span> {locationText}
+                  <span className="font-semibold text-gray-700 dark:text-slate-200">Location:</span> {locationText}
                 </p>
                 <p>
-                  <span className="font-semibold text-gray-700">Status:</span> {status}
+                  <span className="font-semibold text-gray-700 dark:text-slate-200">Status:</span> {status}
                 </p>
               </div>
             </div>
 
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/80 text-lg text-gray-500 shadow-sm">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/80 dark:bg-slate-800/80 text-lg text-gray-500 dark:text-slate-400 shadow-sm">
               ›
             </div>
           </div>
@@ -224,20 +224,20 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <p className="text-base font-bold text-gray-900">Round {round.round}</p>
+                <p className="text-base font-bold text-gray-900 dark:text-slate-100">Round {round.round}</p>
                 <span
                   className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getVenueBadgeClasses(venue)}`}
                 >
                   {venue ? venue.charAt(0).toUpperCase() + venue.slice(1) : 'Venue'}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-gray-600">Edit the details for this round.</p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm"
+              className="rounded-full bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 shadow-sm"
             >
               Back
             </button>
@@ -276,7 +276,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
             />
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Date of Match</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Date of Match</label>
               <input
                 type="date"
                 value={round.date || ''}
@@ -286,15 +286,15 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Home or Away</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-200">Home or Away</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => onChange({ venue: 'home' })}
                   className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                     venue === 'home'
-                      ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
-                      : 'border-gray-200 bg-white text-gray-700'
+                      ? 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
                   }`}
                 >
                   Home
@@ -304,8 +304,8 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                   onClick={() => onChange({ venue: 'away' })}
                   className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
                     venue === 'away'
-                      ? 'border-amber-300 bg-amber-100 text-amber-800'
-                      : 'border-gray-200 bg-white text-gray-700'
+                      ? 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200'
+                      : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
                   }`}
                 >
                   Away
@@ -314,7 +314,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Location</label>
               <input
                 type="text"
                 value={round.location || ''}
@@ -746,7 +746,7 @@ export default function TeamTab({ data, onUpdate }) {
         <>
           <div className="card space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-gray-900">Team</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Team</h2>
               <button
                 type="button"
                 onClick={startEditing}
@@ -756,31 +756,31 @@ export default function TeamTab({ data, onUpdate }) {
               </button>
             </div>
 
-            <div className="space-y-2 text-sm text-gray-700">
+            <div className="space-y-2 text-sm text-gray-700 dark:text-slate-200">
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Team</span>
+                <span className="text-gray-500 dark:text-slate-400">Team</span>
                 <span className="text-right font-semibold">{team.name}</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Team code</span>
+                <span className="text-gray-500 dark:text-slate-400">Team code</span>
                 <span className="text-right font-semibold tracking-wide">
                   {team.teamId || 'N/A'}
                 </span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Age category</span>
+                <span className="text-gray-500 dark:text-slate-400">Age category</span>
                 <span className="text-right font-semibold">{team.ageCategory || 'U10'}</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Field players</span>
+                <span className="text-gray-500 dark:text-slate-400">Field players</span>
                 <span className="text-right font-semibold">{team.fieldPlayers} + GK</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Games this season</span>
+                <span className="text-gray-500 dark:text-slate-400">Games this season</span>
                 <span className="text-right font-semibold">{team.gamesPerSeason}</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-gray-500">Players</span>
+                <span className="text-gray-500 dark:text-slate-400">Players</span>
                 <span className="text-right font-semibold">{players.length}</span>
               </div>
             </div>
@@ -788,16 +788,16 @@ export default function TeamTab({ data, onUpdate }) {
 
           <div className="card">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                 Squad Preview
               </h3>
-              <span className="text-xs font-medium text-gray-500">{players.length} players</span>
+              <span className="text-xs font-medium text-gray-500 dark:text-slate-400">{players.length} players</span>
             </div>
 
             {players.length === 0 ? (
-              <p className="text-sm text-gray-500">No players yet.</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400">No players yet.</p>
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-gray-100 dark:divide-slate-800">
                 {players.map((player) => {
                   const stats = squadPreviewStats[player.id] || {
                     gamesPlayed: 0,
@@ -812,8 +812,8 @@ export default function TeamTab({ data, onUpdate }) {
                         <span
                           className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border text-sm font-semibold ${
                             player.isActive
-                              ? 'border-gray-200 bg-gray-50 text-gray-700'
-                              : 'border-gray-200 bg-gray-100 text-gray-400'
+                              ? 'border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-200'
+                              : 'border-gray-200 dark:border-slate-800 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500'
                           }`}
                         >
                           {player.shirtNumber || '-'}
@@ -823,20 +823,20 @@ export default function TeamTab({ data, onUpdate }) {
                           <p
                             className={`truncate font-medium ${
                               player.isActive
-                                ? 'text-gray-900'
-                                : 'text-gray-400 line-through'
+                                ? 'text-gray-900 dark:text-slate-100'
+                                : 'text-gray-400 dark:text-slate-500 line-through'
                             }`}
                           >
                             {player.name}
                           </p>
                           {!player.isActive && (
-                            <p className="text-xs text-gray-400">Inactive</p>
+                            <p className="text-xs text-gray-400 dark:text-slate-500">Inactive</p>
                           )}
                         </div>
                       </div>
 
                       <div
-                        className="grid grid-cols-2 justify-items-end gap-x-3 gap-y-1 text-[11px] leading-4 text-gray-500"
+                        className="grid grid-cols-2 justify-items-end gap-x-3 gap-y-1 text-[11px] leading-4 text-gray-500 dark:text-slate-400"
                         style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
                       >
                         <span aria-hidden={stats.gamesPlayed <= 0 || undefined}>
@@ -863,8 +863,8 @@ export default function TeamTab({ data, onUpdate }) {
         <div className="card space-y-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Team Edit</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Team Edit</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 Choose a section, update details, and save that section only.
               </p>
             </div>
@@ -885,33 +885,33 @@ export default function TeamTab({ data, onUpdate }) {
                 onClick={() => setActiveSection(section.id)}
                 className={`rounded-xl border p-3 text-left transition ${
                   activeSection === section.id
-                    ? 'border-pitch-500 bg-pitch-50'
-                    : 'border-gray-300 bg-white hover:border-gray-300'
+                    ? 'border-pitch-500 bg-pitch-50 dark:bg-emerald-900/40'
+                    : 'border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 hover:border-gray-300 dark:border-slate-600'
                 }`}
               >
                 <p
                   className={`text-sm font-semibold ${
-                    activeSection === section.id ? 'text-pitch-700' : 'text-gray-900'
+                    activeSection === section.id ? 'text-pitch-700 dark:text-emerald-200' : 'text-gray-900 dark:text-slate-100'
                   }`}
                 >
                   {section.title}
                 </p>
-                <p className="mt-1 text-xs text-gray-500">{section.description}</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{section.description}</p>
               </button>
             ))}
           </div>
 
           {activeSection === 'team-info' && (
-            <form onSubmit={saveTeamInfo} className="space-y-3 rounded-xl border border-gray-200 p-4">
+            <form onSubmit={saveTeamInfo} className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-800 p-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Club</label>
-                <div className="input-field cursor-default bg-gray-50 font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Club</label>
+                <div className="input-field cursor-default bg-gray-50 dark:bg-slate-900 font-medium text-gray-700 dark:text-slate-200">
                   Murdoch University Melville FC
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Team Name</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Team Name</label>
                 <input
                   className="input-field"
                   value={teamForm.name}
@@ -936,7 +936,7 @@ export default function TeamTab({ data, onUpdate }) {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
                     Age Category
                   </label>
                   <select
@@ -957,7 +957,7 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
                     Field Players
                   </label>
                   <select
@@ -990,25 +990,25 @@ export default function TeamTab({ data, onUpdate }) {
                     setTeamInfoError('');
                   }}
                   className={`relative h-7 w-12 flex-shrink-0 rounded-full transition-colors ${
-                    teamForm.rotateGK ? 'bg-pitch-500' : 'bg-gray-300'
+                    teamForm.rotateGK ? 'bg-pitch-500' : 'bg-gray-300 dark:bg-slate-700'
                   }`}
                 >
                   <span
-                    className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white dark:bg-slate-900 shadow transition-transform ${
                       teamForm.rotateGK ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
-                <span className="text-sm text-gray-700">Rotate GK position</span>
+                <span className="text-sm text-gray-700 dark:text-slate-200">Rotate GK position</span>
               </div>
 
               {!teamForm.rotateGK && (
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
                     Primary Goalkeeper
                   </label>
                   {playerForm.length === 0 ? (
-                    <div className="input-field cursor-default bg-gray-50 font-medium text-gray-500">
+                    <div className="input-field cursor-default bg-gray-50 dark:bg-slate-900 font-medium text-gray-500 dark:text-slate-400">
                       Please add team players first
                     </div>
                   ) : (
@@ -1036,8 +1036,8 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
               )}
 
-              {teamInfoError && <p className="text-sm text-red-600">{teamInfoError}</p>}
-              {teamInfoStatus && <p className="text-sm text-emerald-700">{teamInfoStatus}</p>}
+              {teamInfoError && <p className="text-sm text-red-600 dark:text-red-300">{teamInfoError}</p>}
+              {teamInfoStatus && <p className="text-sm text-emerald-700 dark:text-emerald-300">{teamInfoStatus}</p>}
 
               <button type="submit" className="btn-primary w-full" disabled={savingTeamInfo}>
                 {savingTeamInfo ? 'Saving Team Info...' : 'Save Team Info'}
@@ -1046,11 +1046,11 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'schedule' && (
-            <form onSubmit={saveSchedule} className="space-y-4 rounded-xl border border-gray-200 p-4">
+            <form onSubmit={saveSchedule} className="space-y-4 rounded-xl border border-gray-200 dark:border-slate-800 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-semibold text-gray-900">Season Schedule</h3>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">Season Schedule</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                     Tap a round tile to open it and edit the details.
                   </p>
                 </div>
@@ -1058,26 +1058,26 @@ export default function TeamTab({ data, onUpdate }) {
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded-xl border p-3 text-center">
-                  <p className="text-xs text-gray-500">ROUNDS</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">ROUNDS</p>
                   <p className="text-xl font-bold">{scheduleCounts.total}</p>
                 </div>
                 <div className="rounded-xl border p-3 text-center">
-                  <p className="text-xs text-gray-500">COMPLETE</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">COMPLETE</p>
                   <p className="text-xl font-bold">{scheduleCounts.complete}</p>
                 </div>
                 <div className="rounded-xl border p-3 text-center">
-                  <p className="text-xs text-gray-500">NEED OPPONENT</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">NEED OPPONENT</p>
                   <p className="text-xl font-bold">{scheduleCounts.missingOpponent}</p>
                 </div>
                 <div className="rounded-xl border p-3 text-center">
-                  <p className="text-xs text-gray-500">NEED DATE</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">NEED DATE</p>
                   <p className="text-xl font-bold">{scheduleCounts.missingDate}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
                     Games per Season
                   </label>
                   <input
@@ -1098,7 +1098,7 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Filter</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Filter</label>
                   <select
                     className="input-field"
                     value={scheduleFilter}
@@ -1113,7 +1113,7 @@ export default function TeamTab({ data, onUpdate }) {
 
               <div className="space-y-3">
                 {visibleScheduleRounds.length === 0 ? (
-                  <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                  <p className="rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 px-3 py-2 text-sm text-gray-600 dark:text-slate-300">
                     No rounds match this filter.
                   </p>
                 ) : (
@@ -1130,8 +1130,8 @@ export default function TeamTab({ data, onUpdate }) {
                 )}
               </div>
 
-              {scheduleError && <p className="text-sm text-red-600">{scheduleError}</p>}
-              {scheduleStatus && <p className="text-sm text-emerald-700">{scheduleStatus}</p>}
+              {scheduleError && <p className="text-sm text-red-600 dark:text-red-300">{scheduleError}</p>}
+              {scheduleStatus && <p className="text-sm text-emerald-700 dark:text-emerald-300">{scheduleStatus}</p>}
 
               <button type="submit" className="btn-primary w-full" disabled={savingSchedule}>
                 {savingSchedule ? 'Saving Schedule...' : 'Save Schedule'}
@@ -1140,16 +1140,16 @@ export default function TeamTab({ data, onUpdate }) {
           )}
 
           {activeSection === 'login-details' && (
-            <form onSubmit={saveLoginDetails} className="space-y-3 rounded-xl border border-gray-200 p-4">
+            <form onSubmit={saveLoginDetails} className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-800 p-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                   Team Code
                 </p>
-                <p className="mt-1 text-sm font-semibold text-gray-800">{team.teamId || 'N/A'}</p>
+                <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-slate-100">{team.teamId || 'N/A'}</p>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
                   New Team Passcode
                 </label>
                 <input
@@ -1167,7 +1167,7 @@ export default function TeamTab({ data, onUpdate }) {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
                   Administrator Code
                 </label>
                 <input
@@ -1184,8 +1184,8 @@ export default function TeamTab({ data, onUpdate }) {
                 />
               </div>
 
-              {loginError && <p className="text-sm text-red-600">{loginError}</p>}
-              {loginStatus && <p className="text-sm text-emerald-700">{loginStatus}</p>}
+              {loginError && <p className="text-sm text-red-600 dark:text-red-300">{loginError}</p>}
+              {loginStatus && <p className="text-sm text-emerald-700 dark:text-emerald-300">{loginStatus}</p>}
 
               <button
                 type="submit"
@@ -1200,7 +1200,7 @@ export default function TeamTab({ data, onUpdate }) {
           {activeSection === 'players' && (
             <form onSubmit={savePlayers} className="flex min-h-0 flex-1 flex-col space-y-3 overflow-hidden">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold text-gray-900">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">
                   Squad ({playerForm.length})
                 </h3>
                 <button
@@ -1241,11 +1241,11 @@ export default function TeamTab({ data, onUpdate }) {
               )}
 
               {playerForm.length === 0 ? (
-                <p className="py-3 text-center text-sm text-gray-500">
+                <p className="py-3 text-center text-sm text-gray-500 dark:text-slate-400">
                   No players yet. Add your squad.
                 </p>
               ) : (
-                <ul className="divide-y divide-gray-100 pb-20">
+                <ul className="divide-y divide-gray-100 dark:divide-slate-800 pb-20">
                   {playerForm.map((player) => (
                     <li key={player.id} className="flex items-center gap-3 py-3">
                       <PlayerAvatar
@@ -1253,16 +1253,16 @@ export default function TeamTab({ data, onUpdate }) {
                         sizeClass="w-8 h-8"
                         className={
                           player.isActive
-                            ? 'bg-pitch-100 text-pitch-700'
-                            : 'bg-gray-100 text-gray-400'
+                            ? 'bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                            : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500'
                         }
                         textClassName="text-sm"
                       />
                       <span
                         className={`flex-1 font-medium ${
                           player.isActive
-                            ? 'text-gray-900'
-                            : 'text-gray-400 line-through'
+                            ? 'text-gray-900 dark:text-slate-100'
+                            : 'text-gray-400 dark:text-slate-500 line-through'
                         }`}
                       >
                         {player.name}
@@ -1281,8 +1281,8 @@ export default function TeamTab({ data, onUpdate }) {
                         onClick={() => toggleActive(player.id)}
                         className={`rounded-full px-2 py-1 text-xs font-medium ${
                           player.isActive
-                            ? 'bg-pitch-100 text-pitch-700'
-                            : 'bg-gray-100 text-gray-500'
+                            ? 'bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                            : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
                         }`}
                       >
                         {player.isActive ? 'Active' : 'Inactive'}
@@ -1290,7 +1290,7 @@ export default function TeamTab({ data, onUpdate }) {
                       <button
                         type="button"
                         onClick={() => removePlayer(player.id)}
-                        className="p-1 text-lg leading-none text-red-400"
+                        className="p-1 text-lg leading-none text-red-400 dark:text-red-300"
                       >
                         ×
                       </button>
@@ -1299,8 +1299,8 @@ export default function TeamTab({ data, onUpdate }) {
                 </ul>
               )}
 
-              {playersError && <p className="text-sm text-red-600">{playersError}</p>}
-              {playersStatus && <p className="text-sm text-emerald-700">{playersStatus}</p>}
+              {playersError && <p className="text-sm text-red-600 dark:text-red-300">{playersError}</p>}
+              {playersStatus && <p className="text-sm text-emerald-700 dark:text-emerald-300">{playersStatus}</p>}
 
               <button type="submit" className="btn-primary w-full" disabled={savingPlayers}>
                 {savingPlayers ? 'Saving Players...' : 'Save Players'}

@@ -13,13 +13,13 @@ function MinuteBar({ label, minutes, maxMinutes, colorClass, target }) {
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="text-gray-600 font-medium">{label}</span>
-        <span className="text-gray-900 font-bold">
+        <span className="text-gray-600 dark:text-slate-300 font-medium">{label}</span>
+        <span className="text-gray-900 dark:text-slate-100 font-bold">
           {minutes} min
-          {target > 0 && <span className="text-gray-400 font-normal"> / {target} target</span>}
+          {target > 0 && <span className="text-gray-400 dark:text-slate-500 font-normal"> / {target} target</span>}
         </span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${colorClass}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
     </div>
@@ -31,17 +31,17 @@ function getDateDisplay(date) {
 }
 
 function resultColorClass(label) {
-  if (label === 'Win') return 'bg-emerald-100 text-emerald-700';
-  if (label === 'Lose') return 'bg-red-100 text-red-700';
-  if (label === 'Draw') return 'bg-amber-100 text-amber-700';
-  return 'bg-slate-100 text-slate-700';
+  if (label === 'Win') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+  if (label === 'Lose') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+  if (label === 'Draw') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
 }
 
 function resultBlobColor(label) {
   if (label === 'Win') return 'bg-emerald-500';
   if (label === 'Lose') return 'bg-red-500';
-  if (label === 'Draw') return 'bg-gray-400';
-  return 'bg-slate-300';
+  if (label === 'Draw') return 'bg-gray-400 dark:bg-slate-600';
+  return 'bg-slate-300 dark:bg-slate-600';
 }
 
 function resultBlobLetter(label) {
@@ -369,12 +369,12 @@ export default function StatsTab({ data, onUpdate }) {
             <PlayerAvatar
               player={p}
               sizeClass="w-14 h-14"
-              className="bg-pitch-100 text-pitch-700"
+              className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200"
               textClassName="text-2xl font-black"
             />
             <div>
-              <h2 className="text-xl font-bold text-gray-900">{p.name}</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">{p.name}</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400">
                 {total} min played{benchMins > 0 ? ` · ${benchMins} min bench` : ''}{sickMins > 0 ? ` · ${sickMins} min sick/injured` : ''}{saves > 0 ? ` · 🧤 ${saves} saves` : ''}
               </p>
             </div>
@@ -398,19 +398,19 @@ export default function StatsTab({ data, onUpdate }) {
             )}
           </div>
           {targets && (
-            <div className="bg-gray-50 rounded-xl p-3 space-y-1">
-              <p className="text-xs font-semibold text-gray-700">Season Progress</p>
-              <div className="flex justify-between text-xs text-gray-500">
+            <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-3 space-y-1">
+              <p className="text-xs font-semibold text-gray-700 dark:text-slate-200">Season Progress</p>
+              <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400">
                 <span>Total (played + sick)</span>
-                <span className="font-semibold text-gray-700">{total + sickMins} / {targets.totalMinutesPerPlayer} target</span>
+                <span className="font-semibold text-gray-700 dark:text-slate-200">{total + sickMins} / {targets.totalMinutesPerPlayer} target</span>
               </div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div className="h-full bg-pitch-500 rounded-full" style={{ width: `${Math.min(100, Math.round(((total + sickMins) / targets.totalMinutesPerPlayer) * 100))}%` }} />
               </div>
             </div>
           )}
           {total === 0 && sickMins === 0 && (
-            <p className="text-center text-gray-400 text-sm">No games played yet</p>
+            <p className="text-center text-gray-400 dark:text-slate-500 text-sm">No games played yet</p>
           )}
         </div>
       </div>
@@ -424,23 +424,23 @@ export default function StatsTab({ data, onUpdate }) {
           ← Back to Stats
         </button>
         <div className="card">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">Played Games</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-3">Played Games</h2>
           {history.length === 0 ? (
-            <p className="text-sm text-gray-400">No completed games yet.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">No completed games yet.</p>
           ) : (
             <ul className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
               {playedHistory.map(game => (
-                <li key={`${game.gameNumber}-${game.date}`} className="rounded-xl border border-gray-200 p-3 space-y-2">
+                <li key={`${game.gameNumber}-${game.date}`} className="rounded-xl border border-gray-200 dark:border-slate-800 p-3 space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-gray-900 leading-tight">Round {game.gameNumber}</p>
-                      <p className="text-xs text-gray-500">{game.date}</p>
+                      <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">Round {game.gameNumber}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">{game.date}</p>
                     </div>
                     <div className="shrink-0 flex items-center gap-1.5">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${resultColorClass(getGameResultLabel(game))}`}>
                         {getGameResultLabel(game)}
                       </span>
-                      <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-bold text-gray-900">
+                      <span className="rounded-lg bg-gray-100 dark:bg-slate-800 px-2.5 py-1 text-sm font-bold text-gray-900 dark:text-slate-100">
                         {game.homeScore ?? 0} - {game.awayScore ?? 0}
                       </span>
                     </div>
@@ -452,19 +452,19 @@ export default function StatsTab({ data, onUpdate }) {
                       name={game.opponentName || 'Opponent'}
                       sizeClass="w-8 h-8"
                     />
-                    <p className="text-sm text-gray-700 truncate">
+                    <p className="text-sm text-gray-700 dark:text-slate-200 truncate">
                       {team.name} vs {game.opponentName || 'Opponent'}
                     </p>
                   </div>
                   {(game.goals || []).length > 0 ? (
-                    <div className="text-xs text-gray-600">
+                    <div className="text-xs text-gray-600 dark:text-slate-300">
                       Goals: {(game.goals || []).map(goal => `${goal.playerName || '?'} ${goal.minute ? `${goal.minute}'` : ''}`.trim()).join(', ')}
                     </div>
                   ) : (
-                    <p className="text-xs text-gray-400">No goals recorded.</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">No goals recorded.</p>
                   )}
                   {Object.values(game.gkSaves || {}).some(count => Number(count) > 0) && (
-                    <div className="text-xs text-gray-600">
+                    <div className="text-xs text-gray-600 dark:text-slate-300">
                       Saves: {Object.entries(game.gkSaves || {})
                         .filter(([, count]) => Number(count) > 0)
                         .map(([playerId, count]) => `${players.find(p => p.id === playerId)?.name || '?'} 🧤 ${count}`)
@@ -487,20 +487,20 @@ export default function StatsTab({ data, onUpdate }) {
           ← Back to Stats
         </button>
         <div className="card">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">Cancelled Games</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-3">Cancelled Games</h2>
           {editingCancelledRound && cancelledDraft && (
-            <div className="rounded-xl border border-amber-200 bg-amber-100 p-3 mb-3 space-y-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-100 p-3 mb-3 space-y-2 dark:border-amber-800 dark:bg-amber-900/40">
               <p className="text-sm font-semibold text-amber-900">Edit Cancelled Round {editingCancelledRound}</p>
               <div className="flex rounded-lg overflow-hidden border border-amber-200 w-fit">
                 <button
                   onClick={() => setCancelledDraft(d => ({ ...d, homeAway: 'HOME' }))}
-                  className={`px-3 py-1 text-xs font-semibold ${cancelledDraft.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-gray-600'}`}
+                  className={`px-3 py-1 text-xs font-semibold ${cancelledDraft.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300'}`}
                 >
                   Home
                 </button>
                 <button
                   onClick={() => setCancelledDraft(d => ({ ...d, homeAway: 'AWAY' }))}
-                  className={`px-3 py-1 text-xs font-semibold ${cancelledDraft.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-600'}`}
+                  className={`px-3 py-1 text-xs font-semibold ${cancelledDraft.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300'}`}
                 >
                   Away
                 </button>
@@ -526,7 +526,7 @@ export default function StatsTab({ data, onUpdate }) {
                   onChange={e => setCancelledDraft(d => ({ ...d, date: e.target.value }))}
                 />
                 {!cancelledDraft.date && (
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-slate-500">
                     Date
                   </span>
                 )}
@@ -538,7 +538,7 @@ export default function StatsTab({ data, onUpdate }) {
             </div>
           )}
           {cancelledDetails.length === 0 ? (
-            <p className="text-sm text-gray-400">No cancelled games recorded.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">No cancelled games recorded.</p>
           ) : (
             <ul className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
               {cancelledDetails.slice().sort((a, b) => (a.round || 0) - (b.round || 0)).map(game => (
@@ -549,7 +549,7 @@ export default function StatsTab({ data, onUpdate }) {
                       <p className="text-xs text-amber-700">{game.cancelledDate || 'Cancelled'}</p>
                       <button
                         onClick={() => openCancelledEditor(game)}
-                        className="text-xs font-semibold text-amber-800 px-2 py-1 rounded-md bg-amber-100"
+                        className="text-xs font-semibold text-amber-800 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200"
                       >
                         Edit
                       </button>
@@ -713,11 +713,11 @@ export default function StatsTab({ data, onUpdate }) {
     };
 
     const posTagColor = (pos) => {
-      if (pos === 'GK') return 'bg-yellow-100 text-yellow-800';
-      if (pos === 'DEF') return 'bg-blue-100 text-blue-800';
-      if (pos === 'MID') return 'bg-purple-100 text-purple-800';
-      if (pos === 'ATK') return 'bg-red-100 text-red-800';
-      return 'bg-gray-100 text-gray-600';
+      if (pos === 'GK') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200';
+      if (pos === 'DEF') return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200';
+      if (pos === 'MID') return 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200';
+      if (pos === 'ATK') return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200';
+      return 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300';
     };
 
     return (
@@ -729,8 +729,8 @@ export default function StatsTab({ data, onUpdate }) {
         {/* Round Info Header */}
         <div className="card">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-bold text-gray-900">Round {teamSheetRound} Team Sheet</h2>
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${roundInfo?.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'}`}>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Round {teamSheetRound} Team Sheet</h2>
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${roundInfo?.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'}`}>
               {roundInfo?.homeAway === 'AWAY' ? 'Away' : 'Home'}
             </span>
           </div>
@@ -742,10 +742,10 @@ export default function StatsTab({ data, onUpdate }) {
                 name={roundInfo.opponentName}
                 sizeClass="w-6 h-6"
               />
-              <span className="text-sm text-gray-700">vs {roundInfo.opponentName}</span>
+              <span className="text-sm text-gray-700 dark:text-slate-200">vs {roundInfo.opponentName}</span>
             </div>
           )}
-          <p className="text-xs text-gray-500">{getDateDisplay(roundInfo?.date)} · Formation: {formationStr} · {team.gameDuration} min game</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">{getDateDisplay(roundInfo?.date)} · Formation: {formationStr} · {team.gameDuration} min game</p>
           {gamePlan && (
             <button
               onClick={handleDownloadPdf}
@@ -758,21 +758,21 @@ export default function StatsTab({ data, onUpdate }) {
 
         {!gamePlan ? (
           <div className="card text-center py-6">
-            <p className="text-gray-400 text-sm">Not enough active players to generate a team sheet. Need at least {minFieldCount}.</p>
+            <p className="text-gray-400 dark:text-slate-500 text-sm">Not enough active players to generate a team sheet. Need at least {minFieldCount}.</p>
           </div>
         ) : (
           <>
             {/* Starting Lineup */}
             <div className="card">
-              <h3 className="font-bold text-gray-900 mb-3">Starting Lineup</h3>
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Starting Lineup</h3>
               <div className="space-y-2">
                 {gamePlan[0].onField.map(({ playerId, position }) => {
                   const player = getPlayer(playerId);
                   return (
                     <div key={playerId} className="flex items-center gap-3 py-1">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${posTagColor(position)}`}>{posLabel(position)}</span>
-                      <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-pitch-100 text-pitch-700" textClassName="text-xs" />
-                      <span className="text-sm font-semibold text-gray-900">{player?.name || '?'}</span>
+                      <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200" textClassName="text-xs" />
+                      <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                     </div>
                   );
                 })}
@@ -782,15 +782,15 @@ export default function StatsTab({ data, onUpdate }) {
             {/* Bench */}
             {gamePlan[0].onBench.length > 0 && (
               <div className="card">
-                <h3 className="font-bold text-gray-900 mb-3">Starting on Bench</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Starting on Bench</h3>
                 <div className="space-y-2">
                   {gamePlan[0].onBench.map(id => {
                     const player = getPlayer(id);
                     return (
                       <div key={id} className="flex items-center gap-3 py-1">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">BENCH</span>
-                        <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-gray-100 text-gray-600" textClassName="text-xs" />
-                        <span className="text-sm font-semibold text-gray-900">{player?.name || '?'}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300">BENCH</span>
+                        <PlayerAvatar player={player} sizeClass="w-7 h-7" className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300" textClassName="text-xs" />
+                        <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{player?.name || '?'}</span>
                       </div>
                     );
                   })}
@@ -801,13 +801,13 @@ export default function StatsTab({ data, onUpdate }) {
             {/* Substitution Plan */}
             {subChanges.length > 0 && (
               <div className="card">
-                <h3 className="font-bold text-gray-900 mb-3">Substitution Plan</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Substitution Plan</h3>
                 <div className="space-y-3">
                   {subChanges.map(({ minute, subs }) => (
-                    <div key={minute} className="rounded-xl border border-gray-200 p-3">
+                    <div key={minute} className="rounded-xl border border-gray-200 dark:border-slate-800 p-3">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="bg-pitch-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{minute}&apos;</span>
-                        <span className="text-xs text-gray-500 font-medium">{subs.length} sub{subs.length > 1 ? 's' : ''}</span>
+                        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">{subs.length} sub{subs.length > 1 ? 's' : ''}</span>
                       </div>
                       <div className="space-y-1.5">
                         {subs.map((sub, idx) => {
@@ -816,10 +816,10 @@ export default function StatsTab({ data, onUpdate }) {
                           return (
                             <div key={idx} className="flex items-center gap-2 text-sm">
                               <span className="text-red-500 font-bold text-xs">↓</span>
-                              <span className="text-gray-700">{offPlayer?.name || '?'}</span>
-                              <span className="text-gray-400 text-xs">→</span>
+                              <span className="text-gray-700 dark:text-slate-200">{offPlayer?.name || '?'}</span>
+                              <span className="text-gray-400 dark:text-slate-500 text-xs">→</span>
                               <span className="text-emerald-600 font-bold text-xs">↑</span>
-                              <span className="text-gray-700">{onPlayer?.name || '?'}</span>
+                              <span className="text-gray-700 dark:text-slate-200">{onPlayer?.name || '?'}</span>
                               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${posTagColor(sub.position)}`}>{posLabel(sub.position)}</span>
                             </div>
                           );
@@ -833,7 +833,7 @@ export default function StatsTab({ data, onUpdate }) {
 
             {/* Estimated Minutes Per Player */}
             <div className="card">
-              <h3 className="font-bold text-gray-900 mb-3">Estimated Minutes</h3>
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Estimated Minutes</h3>
               <div className="space-y-2">
                 {activePlayers
                   .slice()
@@ -845,8 +845,8 @@ export default function StatsTab({ data, onUpdate }) {
                     return (
                       <div key={p.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
                         <div className="flex items-center gap-2">
-                          <PlayerAvatar player={p} sizeClass="w-6 h-6" className="bg-pitch-100 text-pitch-700" textClassName="text-[10px]" />
-                          <span className="text-sm font-semibold text-gray-900">{p.name}</span>
+                          <PlayerAvatar player={p} sizeClass="w-6 h-6" className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200" textClassName="text-[10px]" />
+                          <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{p.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex gap-1">
@@ -859,7 +859,7 @@ export default function StatsTab({ data, onUpdate }) {
                           <div className="text-right">
                             <span className="text-sm font-bold text-pitch-700">{mins.field}&#39;</span>
                             {mins.bench > 0 && (
-                              <span className="text-xs text-gray-400 ml-1">({mins.bench}&#39; bench)</span>
+                              <span className="text-xs text-gray-400 dark:text-slate-500 ml-1">({mins.bench}&#39; bench)</span>
                             )}
                           </div>
                         </div>
@@ -881,20 +881,20 @@ export default function StatsTab({ data, onUpdate }) {
           ← Back to Stats
         </button>
         <div className="card space-y-3">
-          <h2 className="text-lg font-bold text-gray-900">Remaining Games</h2>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Remaining Games</h2>
           {editingRound && roundDraft && (
             <div className="rounded-xl border border-pitch-200 bg-pitch-50 p-3 space-y-2">
               <p className="text-sm font-semibold text-pitch-800">Edit Round {editingRound}</p>
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 w-fit">
+              <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-slate-800 w-fit">
                 <button
                   onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'HOME' }))}
-                  className={`px-3 py-1 text-xs font-semibold ${roundDraft.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-gray-600'}`}
+                  className={`px-3 py-1 text-xs font-semibold ${roundDraft.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300'}`}
                 >
                   Home
                 </button>
                 <button
                   onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'AWAY' }))}
-                  className={`px-3 py-1 text-xs font-semibold ${roundDraft.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-600'}`}
+                  className={`px-3 py-1 text-xs font-semibold ${roundDraft.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300'}`}
                 >
                   Away
                 </button>
@@ -920,7 +920,7 @@ export default function StatsTab({ data, onUpdate }) {
                   onChange={e => setRoundDraft(d => ({ ...d, date: e.target.value }))}
                 />
                 {!roundDraft.date && (
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-slate-500">
                     Date
                   </span>
                 )}
@@ -932,7 +932,7 @@ export default function StatsTab({ data, onUpdate }) {
             </div>
           )}
           {remainingRounds.length === 0 ? (
-            <p className="text-sm text-gray-400">No remaining scheduled rounds.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">No remaining scheduled rounds.</p>
           ) : (
             <ul className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
               {remainingRounds.map(round => (
@@ -941,7 +941,7 @@ export default function StatsTab({ data, onUpdate }) {
                   className={`rounded-xl border p-3 ${round.homeAway === 'AWAY' ? 'bg-blue-50 border-blue-200' : 'bg-emerald-50 border-emerald-200'}`}
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-gray-900">Round {round.round}</p>
+                    <p className="font-semibold text-gray-900 dark:text-slate-100">Round {round.round}</p>
                     <button onClick={() => openRoundEditor(round)} className="text-xs font-semibold text-pitch-700">Edit</button>
                   </div>
                   <div className="flex items-center gap-2">
@@ -951,10 +951,10 @@ export default function StatsTab({ data, onUpdate }) {
                       name={round.opponentName || 'Opponent'}
                       sizeClass="w-7 h-7"
                     />
-                    <p className="text-sm text-gray-700">{round.homeAway === 'AWAY' ? 'Away' : 'Home'} · {round.opponentName || 'Opponent TBC'}</p>
+                    <p className="text-sm text-gray-700 dark:text-slate-200">{round.homeAway === 'AWAY' ? 'Away' : 'Home'} · {round.opponentName || 'Opponent TBC'}</p>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-gray-500">{getDateDisplay(round.date)}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">{getDateDisplay(round.date)}</p>
                     <div className="flex items-center gap-2">
                       {seasonSheets.find(s => s.round === round.round)?.plan && (
                         <button
@@ -985,26 +985,26 @@ export default function StatsTab({ data, onUpdate }) {
     <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
       {/* Season Overview */}
       <div className="card">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">Season Overview</h2>
-        <p className="text-xs text-gray-400">Select a stat card to open details</p>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Season Overview</h2>
+        <p className="text-xs text-gray-400 dark:text-slate-500">Select a stat card to open details</p>
         <div className="grid grid-cols-3 gap-3 text-center mt-3">
           <button onClick={() => switchOverview('played')} className="bg-pitch-50 rounded-xl p-3">
             <div className="text-2xl font-black text-pitch-700">{gamesPlayed}</div>
-            <div className="text-xs text-gray-500">Played</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Played</div>
           </button>
-          <button onClick={() => switchOverview('remaining')} className="bg-gray-50 rounded-xl p-3">
-            <div className="text-2xl font-black text-gray-600">{gamesRemaining}</div>
-            <div className="text-xs text-gray-500">Remaining</div>
+          <button onClick={() => switchOverview('remaining')} className="bg-gray-50 dark:bg-slate-900 rounded-xl p-3">
+            <div className="text-2xl font-black text-gray-600 dark:text-slate-300">{gamesRemaining}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Remaining</div>
           </button>
           <button onClick={() => switchOverview('cancelled')} className="bg-amber-50 rounded-xl p-3">
             <div className="text-2xl font-black text-amber-600">{cancelledCount}</div>
-            <div className="text-xs text-gray-500">Cancelled</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Cancelled</div>
           </button>
         </div>
         {/* Form Guide */}
         {history.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Form</p>
+            <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-2">Form</p>
             <div className="flex flex-wrap gap-1.5">
               {[...history].sort((a, b) => (a.gameNumber || 0) - (b.gameNumber || 0)).map(game => {
                 const label = getGameResultLabel(game);
@@ -1022,8 +1022,8 @@ export default function StatsTab({ data, onUpdate }) {
           </div>
         )}
         {targets && (
-          <div className="mt-3 text-xs text-gray-500">
-            Target per player: <span className="font-semibold text-gray-700">{targets.totalMinutesPerPlayer} min</span>
+          <div className="mt-3 text-xs text-gray-500 dark:text-slate-400">
+            Target per player: <span className="font-semibold text-gray-700 dark:text-slate-200">{targets.totalMinutesPerPlayer} min</span>
             {' '}(GK: {targets.targetGK}, DEF: {targets.targetDEF}, MID: {targets.targetMID}, ATK: {targets.targetATK})
           </div>
         )}
@@ -1031,13 +1031,13 @@ export default function StatsTab({ data, onUpdate }) {
 
       {/* Player Stats */}
       <div className="card">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">Player Stats</h2>
-        <p className="text-xs text-gray-400 mb-4">Tap a player to see position breakdown</p>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Player Stats</h2>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mb-4">Tap a player to see position breakdown</p>
 
         {activePlayers.length === 0 ? (
-          <p className="text-gray-400 text-center py-4 text-sm">No players yet.</p>
+          <p className="text-gray-400 dark:text-slate-500 text-center py-4 text-sm">No players yet.</p>
         ) : (
-          <ul className="divide-y divide-gray-100 md:grid md:grid-cols-2 md:gap-x-4 md:divide-y-0">
+          <ul className="divide-y divide-gray-100 dark:divide-slate-800 md:grid md:grid-cols-2 md:gap-x-4 md:divide-y-0">
             {activePlayers.map(p => {
               const total = totalMins(p);
               const sickMins = p.minutesSickInjured || 0;
@@ -1048,22 +1048,22 @@ export default function StatsTab({ data, onUpdate }) {
               return (
                 <li key={p.id}
                   onClick={() => setSelectedPlayer(p.id)}
-                  className="py-3 cursor-pointer active:bg-gray-50 -mx-4 px-4">
+                  className="py-3 cursor-pointer active:bg-gray-50 dark:active:bg-slate-800 -mx-4 px-4">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <PlayerAvatar
                         player={p}
                         sizeClass="w-7 h-7"
-                        className="bg-pitch-100 text-pitch-700"
+                        className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200"
                         textClassName="text-xs"
                       />
-                      <span className="font-semibold text-gray-900">{p.name}</span>
+                      <span className="font-semibold text-gray-900 dark:text-slate-100">{p.name}</span>
                     </div>
-                    <span className="text-sm text-gray-500 font-medium">
+                    <span className="text-sm text-gray-500 dark:text-slate-400 font-medium">
                       {total} min{benchMins > 0 ? ` · 🪑 ${benchMins}` : ''}{sickMins > 0 ? ` · 🏥 ${sickMins}` : ''}{saves > 0 ? ` · 🧤 ${saves}` : ''} →
                     </span>
                   </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div className="h-full bg-pitch-500 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex gap-3 mt-1.5">
@@ -1090,7 +1090,7 @@ export default function StatsTab({ data, onUpdate }) {
 
       {/* Legend */}
       <div className="card">
-        <h3 className="text-sm font-bold text-gray-700 mb-2">Position Key</h3>
+        <h3 className="text-sm font-bold text-gray-700 dark:text-slate-200 mb-2">Position Key</h3>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block" /> Goalkeeper (GK)</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block" /> Defender (DEF)</div>

@@ -16,10 +16,10 @@ function secondsToMinutes(seconds) {
 }
 
 function resultColorClass(label) {
-  if (label === 'Win') return 'bg-emerald-100 text-emerald-700';
-  if (label === 'Lose') return 'bg-red-100 text-red-700';
-  if (label === 'Draw') return 'bg-amber-100 text-amber-700';
-  return 'bg-slate-100 text-slate-700';
+  if (label === 'Win') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+  if (label === 'Lose') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+  if (label === 'Draw') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
 }
 
 function applyTrackedMinutes(players, playerTimers) {
@@ -449,8 +449,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
       <div className="card text-center py-8 space-y-4">
         <div className="text-6xl">⚽</div>
-        <h2 className="text-xl font-bold text-gray-900">No Game in Progress</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">No Game in Progress</h2>
+        <p className="text-sm text-gray-500 dark:text-slate-400">
           {activePlayers.length} active player{activePlayers.length !== 1 ? 's' : ''} available
           {!canStartGame && ` (need ${team.fieldPlayers + 1}+)`}
         </p>
@@ -473,18 +473,18 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
           ❌ Record Cancelled Game
         </button>
         {!canStartGame && (
-          <p className="text-xs text-gray-400">Add more players in the Team tab</p>
+          <p className="text-xs text-gray-400 dark:text-slate-500">Add more players in the Team tab</p>
         )}
       </div>
 
       {history.length > 0 && (
         <div className="card">
-          <h3 className="font-bold text-gray-900 mb-3">Game History</h3>
+          <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Game History</h3>
           <ul className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
             {[...history].reverse().map((g, i) => {
               const originalIndex = history.length - 1 - i;
               return (
-              <li key={i} className="rounded-xl border border-gray-200 p-3 space-y-2">
+              <li key={i} className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     {g.opponentLogoUrl ? (
@@ -502,21 +502,21 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                       />
                     )}
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 leading-tight">Game {g.gameNumber}</p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">Game {g.gameNumber}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                         vs {g.opponentName || 'Opponent'}, {g.date}
                       </p>
                     </div>
                   </div>
                   {(g.homeScore !== undefined) ? (
-                    <div className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-bold text-gray-900">
+                    <div className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-bold text-gray-900 dark:bg-slate-800 dark:text-slate-100">
                       {g.homeScore} - {g.awayScore}
                     </div>
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-gray-500">
+                    <span className="text-gray-500 dark:text-slate-400">
                       {g.formation} · {g.playerCount}p{g.absentCount ? ` · ${g.absentCount} absent` : ''}
                     </span>
                     <span className={`rounded-full px-2 py-0.5 font-semibold ${resultColorClass(getGameResultLabel(g))}`}>
@@ -532,7 +532,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                     </button>
                     <button
                       onClick={() => deleteGameFromHistory(originalIndex)}
-                      className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50"
+                      className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
                     >
                       Delete
                     </button>
@@ -545,8 +545,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       )}
 
       {editDraft && (
-        <div className="fixed inset-0 h-dvh bg-black/60 z-50 flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeEditGame}>
-          <div className="bg-white w-full h-dvh sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 h-dvh bg-black/60 z-50 flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeEditGame}>
+          <div className="bg-white dark:bg-slate-900 w-full h-dvh sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header with result badge */}
             <div className="bg-gradient-to-r from-pitch-700 to-pitch-600 px-6 pt-6 pb-4 text-white">
               <div className="flex items-center justify-between mb-2">
@@ -559,27 +559,27 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
               {/* Score display */}
-              <div className="px-6 py-5 bg-gray-50 border-b border-gray-100">
+              <div className="px-6 py-5 bg-gray-50 border-b border-gray-100 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center justify-center gap-4">
                   <div className="text-center flex-1">
-                    <p className="text-xs font-semibold text-gray-500 mb-2">{team.name || 'Home'}</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">{team.name || 'Home'}</p>
                     <input
                       id="edit-home-score"
                       type="number"
                       min={0}
-                      className="w-full border-2 border-gray-200 rounded-2xl px-3 py-3 text-2xl text-center font-black tabular-nums focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white"
+                      className="w-full border-2 border-gray-200 rounded-2xl px-3 py-3 text-2xl text-center font-black tabular-nums focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       value={editDraft.homeScore}
                       onChange={e => setEditDraft(d => ({ ...d, homeScore: e.target.value }))}
                     />
                   </div>
-                  <div className="text-gray-300 text-2xl font-black pt-5">vs</div>
+                  <div className="text-gray-300 dark:text-slate-600 text-2xl font-black pt-5">vs</div>
                   <div className="text-center flex-1">
-                    <p className="text-xs font-semibold text-gray-500 mb-2">Opponent</p>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">Opponent</p>
                     <input
                       id="edit-away-score"
                       type="number"
                       min={0}
-                      className="w-full border-2 border-gray-200 rounded-2xl px-3 py-3 text-2xl text-center font-black tabular-nums focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white"
+                      className="w-full border-2 border-gray-200 rounded-2xl px-3 py-3 text-2xl text-center font-black tabular-nums focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                       value={editDraft.awayScore}
                       onChange={e => setEditDraft(d => ({ ...d, awayScore: e.target.value }))}
                     />
@@ -590,12 +590,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
               <div className="px-6 py-4 space-y-5">
                 {/* Opponent selector */}
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Opponent Team</label>
-                  <p className="mb-2 text-xs text-gray-500">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Opponent Team</label>
+                  <p className="mb-2 text-xs text-gray-500 dark:text-slate-400">
                     Opponent logo is managed in Team Settings.
                   </p>
                   <select
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white"
+                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                     value={editDraft.opponentClubId || '__custom__'}
                     onChange={e => {
                       const clubId = e.target.value;
@@ -622,7 +622,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                 {/* Goal Scorers */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Goal Scorers</label>
+                    <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Goal Scorers</label>
                     <button
                       onClick={() => {
                         if (players.length === 0) return;
@@ -637,16 +637,16 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                     </button>
                   </div>
                   {(editDraft.goals || []).length === 0 ? (
-                    <div className="rounded-xl bg-gray-50 border border-dashed border-gray-200 py-4 text-center">
-                      <p className="text-sm text-gray-400">No goals recorded</p>
+                    <div className="rounded-xl bg-gray-50 border border-dashed border-gray-200 py-4 text-center dark:bg-slate-900 dark:border-slate-700">
+                      <p className="text-sm text-gray-400 dark:text-slate-500">No goals recorded</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {(editDraft.goals || []).map((goal, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2">
+                        <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2 dark:bg-slate-900">
                           <div className="w-7 h-7 rounded-full bg-pitch-100 flex items-center justify-center text-pitch-700 text-xs font-bold shrink-0">⚽</div>
                           <select
-                            className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white"
+                            className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                             value={goal.playerId || ''}
                             onChange={e => {
                               const playerId = e.target.value;
@@ -664,21 +664,21 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                               type="number"
                               min={0}
                               placeholder="min"
-                              className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                               value={goal.minute}
                               onChange={e => setEditDraft(d => ({
                                 ...d,
                                 goals: (d.goals || []).map((g, gIdx) => gIdx === idx ? { ...g, minute: e.target.value } : g),
                               }))}
                             />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 pointer-events-none">&#39;</span>
+                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-slate-500 pointer-events-none">&#39;</span>
                           </div>
                           <button
                             onClick={() => setEditDraft(d => ({
                               ...d,
                               goals: (d.goals || []).filter((_, gIdx) => gIdx !== idx),
                             }))}
-                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-500 font-bold text-sm active:bg-red-200 transition-colors"
+                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-500 font-bold text-sm active:bg-red-200 transition-colors dark:bg-red-900/40 dark:text-red-300 dark:active:bg-red-900/60"
                             aria-label="Remove goal"
                           >
                             ×
@@ -692,7 +692,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
             </div>
 
             {/* Footer actions */}
-            <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-white space-y-3">
+            <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-white space-y-3 dark:border-slate-800 dark:bg-slate-900">
               <button onClick={saveEditedGame} className="btn-primary w-full text-sm">
                 Save Changes
               </button>
@@ -702,7 +702,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                 </button>
                 <button
                   onClick={() => deleteGameFromHistory(editingGameIndex)}
-                  className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors"
+                  className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
                 >
                   Delete Game
                 </button>
