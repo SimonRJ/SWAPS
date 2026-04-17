@@ -770,7 +770,7 @@ export default function TeamTab({ data, onUpdate }) {
                 </div>
               </div>
 
-              <div className="flex-1 min-h-0 space-y-3 overflow-y-auto pr-1 pb-20">
+              <div className="space-y-3 pb-20">
                 {visibleScheduleRounds.length === 0 ? (
                   <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                     No rounds match this filter.
