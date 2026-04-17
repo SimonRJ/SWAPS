@@ -877,14 +877,14 @@ export default function StatsTab({ data, onUpdate }) {
   if (overviewView === 'remaining') {
     return (
       <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
-        <button onClick={() => switchOverview('overview')} className="text-pitch-600 font-semibold text-sm flex items-center gap-1">
+        <button onClick={() => switchOverview('overview')} className="text-pitch-600 dark:text-emerald-300 font-semibold text-sm flex items-center gap-1">
           ← Back to Stats
         </button>
         <div className="card space-y-3">
           <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Remaining Games</h2>
           {editingRound && roundDraft && (
-            <div className="rounded-xl border border-pitch-200 bg-pitch-50 p-3 space-y-2">
-              <p className="text-sm font-semibold text-pitch-800">Edit Round {editingRound}</p>
+            <div className="rounded-xl border border-pitch-200 bg-pitch-50 dark:border-emerald-800 dark:bg-emerald-900/30 p-3 space-y-2">
+              <p className="text-sm font-semibold text-pitch-800 dark:text-emerald-200">Edit Round {editingRound}</p>
               <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-slate-800 w-fit">
                 <button
                   onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'HOME' }))}
@@ -938,11 +938,13 @@ export default function StatsTab({ data, onUpdate }) {
               {remainingRounds.map(round => (
                 <li
                   key={`remaining-${round.round}`}
-                  className={`rounded-xl border p-3 ${round.homeAway === 'AWAY' ? 'bg-blue-50 border-blue-200' : 'bg-emerald-50 border-emerald-200'}`}
+                  className={`rounded-xl border p-3 ${round.homeAway === 'AWAY'
+                    ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-800'
+                    : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800'}`}
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-gray-900 dark:text-slate-100">Round {round.round}</p>
-                    <button onClick={() => openRoundEditor(round)} className="text-xs font-semibold text-pitch-700">Edit</button>
+                    <button onClick={() => openRoundEditor(round)} className="text-xs font-semibold text-pitch-700 dark:text-emerald-300">Edit</button>
                   </div>
                   <div className="flex items-center gap-2">
                     <TeamAvatar
@@ -988,16 +990,16 @@ export default function StatsTab({ data, onUpdate }) {
         <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Season Overview</h2>
         <p className="text-xs text-gray-400 dark:text-slate-500">Select a stat card to open details</p>
         <div className="grid grid-cols-3 gap-3 text-center mt-3">
-          <button onClick={() => switchOverview('played')} className="bg-pitch-50 rounded-xl p-3">
-            <div className="text-2xl font-black text-pitch-700">{gamesPlayed}</div>
+          <button onClick={() => switchOverview('played')} className="bg-pitch-50 dark:bg-emerald-900/40 rounded-xl p-3">
+            <div className="text-2xl font-black text-pitch-700 dark:text-emerald-200">{gamesPlayed}</div>
             <div className="text-xs text-gray-500 dark:text-slate-400">Played</div>
           </button>
-          <button onClick={() => switchOverview('remaining')} className="bg-gray-50 dark:bg-slate-900 rounded-xl p-3">
-            <div className="text-2xl font-black text-gray-600 dark:text-slate-300">{gamesRemaining}</div>
+          <button onClick={() => switchOverview('remaining')} className="bg-gray-50 dark:bg-slate-800 rounded-xl p-3">
+            <div className="text-2xl font-black text-gray-600 dark:text-slate-100">{gamesRemaining}</div>
             <div className="text-xs text-gray-500 dark:text-slate-400">Remaining</div>
           </button>
-          <button onClick={() => switchOverview('cancelled')} className="bg-amber-50 rounded-xl p-3">
-            <div className="text-2xl font-black text-amber-600">{cancelledCount}</div>
+          <button onClick={() => switchOverview('cancelled')} className="bg-amber-50 dark:bg-amber-900/40 rounded-xl p-3">
+            <div className="text-2xl font-black text-amber-600 dark:text-amber-300">{cancelledCount}</div>
             <div className="text-xs text-gray-500 dark:text-slate-400">Cancelled</div>
           </button>
         </div>
