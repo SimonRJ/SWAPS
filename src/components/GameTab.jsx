@@ -733,7 +733,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                             value={goalForm.minute}
                             onChange={e => setGoalForm(form => ({ ...form, minute: e.target.value }))}
                           />
-                          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-slate-500 pointer-events-none">&#39;</span>
+                          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-slate-500 pointer-events-none">&apos;</span>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -839,7 +839,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                             if (!saveForm.playerId) return;
                             const toAdd = sanitizeScore(saveForm.saves);
                             if (toAdd <= 0) {
-                              setShowSaveForm(false);
+                              window.alert('Enter a save count greater than 0.');
                               return;
                             }
                             setEditDraft(d => {
