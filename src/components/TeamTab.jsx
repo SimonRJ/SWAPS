@@ -177,19 +177,21 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const locationText = (round.location || '').trim() || 'Location not set';
   const [isDateEditing, setIsDateEditing] = useState(false);
   const dateInputRef = useRef(null);
+  const shouldOpenDatePickerRef = useRef(false);
 
   useEffect(() => {
     if (!isDateEditing) return;
     const input = dateInputRef.current;
     if (!input) return;
     input.focus();
-    if (typeof input.showPicker === 'function') {
+    if (shouldOpenDatePickerRef.current && typeof input.showPicker === 'function') {
       try {
         input.showPicker();
       } catch {
         // Ignore browsers that block programmatic date picker opening.
       }
     }
+    shouldOpenDatePickerRef.current = false;
   }, [isDateEditing]);
 
   return (
@@ -302,13 +304,22 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                     onChange({ date: e.target.value });
                     setIsDateEditing(false);
                   }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      setIsDateEditing(false);
+                    }
+                  }}
                   onBlur={() => setIsDateEditing(false)}
                   className="input-field"
                 />
               ) : (
                 <button
                   type="button"
-                  onClick={() => setIsDateEditing(true)}
+                  onClick={() => {
+                    shouldOpenDatePickerRef.current = true;
+                    setIsDateEditing(true);
+                  }}
                   className={`input-field flex items-center justify-between text-left ${
                     round.date
                       ? 'text-gray-900 dark:text-slate-100'
