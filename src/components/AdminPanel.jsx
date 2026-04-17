@@ -39,6 +39,12 @@ function formatLogTime(timestamp) {
   return value.toLocaleString();
 }
 
+function formatPasscode(passcode, show) {
+  if (!passcode) return 'Not stored';
+  if (show) return passcode;
+  return '•'.repeat(Math.min(passcode.length, 8));
+}
+
 export default function AdminPanel({ onBack }) {
   const [teamName, setTeamName] = useState('');
   const [createTeamCode, setCreateTeamCode] = useState('');
@@ -66,6 +72,7 @@ export default function AdminPanel({ onBack }) {
   const [securityStatus, setSecurityStatus] = useState('');
   const [securityError, setSecurityError] = useState('');
   const [restoringLogId, setRestoringLogId] = useState('');
+  const [showPasscodes, setShowPasscodes] = useState(false);
   const [requestEntries, setRequestEntries] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsStatus, setRequestsStatus] = useState('');
@@ -569,11 +576,20 @@ export default function AdminPanel({ onBack }) {
           ) : (
             <div className="space-y-5">
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500 dark:text-slate-400">Teams & Passcodes</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
-                    {securityTeams.length} team{securityTeams.length === 1 ? '' : 's'} · max {maxTeams}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      {securityTeams.length} team{securityTeams.length === 1 ? '' : 's'} · max {maxTeams}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowPasscodes(prev => !prev)}
+                      className="rounded-lg border border-gray-300 px-2.5 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {showPasscodes ? 'Hide passcodes' : 'Show passcodes'}
+                    </button>
+                  </div>
                 </div>
                 {securityTeams.length === 0 ? (
                   <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">No teams found yet.</p>
@@ -597,7 +613,7 @@ export default function AdminPanel({ onBack }) {
                           </button>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-slate-300">
-                          Passcode: {teamEntry.passcode || 'Not stored'}
+                          Passcode: {formatPasscode(teamEntry.passcode, showPasscodes)}
                         </p>
                       </div>
                     ))}
@@ -718,7 +734,7 @@ export default function AdminPanel({ onBack }) {
                           Team: {request.teamId || 'Unknown'}{request.teamName ? ` · ${request.teamName}` : ''}
                         </p>
                         <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">
-                          Passcode: {request.passcode || 'Not stored'}
+                          Passcode: {formatPasscode(request.passcode, showPasscodes)}
                         </p>
                         {request.description && (
                           <p className="mt-2 text-xs text-gray-700 dark:text-slate-200">{request.description}</p>
