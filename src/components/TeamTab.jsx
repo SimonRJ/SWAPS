@@ -35,7 +35,7 @@ const EDIT_SECTIONS = [
   },
 ];
 
-const SQUAD_PREVIEW_STATS_MIN_WIDTH = 'clamp(11rem, 35vw, 14rem)';
+const SQUAD_PREVIEW_STATS_MIN_WIDTH = 'clamp(9rem, 32vw, 12rem)';
 
 function normalizeTeamForm(team) {
   return {
@@ -800,11 +800,10 @@ export default function TeamTab({ data, onUpdate }) {
                 <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
                   <span className="flex-1" aria-hidden="true" />
                   <div
-                    className="grid grid-cols-3 justify-items-end gap-x-3"
+                    className="grid grid-cols-2 justify-items-center gap-x-3 text-center"
                     style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
                   >
-                    <span>Played</span>
-                    <span>Minutes</span>
+                    <span>Games Played</span>
                     <span>Goals</span>
                   </div>
                 </div>
@@ -854,11 +853,10 @@ export default function TeamTab({ data, onUpdate }) {
                         </div>
 
                         <div
-                          className="grid grid-cols-3 justify-items-end gap-x-3 text-[11px] leading-4 text-gray-600 dark:text-slate-300 font-semibold"
+                          className="grid grid-cols-2 justify-items-center gap-x-3 text-[11px] leading-4 text-gray-600 dark:text-slate-300 font-semibold text-center"
                           style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
                         >
                           <span className="tabular-nums">{stats.gamesPlayed}</span>
-                          <span className="tabular-nums">{stats.minutesPlayed}</span>
                           <span className="tabular-nums">{stats.goals}</span>
                         </div>
                       </li>

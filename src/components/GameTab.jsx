@@ -104,11 +104,41 @@ function getCancelledDetails(data) {
   return Array.isArray(data.cancelledGameDetails) ? data.cancelledGameDetails : [];
 }
 
+function getKeeperCandidates(game, players) {
+  const keeperIds = new Set();
+  if (Array.isArray(game?.playerMinuteDeltas)) {
+    for (const delta of game.playerMinuteDeltas) {
+      if ((delta?.minutesGK || 0) > 0) {
+        keeperIds.add(delta.playerId);
+      }
+    }
+  } else if (game?.playerTimers) {
+    for (const [playerId, timer] of Object.entries(game.playerTimers)) {
+      if ((timer?.positionSeconds?.GK || 0) > 0) {
+        keeperIds.add(playerId);
+      }
+    }
+  }
+  for (const playerId of Object.keys(game?.gkSaves || {})) {
+    keeperIds.add(playerId);
+  }
+  return players.filter(player => keeperIds.has(player.id));
+}
+
 export default function GameTab({ data, onUpdate, onSwitchToGame }) {
   const { currentGame, players, team } = data;
   const [setupMode, setSetupMode] = useState(false);
   const [editingGameIndex, setEditingGameIndex] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
+  const [showGoalForm, setShowGoalForm] = useState(false);
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [goalForm, setGoalForm] = useState({ playerId: '', minute: '' });
+  const [saveForm, setSaveForm] = useState({ playerId: '', saves: 1 });
+  const [saveFormError, setSaveFormError] = useState('');
+  const [deletePromptIndex, setDeletePromptIndex] = useState(null);
+  const [deleteAdminPassword, setDeleteAdminPassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -384,6 +414,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     const game = history[originalIndex];
     if (!game) return;
     setEditingGameIndex(originalIndex);
+    setShowGoalForm(false);
+    setShowSaveForm(false);
+    const defaultPlayerId = players.length > 0 ? players[0].id : null;
+    setGoalForm({ playerId: defaultPlayerId, minute: '' });
+    setSaveForm({ playerId: defaultPlayerId, saves: 1 });
+    setSaveFormError('');
     const matchedClub = findOpponentClubByName(game.opponentName || '');
     setEditDraft({
       ...game,
@@ -398,6 +434,22 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
   function closeEditGame() {
     setEditingGameIndex(null);
     setEditDraft(null);
+    setShowGoalForm(false);
+    setShowSaveForm(false);
+    setSaveFormError('');
+  }
+
+  function openDeletePrompt(originalIndex) {
+    setDeletePromptIndex(originalIndex);
+    setDeleteAdminPassword('');
+    setDeleteError('');
+  }
+
+  function closeDeletePrompt() {
+    setDeletePromptIndex(null);
+    setDeleteAdminPassword('');
+    setDeleteError('');
+    setDeleteInProgress(false);
   }
 
   function saveEditedGame() {
@@ -412,38 +464,95 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     if (editDraft.opponentSelectionTouched && selectedOpponentClub) {
       nextOpponentName = selectedOpponentClub.name || nextOpponentName;
     }
-    updatedHistory[editingGameIndex] = {
-      ...originalGame,
-      opponentName: nextOpponentName,
-      opponentLogoUrl: nextOpponentLogoUrl,
-      homeScore: sanitizeScore(editDraft.homeScore),
-      awayScore: sanitizeScore(editDraft.awayScore),
-      goals: (editDraft.goals || []).map(g => {
+    const normalizedGoals = (editDraft.goals || [])
+      .map(g => {
         const scorer = players.find(p => p.id === g.playerId);
         return {
           ...g,
           playerName: scorer?.name || g.playerName || '?',
           minute: sanitizeScore(g.minute),
         };
-      }),
+      })
+      .sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0));
+    const normalizedSaves = Object.fromEntries(
+      Object.entries(editDraft.gkSaves || {}).map(([playerId, saves]) => ([
+        playerId,
+        sanitizeScore(saves),
+      ])),
+    );
+    const updatedMinuteDeltas = Array.isArray(editDraft.playerMinuteDeltas)
+      ? editDraft.playerMinuteDeltas.map(delta => ({
+        ...delta,
+        saves: normalizedSaves[delta.playerId] || 0,
+      }))
+      : editDraft.playerMinuteDeltas;
+    updatedHistory[editingGameIndex] = {
+      ...originalGame,
+      opponentName: nextOpponentName,
+      opponentLogoUrl: nextOpponentLogoUrl,
+      homeScore: sanitizeScore(editDraft.homeScore),
+      awayScore: sanitizeScore(editDraft.awayScore),
+      goals: normalizedGoals,
+      gkSaves: normalizedSaves,
+      playerMinuteDeltas: updatedMinuteDeltas,
     };
-    onUpdate({ ...data, gameHistory: updatedHistory });
+    const recalculatedPlayers = applyHistoryToPlayers(players, updatedHistory);
+    onUpdate({ ...data, players: recalculatedPlayers, gameHistory: updatedHistory });
     closeEditGame();
   }
 
-  function deleteGameFromHistory(originalIndex) {
-    if (!window.confirm('Delete this game? This will recalculate all season stats from game history.')) return;
+  async function deleteGameFromHistory(originalIndex, adminCode) {
     const nextHistory = (data.gameHistory || [])
       .filter((_, idx) => idx !== originalIndex)
       .map((g, idx) => ({ ...g, gameNumber: idx + 1 }));
     const recalculatedPlayers = applyHistoryToPlayers(players, nextHistory);
-    onUpdate({
-      ...data,
-      players: recalculatedPlayers,
-      gameHistory: nextHistory,
-    });
+    const updateResult = await onUpdate(
+      {
+        ...data,
+        players: recalculatedPlayers,
+        gameHistory: nextHistory,
+      },
+      {
+        adminCode,
+        optimistic: false,
+      },
+    );
+    if (updateResult?.ok === false) {
+      setDeleteError(updateResult?.error?.message || 'Unable to delete the game. Check the administrator password.');
+      return false;
+    }
     closeEditGame();
+    return true;
   }
+
+  async function confirmDeleteGame() {
+    if (deletePromptIndex === null) return;
+    if (!deleteAdminPassword.trim()) {
+      setDeleteError('Administrator password is required to delete a game.');
+      return;
+    }
+    setDeleteInProgress(true);
+    const ok = await deleteGameFromHistory(deletePromptIndex, deleteAdminPassword.trim());
+    setDeleteInProgress(false);
+    if (ok) {
+      closeDeletePrompt();
+    }
+  }
+
+  const sortedGoals = editDraft
+    ? (editDraft.goals || [])
+      .map((goal, idx) => ({ ...goal, originalIndex: idx }))
+      .sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0))
+    : [];
+  const keeperCandidates = editDraft ? getKeeperCandidates(editDraft, players) : [];
+  const keeperDisplayIds = new Set([
+    ...keeperCandidates.map(player => player.id),
+    ...Object.keys(editDraft?.gkSaves || {}),
+  ]);
+  const keeperDisplayPlayers = editDraft
+    ? players.filter(player => keeperDisplayIds.has(player.id))
+    : [];
+  const keeperOptions = keeperCandidates.length > 0 ? keeperCandidates : players;
 
   return (
     <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
@@ -531,7 +640,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                       Edit
                     </button>
                     <button
-                      onClick={() => deleteGameFromHistory(originalIndex)}
+                      onClick={() => openDeletePrompt(originalIndex)}
                       className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
                     >
                       Delete
@@ -545,7 +654,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
       )}
 
       {editDraft && (
-          <div className="fixed inset-0 h-dvh bg-black/60 z-50 flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeEditGame}>
+          <div className="fixed inset-0 h-dvh bg-black/60 z-[70] flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeEditGame}>
           <div className="bg-white dark:bg-slate-900 w-full h-dvh sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header with result badge */}
             <div className="bg-gradient-to-r from-pitch-700 to-pitch-600 px-6 pt-6 pb-4 text-white">
@@ -620,71 +729,223 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                 </div>
 
                 {/* Goal Scorers */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Goal Scorers</label>
                     <button
                       onClick={() => {
                         if (players.length === 0) return;
-                        setEditDraft(d => ({
-                          ...d,
-                          goals: [...(d.goals || []), { playerId: players[0].id, playerName: players[0].name || '?', minute: 0 }],
-                        }));
+                        setGoalForm({ playerId: players[0].id, minute: '' });
+                        setShowGoalForm(true);
                       }}
-                      className="flex items-center gap-1 text-xs text-pitch-600 font-bold px-3 py-1.5 rounded-full bg-pitch-50 active:bg-pitch-100 transition-colors"
+                      disabled={players.length === 0}
+                      className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+                        players.length === 0
+                          ? 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+                          : 'text-pitch-600 bg-pitch-50 active:bg-pitch-100 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      }`}
                     >
-                      <span className="text-base leading-none">+</span> Add Goal
+                      <span className="text-base leading-none">+</span> Goal Scorer
                     </button>
                   </div>
-                  {(editDraft.goals || []).length === 0 ? (
+                  {showGoalForm && (
+                    <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-3">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                        <select
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                          value={goalForm.playerId || ''}
+                          onChange={e => setGoalForm(form => ({ ...form, playerId: e.target.value }))}
+                        >
+                          {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <div className="relative w-20">
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="min"
+                            className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                            value={goalForm.minute}
+                            onChange={e => setGoalForm(form => ({ ...form, minute: e.target.value }))}
+                          />
+                          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-slate-500 pointer-events-none">&apos;</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (!goalForm.playerId) return;
+                            const scorer = players.find(p => p.id === goalForm.playerId);
+                            setEditDraft(d => ({
+                              ...d,
+                              goals: [
+                                ...(d.goals || []),
+                                {
+                                  playerId: goalForm.playerId,
+                                  playerName: scorer?.name || '?',
+                                  minute: sanitizeScore(goalForm.minute),
+                                },
+                              ],
+                            }));
+                            setShowGoalForm(false);
+                          }}
+                          className="btn-primary flex-1 text-xs"
+                        >
+                          Add Goal
+                        </button>
+                        <button onClick={() => setShowGoalForm(false)} className="btn-secondary flex-1 text-xs">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {sortedGoals.length === 0 ? (
                     <div className="rounded-xl bg-gray-50 border border-dashed border-gray-200 py-4 text-center dark:bg-slate-900 dark:border-slate-700">
                       <p className="text-sm text-gray-400 dark:text-slate-500">No goals recorded</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {(editDraft.goals || []).map((goal, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-gray-50 rounded-xl p-2 dark:bg-slate-900">
-                          <div className="w-7 h-7 rounded-full bg-pitch-100 flex items-center justify-center text-pitch-700 text-xs font-bold shrink-0">⚽</div>
-                          <select
-                            className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                            value={goal.playerId || ''}
-                            onChange={e => {
-                              const playerId = e.target.value;
-                              const player = players.find(p => p.id === playerId);
-                              setEditDraft(d => ({
+                      {sortedGoals.map(goal => {
+                        const scorer = players.find(p => p.id === goal.playerId);
+                        const scorerName = scorer?.name || goal.playerName || '?';
+                        const minuteLabel = Number.isFinite(Number(goal.minute)) ? `${Number(goal.minute)}'` : '';
+                        return (
+                          <div key={`${goal.originalIndex}-${goal.playerId}-${goal.minute}`} className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl p-3 dark:bg-slate-900">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-full bg-pitch-100 flex items-center justify-center text-pitch-700 text-xs font-bold shrink-0 dark:bg-emerald-900/40 dark:text-emerald-200">⚽</div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{scorerName}</p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">{minuteLabel}</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setEditDraft(d => ({
                                 ...d,
-                                goals: (d.goals || []).map((g, gIdx) => gIdx === idx ? { ...g, playerId, playerName: player?.name || '?' } : g),
-                              }));
-                            }}
-                          >
-                            {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
-                          <div className="relative w-14 shrink-0">
-                            <input
-                              type="number"
-                              min={0}
-                              placeholder="min"
-                              className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                              value={goal.minute}
-                              onChange={e => setEditDraft(d => ({
-                                ...d,
-                                goals: (d.goals || []).map((g, gIdx) => gIdx === idx ? { ...g, minute: e.target.value } : g),
+                                goals: (d.goals || []).filter((_, gIdx) => gIdx !== goal.originalIndex),
                               }))}
-                            />
-                            <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 dark:text-slate-500 pointer-events-none">&#39;</span>
+                              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-500 font-bold text-sm active:bg-red-200 transition-colors dark:bg-red-900/40 dark:text-red-300 dark:active:bg-red-900/60"
+                              aria-label="Remove goal"
+                            >
+                              ×
+                            </button>
                           </div>
-                          <button
-                            onClick={() => setEditDraft(d => ({
-                              ...d,
-                              goals: (d.goals || []).filter((_, gIdx) => gIdx !== idx),
-                            }))}
-                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-500 font-bold text-sm active:bg-red-200 transition-colors dark:bg-red-900/40 dark:text-red-300 dark:active:bg-red-900/60"
-                            aria-label="Remove goal"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Keeper Saves */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Keeper Saves</label>
+                    <button
+                      onClick={() => {
+                        if (keeperOptions.length === 0) return;
+                        setSaveForm({ playerId: keeperOptions[0].id, saves: 1 });
+                        setSaveFormError('');
+                        setShowSaveForm(true);
+                      }}
+                      disabled={keeperOptions.length === 0}
+                      className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+                        keeperOptions.length === 0
+                          ? 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+                          : 'text-pitch-600 bg-pitch-50 active:bg-pitch-100 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      }`}
+                    >
+                      <span className="text-base leading-none">+</span> Add Save
+                    </button>
+                  </div>
+                  {showSaveForm && (
+                    <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-3">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                        <select
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                          value={saveForm.playerId || ''}
+                          onChange={e => {
+                            setSaveForm(form => ({ ...form, playerId: e.target.value }));
+                            if (saveFormError) setSaveFormError('');
+                          }}
+                        >
+                          {keeperOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <input
+                          type="number"
+                          min={1}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                          value={saveForm.saves}
+                          onChange={e => {
+                            setSaveForm(form => ({ ...form, saves: e.target.value }));
+                            if (saveFormError) setSaveFormError('');
+                          }}
+                        />
+                      </div>
+                      {saveFormError && (
+                        <p className="text-xs text-red-600 dark:text-red-300">{saveFormError}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (!saveForm.playerId) return;
+                            const toAdd = sanitizeScore(saveForm.saves);
+                            if (toAdd < 1) {
+                              setSaveFormError('Enter a save count of at least 1.');
+                              return;
+                            }
+                            setEditDraft(d => {
+                              const current = d.gkSaves || {};
+                              return {
+                                ...d,
+                                gkSaves: {
+                                  ...current,
+                                  [saveForm.playerId]: (Number(current[saveForm.playerId]) || 0) + toAdd,
+                                },
+                              };
+                            });
+                            setShowSaveForm(false);
+                          }}
+                          className="btn-primary flex-1 text-xs"
+                        >
+                          Add Saves
+                        </button>
+                        <button onClick={() => setShowSaveForm(false)} className="btn-secondary flex-1 text-xs">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {keeperDisplayPlayers.length === 0 ? (
+                    <div className="rounded-xl bg-gray-50 border border-dashed border-gray-200 py-4 text-center dark:bg-slate-900 dark:border-slate-700">
+                      <p className="text-sm text-gray-400 dark:text-slate-500">No keeper saves recorded</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {keeperDisplayPlayers.map(player => {
+                        const totalSaves = Number(editDraft.gkSaves?.[player.id]) || 0;
+                        return (
+                          <div key={player.id} className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl p-3 dark:bg-slate-900">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-xs font-bold shrink-0 dark:bg-emerald-900/40 dark:text-emerald-200">🧤</div>
+                              <span className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{player.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-300 tabular-nums">{totalSaves}</span>
+                              {totalSaves > 0 && (
+                                <button
+                                  onClick={() => setEditDraft(d => {
+                                    const nextSaves = { ...(d.gkSaves || {}) };
+                                    delete nextSaves[player.id];
+                                    return { ...d, gkSaves: nextSaves };
+                                  })}
+                                  className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-500 font-bold text-sm active:bg-red-200 transition-colors dark:bg-red-900/40 dark:text-red-300 dark:active:bg-red-900/60"
+                                  aria-label="Remove saves"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -692,7 +953,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
             </div>
 
             {/* Footer actions */}
-            <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-white space-y-3 dark:border-slate-800 dark:bg-slate-900">
+            <div className="px-6 pt-4 pb-[calc(1.5rem+var(--app-tabbar-height))] border-t border-gray-100 bg-white space-y-3 dark:border-slate-800 dark:bg-slate-900">
               <button onClick={saveEditedGame} className="btn-primary w-full text-sm">
                 Save Changes
               </button>
@@ -701,12 +962,52 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                   Cancel
                 </button>
                 <button
-                  onClick={() => deleteGameFromHistory(editingGameIndex)}
+                  onClick={() => openDeletePrompt(editingGameIndex)}
                   className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
                 >
                   Delete Game
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {deletePromptIndex !== null && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center px-4" onClick={closeDeletePrompt}>
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="text-3xl mb-1">🗑️</div>
+              <h3 className="text-lg font-black text-gray-900 dark:text-slate-100">Delete this game?</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">This will recalculate all season stats from game history.</p>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Administrator Password</label>
+              <input
+                type="password"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                value={deleteAdminPassword}
+                onChange={e => {
+                  setDeleteAdminPassword(e.target.value);
+                  if (deleteError) setDeleteError('');
+                }}
+                placeholder="Enter admin password"
+                autoComplete="current-password"
+              />
+              {deleteError && (
+                <p className="text-xs text-red-600 dark:text-red-300">{deleteError}</p>
+              )}
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={closeDeletePrompt} className="btn-secondary flex-1 text-sm" disabled={deleteInProgress}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteGame}
+                className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-colors ${deleteInProgress ? 'bg-red-200 text-red-500 dark:bg-red-900/40 dark:text-red-200' : 'bg-red-50 text-red-600 active:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50'}`}
+                disabled={deleteInProgress}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
