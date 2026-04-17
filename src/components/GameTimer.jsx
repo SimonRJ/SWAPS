@@ -1188,7 +1188,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
       {/* Sub Alert Modal */}
       {showSubModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4" onClick={subAlertType === 'due' ? undefined : dismissSubModal}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-4">
               <div className="text-4xl mb-1">🔄</div>
               <h3 className="text-xl font-black text-gray-900 dark:text-slate-100">
@@ -1201,13 +1201,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                 {currentSubs.map((sub, i) => (
                   <li key={i} className="bg-gray-50 rounded-xl p-3 dark:bg-slate-900">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-bold text-red-500">
+                      <span className="text-sm font-bold text-red-500 dark:text-red-300">
                         ↓ OFF: {getPlayer(sub.off)?.name || 'Unknown'}
                       </span>
                       {sub.offPosition && <span className={`position-badge ${posLabelSmall(sub.offPosition)}`}>{sub.offPosition}</span>}
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-pitch-600">
+                      <span className="text-sm font-bold text-pitch-600 dark:text-emerald-300">
                         ↑ ON: {getPlayer(sub.on)?.name || 'Unknown'}
                       </span>
                       <span className={`position-badge ${posLabelSmall(sub.position)}`}>{sub.position}</span>

@@ -67,6 +67,16 @@ export default function StatsTab({ data, onUpdate }) {
 
   const activePlayers = players.filter(p => p.isActive);
   const history = useMemo(() => gameHistory || [], [gameHistory]);
+  const goalsByPlayer = useMemo(() => {
+    const totals = {};
+    for (const game of history) {
+      for (const goal of (game.goals || [])) {
+        if (!goal.playerId) continue;
+        totals[goal.playerId] = (totals[goal.playerId] || 0) + 1;
+      }
+    }
+    return totals;
+  }, [history]);
   const schedule = useMemo(
     () => buildSeasonSchedule(team.gamesPerSeason, data.seasonSchedule),
     [team.gamesPerSeason, data.seasonSchedule],
@@ -1045,6 +1055,7 @@ export default function StatsTab({ data, onUpdate }) {
               const sickMins = p.minutesSickInjured || 0;
               const benchMins = p.minutesBench || 0;
               const saves = p.saves || 0;
+              const goals = goalsByPlayer[p.id] || 0;
               const combined = total + sickMins;
               const pct = maxTotal > 0 ? Math.round((combined / maxTotal) * 100) : 0;
               return (
@@ -1062,7 +1073,7 @@ export default function StatsTab({ data, onUpdate }) {
                       <span className="font-semibold text-gray-900 dark:text-slate-100">{p.name}</span>
                     </div>
                     <span className="text-sm text-gray-500 dark:text-slate-400 font-medium">
-                      {total} min{benchMins > 0 ? ` · 🪑 ${benchMins}` : ''}{sickMins > 0 ? ` · 🏥 ${sickMins}` : ''}{saves > 0 ? ` · 🧤 ${saves}` : ''} →
+                      {total} min{benchMins > 0 ? ` · 🪑 ${benchMins}` : ''}{sickMins > 0 ? ` · 🏥 ${sickMins}` : ''}{saves > 0 ? ` · 🧤 ${saves}` : ''}{goals > 0 ? ` · ⚽ ${goals}` : ''} →
                     </span>
                   </div>
                   <div className="h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
