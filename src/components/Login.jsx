@@ -11,7 +11,7 @@ function normalizeTeamCode(value) {
     .slice(0, MAX_TEAM_CODE_LENGTH);
 }
 
-export default function Login({ onLogin, onOpenAdmin }) {
+export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
   const [teamId, setTeamId] = useState('');
   const [loginPasscode, setLoginPasscode] = useState('');
   const [teamCodes, setTeamCodes] = useState([]);
@@ -130,13 +130,22 @@ export default function Login({ onLogin, onOpenAdmin }) {
         </form>
       </div>
 
-      <button
-        type="button"
-        onClick={onOpenAdmin}
-        className="absolute bottom-[max(0.8rem,env(safe-area-inset-bottom))] right-[max(0.8rem,env(safe-area-inset-right))] z-20 rounded-md border border-white/45 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/70"
-      >
-        Admin
-      </button>
+      <div className="absolute bottom-[max(0.8rem,env(safe-area-inset-bottom))] left-[max(0.8rem,env(safe-area-inset-left))] right-[max(0.8rem,env(safe-area-inset-right))] z-20 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onOpenCreateTeam}
+          className="rounded-md border border-white/45 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/70"
+        >
+          Create Team
+        </button>
+        <button
+          type="button"
+          onClick={onOpenAdmin}
+          className="rounded-md border border-white/45 bg-black/55 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/70"
+        >
+          Admin
+        </button>
+      </div>
     </div>
   );
 }

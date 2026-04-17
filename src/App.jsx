@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { buildSeasonSchedule, migrateData } from './utils/storage.js';
 import Login from './components/Login.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
+import CreateTeamPanel from './components/CreateTeamPanel.jsx';
 import TabNav from './components/TabNav.jsx';
 import TeamTab from './components/TeamTab.jsx';
 import GameTab from './components/GameTab.jsx';
@@ -341,9 +342,23 @@ export default function App() {
         </div>
       );
     }
+    if (authScreen === 'create-team') {
+      return (
+        <div className="relative">
+          <CreateTeamPanel onBack={() => setAuthScreen('login')} />
+          <div className="fixed right-3 top-3 z-50">
+            <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} className="text-white" />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="relative">
-        <Login onLogin={handleLogin} onOpenAdmin={() => setAuthScreen('admin')} />
+        <Login
+          onLogin={handleLogin}
+          onOpenAdmin={() => setAuthScreen('admin')}
+          onOpenCreateTeam={() => setAuthScreen('create-team')}
+        />
         <div className="fixed right-3 top-3 z-50">
           <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} className="text-white" />
         </div>
