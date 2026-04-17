@@ -303,7 +303,7 @@ export default function AdminPanel({ onBack }) {
           </button>
         </div>
 
-        <div className="mt-4 space-y-4">
+        <div className="mt-6 border-t border-gray-200 pt-5 space-y-4 dark:border-slate-800">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500 dark:text-slate-400">Security Log</p>
             <p className="text-xs text-gray-500 dark:text-slate-400">
