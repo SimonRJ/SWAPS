@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AGE_CATEGORIES,
   FIXED_GAME_DURATION,
@@ -175,11 +175,32 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const status = getRoundStatus(round);
   const opponentName = (round.opponentName || '').trim() || 'Opponent not set';
   const locationText = (round.location || '').trim() || 'Location not set';
+  const dateLabel = formatRoundDateLabel(round.date);
+  const dateInputId = `round-date-${round.round}`;
+  const dateButtonText = round.date ? dateLabel : 'Date';
+  const dateButtonAriaLabel = round.date ? `Select date: ${dateLabel}` : 'Select date';
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const dateInputRef = useRef(null);
+  const handleOpenRound = () => {
+    setShowDatePicker(false);
+    onOpen();
+  };
+  const handleCloseRound = () => {
+    setShowDatePicker(false);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!showDatePicker) return;
+    const input = dateInputRef.current;
+    input?.focus();
+    input?.showPicker?.();
+  }, [showDatePicker]);
 
   return (
     <div className={`rounded-2xl border shadow-sm transition ${getVenueClasses(venue, isExpanded)}`}>
       {!isExpanded ? (
-        <button type="button" onClick={onOpen} className="w-full p-4 text-left">
+        <button type="button" onClick={handleOpenRound} className="w-full p-4 text-left">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -231,12 +252,13 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                   {venue ? venue.charAt(0).toUpperCase() + venue.slice(1) : 'Venue'}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
+              <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{dateLabel}</p>
+              <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
             </div>
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleCloseRound}
               className="rounded-full bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 shadow-sm"
             >
               Back
@@ -276,13 +298,31 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
             />
 
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Date of Match</label>
-              <input
-                type="date"
-                value={round.date || ''}
-                onChange={(e) => onChange({ date: e.target.value })}
-                className="input-field"
-              />
+              <label htmlFor={dateInputId} className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
+                Date of Match
+              </label>
+              {showDatePicker ? (
+                <input
+                  ref={dateInputRef}
+                  id={dateInputId}
+                  type="date"
+                  value={round.date || ''}
+                  onChange={(e) => {
+                    onChange({ date: e.target.value });
+                    setShowDatePicker(false);
+                  }}
+                  className="input-field max-w-[12rem]"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(true)}
+                  aria-label={dateButtonAriaLabel}
+                  className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  {dateButtonText}
+                </button>
+              )}
             </div>
 
             <div>
@@ -325,10 +365,10 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={onClose} className="btn-secondary flex-1">
+              <button type="button" onClick={handleCloseRound} className="btn-secondary flex-1">
                 Back
               </button>
-              <button type="button" onClick={onClose} className="btn-primary flex-1">
+              <button type="button" onClick={handleCloseRound} className="btn-primary flex-1">
                 Save Round
               </button>
             </div>

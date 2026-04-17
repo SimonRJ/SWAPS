@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { migrateData } from './utils/storage.js';
+import { buildSeasonSchedule, migrateData } from './utils/storage.js';
 import Login from './components/Login.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import TabNav from './components/TabNav.jsx';
@@ -10,6 +10,7 @@ import ClubLogo from './components/ClubLogo.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import { FOOTBALL_WEST_LOGO_URL } from './utils/clubLogos.js';
 import { loginWithSession, saveTeamData } from './utils/netlifyData.js';
+import { applyBlockMinutes } from './utils/subAlgorithm.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
@@ -35,6 +36,147 @@ function getInitialTheme() {
   return 'light';
 }
 
+function secondsToMinutes(seconds) {
+  return Math.round((seconds || 0) / 60);
+}
+
+function applyTrackedMinutes(players, playerTimers) {
+  return players.map(player => {
+    const timer = playerTimers?.[player.id];
+    if (!timer?.positionSeconds) return player;
+    const gkMinutes = secondsToMinutes(timer.positionSeconds.GK);
+    const defMinutes = secondsToMinutes(timer.positionSeconds.DEF);
+    const midMinutes = secondsToMinutes(timer.positionSeconds.MID);
+    const atkMinutes = secondsToMinutes(timer.positionSeconds.ATK);
+    return {
+      ...player,
+      minutesGK: (player.minutesGK || 0) + gkMinutes,
+      minutesDEF: (player.minutesDEF || 0) + defMinutes,
+      minutesMID: (player.minutesMID || 0) + midMinutes,
+      minutesATK: (player.minutesATK || 0) + atkMinutes,
+    };
+  });
+}
+
+function getCancelledDetails(data) {
+  return Array.isArray(data?.cancelledGameDetails) ? data.cancelledGameDetails : [];
+}
+
+function buildLogoutEndGameData(data) {
+  const { currentGame, players, team } = data;
+  if (!currentGame) return data;
+  const plan = Array.isArray(currentGame.plan) ? currentGame.plan : [];
+  const availablePlayers = Array.isArray(currentGame.availablePlayers) ? currentGame.availablePlayers : [];
+  const absentMinutes = currentGame.absentMinutes || [];
+
+  let updatedPlayers = [...players];
+  const finalBlockIndex = currentGame.blockIndex || 0;
+  const elapsedSeconds = currentGame.elapsedSeconds || 0;
+  const blocksPlayed = finalBlockIndex + 1;
+  const totalBlocks = plan.length;
+
+  const playerTimers = currentGame.playerTimers || {};
+  const hasTrackedMinutes = Object.values(playerTimers).some(t => (t?.totalSeconds || 0) > 0);
+
+  if (hasTrackedMinutes) {
+    updatedPlayers = applyTrackedMinutes(updatedPlayers, playerTimers);
+  } else {
+    for (let i = 0; i < Math.min(blocksPlayed, totalBlocks); i++) {
+      const block = plan[i];
+      let blockMinutes = 10;
+      if (i === totalBlocks - 1) {
+        const remainingMinutes = team.gameDuration - (totalBlocks - 1) * 10;
+        blockMinutes = remainingMinutes;
+      }
+      updatedPlayers = applyBlockMinutes(updatedPlayers, block.onField, blockMinutes);
+    }
+  }
+
+  if (absentMinutes && absentMinutes.length > 0) {
+    updatedPlayers = updatedPlayers.map(p => {
+      const absentEntry = absentMinutes.find(a => a.playerId === p.id);
+      if (absentEntry) {
+        return {
+          ...p,
+          minutesSickInjured: (p.minutesSickInjured || 0) + absentEntry.minutesSickInjured,
+        };
+      }
+      return p;
+    });
+  }
+
+  const gkSaves = currentGame.gkSaves || {};
+  updatedPlayers = updatedPlayers.map(player => ({
+    ...player,
+    saves: (player.saves || 0) + (Number(gkSaves[player.id]) || 0),
+  }));
+
+  const availableSet = new Set(availablePlayers);
+  updatedPlayers = updatedPlayers.map(player => {
+    if (!availableSet.has(player.id)) return player;
+    const original = players.find(p => p.id === player.id) || player;
+    const fieldMinutesThisGame =
+      ((player.minutesGK || 0) - (original.minutesGK || 0)) +
+      ((player.minutesDEF || 0) - (original.minutesDEF || 0)) +
+      ((player.minutesMID || 0) - (original.minutesMID || 0)) +
+      ((player.minutesATK || 0) - (original.minutesATK || 0));
+    const benchMinutesThisGame = Math.max(0, team.gameDuration - fieldMinutesThisGame);
+    return {
+      ...player,
+      minutesBench: (player.minutesBench || 0) + benchMinutesThisGame,
+    };
+  });
+
+  const playerMinuteDeltas = players.map(original => {
+    const updated = updatedPlayers.find(p => p.id === original.id) || original;
+    return {
+      playerId: original.id,
+      minutesGK: (updated.minutesGK || 0) - (original.minutesGK || 0),
+      minutesDEF: (updated.minutesDEF || 0) - (original.minutesDEF || 0),
+      minutesMID: (updated.minutesMID || 0) - (original.minutesMID || 0),
+      minutesATK: (updated.minutesATK || 0) - (original.minutesATK || 0),
+      minutesSickInjured: (updated.minutesSickInjured || 0) - (original.minutesSickInjured || 0),
+      minutesBench: (updated.minutesBench || 0) - (original.minutesBench || 0),
+      saves: (updated.saves || 0) - (original.saves || 0),
+    };
+  });
+
+  const historyEntry = {
+    gameNumber: currentGame.gameNumber,
+    date: new Date().toLocaleDateString(),
+    formation: currentGame.formation,
+    playerCount: availablePlayers.length,
+    absentCount: (currentGame.absentPlayers || []).length,
+    elapsedSeconds,
+    opponentName: currentGame.opponentName || 'Opponent',
+    opponentLogoUrl: currentGame.opponentLogoUrl || '',
+    homeScore: currentGame.homeScore ?? 0,
+    awayScore: currentGame.awayScore ?? 0,
+    goals: currentGame.goals ?? [],
+    gkSaves,
+    playerTimers,
+    absentMinutes: currentGame.absentMinutes || [],
+    playerMinuteDeltas,
+    startingBenchIds: Array.isArray(currentGame.startingBench)
+      ? currentGame.startingBench.filter(id => typeof id === 'string')
+      : [],
+  };
+
+  const updatedCancelled = getCancelledDetails(data)
+    .filter(item => Number(item.round) !== Number(currentGame.gameNumber));
+
+  return {
+    ...data,
+    players: updatedPlayers,
+    currentGame: null,
+    pendingGameSetup: null,
+    gameHistory: [...(data.gameHistory || []), historyEntry],
+    cancelledGameDetails: updatedCancelled,
+    cancelledGames: updatedCancelled.length,
+    seasonSchedule: buildSeasonSchedule(team.gamesPerSeason, data.seasonSchedule),
+  };
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -44,6 +186,9 @@ export default function App() {
   const [authScreen, setAuthScreen] = useState('login');
   const [activeTab, setActiveTab] = useState('game');
   const [theme, setTheme] = useState(() => getInitialTheme());
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const [logoutInProgress, setLogoutInProgress] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const isDarkTheme = theme === 'dark';
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
@@ -129,14 +274,52 @@ export default function App() {
     }
   }, [session]);
 
-  function handleLogout() {
-    if (!window.confirm('Log out? Your team data stays saved on Netlify.')) return;
+  function performLogout() {
     setLoggedIn(false);
     setData(null);
     setSession(null);
     setSyncError('');
     setAuthScreen('login');
     sessionStorage.removeItem(SESSION_KEY);
+  }
+
+  function handleLogout() {
+    if (data?.currentGame) {
+      setLogoutError('');
+      setShowLogoutWarning(true);
+      return;
+    }
+    if (!window.confirm('Log out? Your team data stays saved on Netlify.')) return;
+    performLogout();
+  }
+
+  function handleCancelLogout() {
+    setShowLogoutWarning(false);
+    setLogoutError('');
+    setActiveTab('game');
+  }
+
+  async function handleConfirmLogout() {
+    if (logoutInProgress) return;
+    setLogoutInProgress(true);
+    setLogoutError('');
+    try {
+      if (data?.currentGame) {
+        const updatedData = buildLogoutEndGameData(data);
+        const updateResult = await handleUpdate(updatedData, { optimistic: false });
+        if (updateResult?.ok === false) {
+          setLogoutError(updateResult?.error?.message || 'Unable to save match stats. Try again.');
+          setLogoutInProgress(false);
+          return;
+        }
+      }
+      setShowLogoutWarning(false);
+      performLogout();
+    } catch (error) {
+      setLogoutError(error?.message || 'Unable to save match stats. Try again.');
+    } finally {
+      setLogoutInProgress(false);
+    }
   }
 
   if (checkingSession) {
@@ -190,6 +373,46 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {showLogoutWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-warning-title"
+          >
+            <h2 id="logout-warning-title" className="text-base font-semibold text-gray-900 dark:text-slate-100">
+              End match early?
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">
+              This will end the current match and save stats. Are you sure you want to end this match early?
+            </p>
+            {logoutError && (
+              <p className="mt-3 text-xs font-medium text-red-600 dark:text-red-300">{logoutError}</p>
+            )}
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={handleCancelLogout}
+                className="flex-1 rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                disabled={logoutInProgress}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLogout}
+                className="flex-1 rounded-full bg-pitch-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-pitch-500 disabled:opacity-70"
+                disabled={logoutInProgress}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <main
