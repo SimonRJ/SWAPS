@@ -208,10 +208,21 @@ export default function App() {
             and substitute countdown continue running across tab switches. */}
         {hasLiveGame ? (
           <div style={{ display: activeTab === 'game' ? undefined : 'none', height: '100%' }}>
-            <GameTab data={data} onUpdate={handleUpdate} onSwitchToGame={switchToGame} />
+            <GameTab
+              data={data}
+              onUpdate={handleUpdate}
+              onSwitchToGame={switchToGame}
+              sessionTeamId={session?.teamId}
+            />
           </div>
         ) : (
-          activeTab === 'game' && <GameTab data={data} onUpdate={handleUpdate} />
+          activeTab === 'game' && (
+            <GameTab
+              data={data}
+              onUpdate={handleUpdate}
+              sessionTeamId={session?.teamId}
+            />
+          )
         )}
         {activeTab === 'stats' && (
           <StatsTab data={data} onUpdate={handleUpdate} />

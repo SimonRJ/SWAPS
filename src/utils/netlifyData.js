@@ -12,16 +12,21 @@ async function callTeamFunction(payload) {
   if (!response.ok) {
     const error = new Error(body.error || 'Request failed.');
     error.code = body.code || 'REQUEST_FAILED';
+    error.details = body;
+    if (body.maxTeams !== undefined) {
+      error.maxTeams = body.maxTeams;
+    }
     throw error;
   }
   return body;
 }
 
-export async function createTeam({ teamId, data }) {
+export async function createTeam({ teamId, data, passcode }) {
   const result = await callTeamFunction({
     action: 'create',
     teamId,
     data,
+    ...(passcode ? { passcode } : {}),
   });
   return {
     data: result.data,
@@ -59,12 +64,14 @@ export async function loginWithSession(session) {
 
 export async function saveTeamData(session, data, options = {}) {
   const adminCode = String(options?.adminCode || '').trim();
+  const passcode = String(options?.passcode || '').trim();
   const result = await callTeamFunction({
     action: 'save',
     teamId: session.teamId,
     passcodeHash: session.passcodeHash,
     data,
     ...(adminCode ? { adminCode } : {}),
+    ...(passcode ? { passcode } : {}),
   });
   return {
     ...session,
@@ -110,6 +117,51 @@ export async function restoreFromSecurityLog(teamId, logId, adminPassword) {
     teamId,
     logId,
     adminPassword,
+  });
+  return Boolean(result.ok);
+}
+
+export async function listAdminTeams(adminPassword) {
+  const result = await callTeamFunction({
+    action: 'adminTeams',
+    adminPassword,
+  });
+  return {
+    teams: Array.isArray(result.teams) ? result.teams : [],
+    maxTeams: result.maxTeams,
+  };
+}
+
+export async function updateAdminTeamLimit(maxTeams, adminPassword) {
+  const result = await callTeamFunction({
+    action: 'adminSettingsUpdate',
+    adminPassword,
+    maxTeams,
+  });
+  return result.maxTeams;
+}
+
+export async function submitAdminRequest(payload) {
+  const result = await callTeamFunction({
+    action: 'adminRequestCreate',
+    ...payload,
+  });
+  return Boolean(result.ok);
+}
+
+export async function listAdminRequests(adminPassword) {
+  const result = await callTeamFunction({
+    action: 'adminRequestList',
+    adminPassword,
+  });
+  return Array.isArray(result.requests) ? result.requests : [];
+}
+
+export async function completeAdminRequest(requestId, adminPassword) {
+  const result = await callTeamFunction({
+    action: 'adminRequestComplete',
+    adminPassword,
+    requestId,
   });
   return Boolean(result.ok);
 }

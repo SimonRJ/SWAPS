@@ -22,6 +22,11 @@ const ADMIN_TEAM_PASSWORD_CODE = process.env.ADMIN_TEAM_PASSWORD_CODE || ADMIN_D
 const SECURITY_LOG_PREFIX = 'security-logs/';
 const SECURITY_SNAPSHOT_PREFIX = 'security-snapshots/';
 const DELETED_TEAM_PREFIX = 'deleted-teams/';
+const ADMIN_REQUEST_PREFIX = 'admin-requests/';
+const TEAM_PASSCODE_PREFIX = 'team-passcodes/';
+const ADMIN_SETTINGS_KEY = 'admin-settings';
+const DEFAULT_MAX_TEAMS = 10;
+const MAX_ALLOWED_TEAMS = 100;
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -49,6 +54,14 @@ function securitySnapshotKey(teamId, logId) {
 
 function deletedTeamKey(teamId) {
   return `${DELETED_TEAM_PREFIX}${teamId}`;
+}
+
+function adminRequestKey(requestId) {
+  return `${ADMIN_REQUEST_PREFIX}${requestId}`;
+}
+
+function teamPasscodeKey(teamId) {
+  return `${TEAM_PASSCODE_PREFIX}${teamId}`;
 }
 
 function buildLogId() {
@@ -222,6 +235,50 @@ async function listDeletedTeamCodes() {
   return teamIds;
 }
 
+async function getAdminSettings() {
+  const settings = await store.get(ADMIN_SETTINGS_KEY, { type: 'json' });
+  const maxTeams = Number(settings?.maxTeams);
+  if (!Number.isFinite(maxTeams) || maxTeams <= 0) {
+    return { maxTeams: DEFAULT_MAX_TEAMS };
+  }
+  return { maxTeams: Math.min(Math.max(1, Math.round(maxTeams)), MAX_ALLOWED_TEAMS) };
+}
+
+async function setAdminSettings(nextSettings) {
+  await store.setJSON(ADMIN_SETTINGS_KEY, nextSettings);
+}
+
+async function listTeamPasscodes() {
+  const entries = [];
+  let cursor;
+  do {
+    const page = await store.list({ prefix: TEAM_PASSCODE_PREFIX, cursor });
+    for (const blob of page?.blobs || []) {
+      if (!blob?.key) continue;
+      const entry = await store.get(blob.key, { type: 'json' });
+      if (entry) entries.push(entry);
+    }
+    cursor = page?.cursor;
+  } while (cursor);
+  return entries;
+}
+
+async function listAdminRequests() {
+  const entries = [];
+  let cursor;
+  do {
+    const page = await store.list({ prefix: ADMIN_REQUEST_PREFIX, cursor });
+    for (const blob of page?.blobs || []) {
+      if (!blob?.key) continue;
+      const entry = await store.get(blob.key, { type: 'json' });
+      if (entry) entries.push(entry);
+    }
+    cursor = page?.cursor;
+  } while (cursor);
+  entries.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  return entries.slice(0, 200);
+}
+
 function validateDataShape(data) {
   return Boolean(data && data.team && typeof data.team.passcodeHash === 'string');
 }
@@ -267,6 +324,86 @@ export default async (req) => {
     return jsonResponse({ teamCodes });
   }
 
+  if (action === 'adminRequestCreate') {
+    const requestType = String(payload?.requestType || 'general').trim() || 'general';
+    const requestId = buildLogId();
+    const teamId = normalizeTeamId(payload?.teamId);
+    const teamName = String(payload?.teamName || '').trim();
+    const description = String(payload?.description || '').trim();
+    const details = Array.isArray(payload?.details)
+      ? payload.details.filter(Boolean).map(detail => String(detail))
+      : [];
+    const entry = {
+      id: requestId,
+      type: requestType,
+      teamId,
+      teamName,
+      description,
+      details,
+      status: 'open',
+      createdAt: new Date().toISOString(),
+    };
+    await store.setJSON(adminRequestKey(requestId), entry);
+    return jsonResponse({ ok: true, requestId });
+  }
+
+  if (action === 'adminTeams' || action === 'adminRequestList' || action === 'adminRequestComplete' || action === 'adminSettingsUpdate') {
+    if (!ADMIN_DELETE_PASSWORD) {
+      return jsonResponse({ error: 'Administrator delete password is not configured.' }, 500);
+    }
+    const adminPassword = String(payload?.adminPassword || '');
+    if (adminPassword !== ADMIN_DELETE_PASSWORD) {
+      return jsonResponse({ error: 'Invalid administrator password.', code: 'INVALID_ADMIN_PASSWORD' }, 401);
+    }
+
+    if (action === 'adminTeams') {
+      const [activeTeamCodes, passcodeEntries, settings] = await Promise.all([
+        listActiveTeamCodes(),
+        listTeamPasscodes(),
+        getAdminSettings(),
+      ]);
+      const passcodeById = new Map(
+        passcodeEntries.map(entry => [normalizeTeamId(entry?.teamId), entry?.passcode || '']),
+      );
+      const teams = activeTeamCodes
+        .sort((a, b) => a.localeCompare(b))
+        .map(teamCode => ({
+          teamId: teamCode,
+          passcode: passcodeById.get(teamCode) || '',
+        }));
+      return jsonResponse({ teams, maxTeams: settings.maxTeams });
+    }
+
+    if (action === 'adminRequestList') {
+      const requests = await listAdminRequests();
+      return jsonResponse({ requests });
+    }
+
+    if (action === 'adminRequestComplete') {
+      const requestId = String(payload?.requestId || '').trim();
+      if (!requestId) return jsonResponse({ error: 'Request ID is required.' }, 400);
+      const existing = await store.get(adminRequestKey(requestId), { type: 'json' });
+      if (!existing) return jsonResponse({ error: 'Request not found.' }, 404);
+      const updated = {
+        ...existing,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+      };
+      await store.setJSON(adminRequestKey(requestId), updated);
+      return jsonResponse({ ok: true });
+    }
+
+    if (action === 'adminSettingsUpdate') {
+      const maxTeams = Number(payload?.maxTeams);
+      if (!Number.isFinite(maxTeams)) {
+        return jsonResponse({ error: 'Valid maximum team count is required.' }, 400);
+      }
+      const normalizedMaxTeams = Math.min(Math.max(1, Math.round(maxTeams)), MAX_ALLOWED_TEAMS);
+      await setAdminSettings({ maxTeams: normalizedMaxTeams });
+      return jsonResponse({ maxTeams: normalizedMaxTeams });
+    }
+  }
+
   const teamId = normalizeTeamId(payload?.teamId);
   if (!teamId) return jsonResponse({ error: 'Team code is required.' }, 400);
 
@@ -277,11 +414,28 @@ export default async (req) => {
     if (!validateDataShape(data)) {
       return jsonResponse({ error: 'Invalid team data.' }, 400);
     }
+    const settings = await getAdminSettings();
+    const activeTeamCodes = await listActiveTeamCodes();
+    if (activeTeamCodes.length >= settings.maxTeams) {
+      return jsonResponse({
+        error: 'Maximum allowable teams have been created.',
+        code: 'TEAM_LIMIT_REACHED',
+        maxTeams: settings.maxTeams,
+      }, 409);
+    }
     const existing = await store.get(key, { type: 'json' });
     if (existing) {
       return jsonResponse({ error: 'Team code already exists.', code: 'TEAM_EXISTS' }, 409);
     }
     await store.setJSON(key, data);
+    const passcode = String(payload?.passcode || '').trim();
+    if (passcode) {
+      await store.setJSON(teamPasscodeKey(teamId), {
+        teamId,
+        passcode,
+        updatedAt: new Date().toISOString(),
+      });
+    }
     const logId = buildLogId();
     await store.setJSON(securityLogKey(teamId, logId), {
       id: logId,
@@ -431,6 +585,16 @@ export default async (req) => {
     }
 
     await store.setJSON(key, data);
+    if (isPasscodeChange) {
+      const passcode = String(payload?.passcode || '').trim();
+      if (passcode) {
+        await store.setJSON(teamPasscodeKey(teamId), {
+          teamId,
+          passcode,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
     return jsonResponse({ ok: true, passcodeHash: data.team.passcodeHash });
   }
 

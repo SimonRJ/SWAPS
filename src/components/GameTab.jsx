@@ -10,6 +10,7 @@ import {
   findOpponentClubByName,
   getOpponentClubById,
 } from '../utils/clubLogos.js';
+import { submitAdminRequest } from '../utils/netlifyData.js';
 
 function secondsToMinutes(seconds) {
   return Math.round((seconds || 0) / 60);
@@ -125,7 +126,7 @@ function getKeeperCandidates(game, players) {
   return players.filter(player => keeperIds.has(player.id));
 }
 
-export default function GameTab({ data, onUpdate, onSwitchToGame }) {
+export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId }) {
   const { currentGame, players, team } = data;
   const [setupMode, setSetupMode] = useState(false);
   const [editingGameIndex, setEditingGameIndex] = useState(null);
@@ -139,6 +140,11 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
   const [deleteAdminPassword, setDeleteAdminPassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [requestHelpMode, setRequestHelpMode] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestStatus, setRequestStatus] = useState('');
+  const [requestError, setRequestError] = useState('');
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -443,6 +449,11 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setDeletePromptIndex(originalIndex);
     setDeleteAdminPassword('');
     setDeleteError('');
+    setRequestHelpMode(false);
+    setRequestMessage('');
+    setRequestStatus('');
+    setRequestError('');
+    setRequestSubmitting(false);
   }
 
   function closeDeletePrompt() {
@@ -450,6 +461,11 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setDeleteAdminPassword('');
     setDeleteError('');
     setDeleteInProgress(false);
+    setRequestHelpMode(false);
+    setRequestMessage('');
+    setRequestStatus('');
+    setRequestError('');
+    setRequestSubmitting(false);
   }
 
   function saveEditedGame() {
@@ -536,6 +552,37 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setDeleteInProgress(false);
     if (ok) {
       closeDeletePrompt();
+    }
+  }
+
+  async function submitDeleteRequest() {
+    if (deletePromptIndex === null) return;
+    if (!requestMessage.trim()) {
+      setRequestError('Please describe the game you want removed.');
+      return;
+    }
+    setRequestSubmitting(true);
+    setRequestError('');
+    setRequestStatus('');
+    const history = data.gameHistory || [];
+    const targetGame = history[deletePromptIndex];
+    const details = [];
+    if (targetGame?.gameNumber) details.push(`Game ${targetGame.gameNumber}`);
+    if (targetGame?.opponentName) details.push(`Opponent: ${targetGame.opponentName}`);
+    if (targetGame?.date) details.push(`Date: ${targetGame.date}`);
+    try {
+      await submitAdminRequest({
+        requestType: 'delete_game',
+        teamId: sessionTeamId || team?.teamId || '',
+        teamName: team?.name || '',
+        description: requestMessage.trim(),
+        details,
+      });
+      setRequestStatus('Admin has been notified of request.');
+    } catch (error) {
+      setRequestError(error?.message || 'Unable to send request.');
+    } finally {
+      setRequestSubmitting(false);
     }
   }
 
@@ -995,6 +1042,45 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
               />
               {deleteError && (
                 <p className="text-xs text-red-600 dark:text-red-300">{deleteError}</p>
+              )}
+            </div>
+            <div className="mt-4 border-t border-gray-100 pt-4 dark:border-slate-800">
+              {!requestHelpMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRequestHelpMode(true);
+                    setRequestError('');
+                    setRequestStatus('');
+                  }}
+                  className="w-full rounded-xl border border-pitch-200 bg-pitch-50 px-3 py-2 text-xs font-semibold text-pitch-700 transition-colors hover:bg-pitch-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200"
+                >
+                  Request admin help
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Request details</label>
+                  <textarea
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    rows={3}
+                    placeholder="Describe the game you want removed"
+                    value={requestMessage}
+                    onChange={e => {
+                      setRequestMessage(e.target.value);
+                      if (requestError) setRequestError('');
+                    }}
+                  />
+                  {requestError && <p className="text-xs text-red-600 dark:text-red-300">{requestError}</p>}
+                  {requestStatus && <p className="text-xs text-emerald-600 dark:text-emerald-300">{requestStatus}</p>}
+                  <button
+                    type="button"
+                    onClick={submitDeleteRequest}
+                    disabled={requestSubmitting}
+                    className="w-full rounded-xl bg-pitch-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-pitch-700 disabled:opacity-60"
+                  >
+                    {requestSubmitting ? 'Sending...' : 'Send Request'}
+                  </button>
+                </div>
               )}
             </div>
             <div className="flex gap-3 mt-4">
