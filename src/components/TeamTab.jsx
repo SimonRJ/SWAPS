@@ -791,71 +791,81 @@ export default function TeamTab({ data, onUpdate }) {
               <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                 Squad Preview
               </h3>
-              <span className="text-xs font-medium text-gray-500 dark:text-slate-400">{players.length} players</span>
             </div>
 
             {players.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-slate-400">No players yet.</p>
             ) : (
-              <ul className="divide-y divide-gray-100 dark:divide-slate-800">
-                {players.map((player) => {
-                  const stats = squadPreviewStats[player.id] || {
-                    gamesPlayed: 0,
-                    minutesPlayed: 0,
-                    goals: 0,
-                    saves: 0,
-                  };
+              <>
+                <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+                  <span className="flex-1" aria-hidden="true" />
+                  <div
+                    className="grid grid-cols-3 justify-items-end gap-x-3"
+                    style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
+                  >
+                    <span>Played</span>
+                    <span>Minutes</span>
+                    <span>Goals</span>
+                  </div>
+                </div>
+                <ul className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {players.map((player) => {
+                    const stats = squadPreviewStats[player.id] || {
+                      gamesPlayed: 0,
+                      minutesPlayed: 0,
+                      goals: 0,
+                      saves: 0,
+                    };
 
-                  return (
-                    <li key={player.id} className="flex items-center gap-3 py-3 text-sm">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <span
-                          className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border text-sm font-semibold ${
-                            player.isActive
-                              ? 'border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-200'
-                              : 'border-gray-200 dark:border-slate-800 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500'
-                          }`}
-                        >
-                          {player.shirtNumber || '-'}
-                        </span>
-
-                        <div className="min-w-0">
-                          <p
-                            className={`truncate font-medium ${
+                    return (
+                      <li key={player.id} className="flex items-center gap-3 py-3 text-sm">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <span
+                            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border text-sm font-semibold ${
                               player.isActive
-                                ? 'text-gray-900 dark:text-slate-100'
-                                : 'text-gray-400 dark:text-slate-500 line-through'
+                                ? 'border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 text-gray-700 dark:text-slate-200'
+                                : 'border-gray-200 dark:border-slate-800 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500'
                             }`}
                           >
-                            {player.name}
-                          </p>
-                          {!player.isActive && (
-                            <p className="text-xs text-gray-400 dark:text-slate-500">Inactive</p>
-                          )}
-                        </div>
-                      </div>
+                            {player.shirtNumber || '-'}
+                          </span>
 
-                      <div
-                        className="grid grid-cols-2 justify-items-end gap-x-3 gap-y-1 text-[11px] leading-4 text-gray-500 dark:text-slate-400"
-                        style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
-                      >
-                        <span aria-hidden={stats.gamesPlayed <= 0 || undefined}>
-                          {stats.gamesPlayed > 0 ? `Played ${stats.gamesPlayed}` : ''}
-                        </span>
-                        <span aria-hidden={stats.minutesPlayed <= 0 || undefined}>
-                          {stats.minutesPlayed > 0 ? `Minutes ${stats.minutesPlayed}` : ''}
-                        </span>
-                        <span aria-hidden={stats.goals <= 0 || undefined}>
-                          {stats.goals > 0 ? `Goals ${stats.goals}` : ''}
-                        </span>
-                        <span aria-hidden={stats.saves <= 0 || undefined}>
-                          {stats.saves > 0 ? `Saves ${stats.saves}` : ''}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p
+                                className={`truncate font-medium ${
+                                  player.isActive
+                                    ? 'text-gray-900 dark:text-slate-100'
+                                    : 'text-gray-400 dark:text-slate-500 line-through'
+                                }`}
+                              >
+                                {player.name}
+                              </p>
+                              {stats.saves > 0 && (
+                                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-300 shrink-0">
+                                  🧤 {stats.saves}
+                                </span>
+                              )}
+                            </div>
+                            {!player.isActive && (
+                              <p className="text-xs text-gray-400 dark:text-slate-500">Inactive</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div
+                          className="grid grid-cols-3 justify-items-end gap-x-3 text-[11px] leading-4 text-gray-600 dark:text-slate-300 font-semibold"
+                          style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
+                        >
+                          <span className="tabular-nums">{stats.gamesPlayed}</span>
+                          <span className="tabular-nums">{stats.minutesPlayed}</span>
+                          <span className="tabular-nums">{stats.goals}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
             )}
           </div>
         </>
