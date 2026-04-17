@@ -175,6 +175,11 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const status = getRoundStatus(round);
   const opponentName = (round.opponentName || '').trim() || 'Opponent not set';
   const locationText = (round.location || '').trim() || 'Location not set';
+  const formattedDate = round.date ? formatRoundDateLabel(round.date) : '';
+  const dateLabel = formattedDate || 'Select date';
+  const dateAriaLabel = round.date
+    ? `Change match date, currently ${dateLabel}`
+    : 'Select match date';
   const [isDateEditing, setIsDateEditing] = useState(false);
   const dateInputRef = useRef(null);
   const shouldOpenDatePickerRef = useRef(false);
@@ -320,14 +325,15 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                     shouldOpenDatePickerRef.current = true;
                     setIsDateEditing(true);
                   }}
+                  aria-label={dateAriaLabel}
                   className={`input-field flex items-center justify-between text-left ${
                     round.date
                       ? 'text-gray-900 dark:text-slate-100'
                       : 'text-gray-500 dark:text-slate-400'
                   }`}
                 >
-                  <span>{round.date ? formatRoundDateLabel(round.date) : 'Select date'}</span>
-                  <span className="text-base">📅</span>
+                  <span>{dateLabel}</span>
+                  <span aria-hidden="true" className="text-base">📅</span>
                 </button>
               )}
             </div>
