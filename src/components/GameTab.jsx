@@ -564,6 +564,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
     setRequestSubmitting(true);
     setRequestError('');
     setRequestStatus('');
+    const resolvedTeamId = sessionTeamId || team?.teamId || '';
+    if (!resolvedTeamId) {
+      setRequestError('Unable to identify your team. Ask an admin for help.');
+      setRequestSubmitting(false);
+      return;
+    }
     const history = data.gameHistory || [];
     const targetGame = history[deletePromptIndex];
     const details = [];
@@ -573,7 +579,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
     try {
       await submitAdminRequest({
         requestType: 'delete_game',
-        teamId: sessionTeamId || team?.teamId || '',
+        teamId: resolvedTeamId,
         teamName: team?.name || '',
         description: requestMessage.trim(),
         details,

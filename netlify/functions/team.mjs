@@ -28,6 +28,8 @@ const ADMIN_SETTINGS_KEY = 'admin-settings';
 const DEFAULT_MAX_TEAMS = 10;
 const MAX_ALLOWED_TEAMS = 100;
 const MAX_REQUEST_ENTRIES = 200;
+const MIN_PASSCODE_LENGTH = 4;
+const MAX_PASSCODE_LENGTH = 12;
 
 function jsonResponse(body, status = 200) {
   return Response.json(body, { status });
@@ -72,6 +74,10 @@ function normalizeMaxTeams(value) {
   const rounded = Math.round(parsed);
   if (rounded < 1) return 1;
   return Math.min(rounded, MAX_ALLOWED_TEAMS);
+}
+
+function isValidPasscode(passcode) {
+  return passcode.length >= MIN_PASSCODE_LENGTH && passcode.length <= MAX_PASSCODE_LENGTH;
 }
 
 function buildLogId() {
@@ -282,14 +288,14 @@ async function listAdminRequests() {
     }
     cursor = page?.cursor;
   } while (cursor);
-  for (const entry of entries) {
-    entry._createdAtMs = Date.parse(entry.createdAt || '') || 0;
-  }
-  entries.sort((a, b) => (b._createdAtMs || 0) - (a._createdAtMs || 0));
-  for (const entry of entries) {
-    delete entry._createdAtMs;
-  }
-  return entries.slice(0, MAX_REQUEST_ENTRIES);
+  return entries
+    .map(entry => ({
+      entry,
+      createdAtMs: Date.parse(entry.createdAt || '') || 0,
+    }))
+    .sort((a, b) => b.createdAtMs - a.createdAtMs)
+    .slice(0, MAX_REQUEST_ENTRIES)
+    .map(item => item.entry);
 }
 
 function validateDataShape(data) {
@@ -426,6 +432,13 @@ export default async (req) => {
     if (!validateDataShape(data)) {
       return jsonResponse({ error: 'Invalid team data.' }, 400);
     }
+    const passcode = String(payload?.passcode || '').trim();
+    if (!passcode || !isValidPasscode(passcode)) {
+      return jsonResponse({
+        error: `Passcode must be ${MIN_PASSCODE_LENGTH} - ${MAX_PASSCODE_LENGTH} characters.`,
+        code: 'INVALID_PASSCODE_LENGTH',
+      }, 400);
+    }
     const settings = await getAdminSettings();
     const activeTeamCodes = await listActiveTeamCodes();
     if (activeTeamCodes.length >= settings.maxTeams) {
@@ -440,14 +453,11 @@ export default async (req) => {
       return jsonResponse({ error: 'Team code already exists.', code: 'TEAM_EXISTS' }, 409);
     }
     await store.setJSON(key, data);
-    const passcode = String(payload?.passcode || '').trim();
-    if (passcode) {
-      await store.setJSON(teamPasscodeKey(teamId), {
-        teamId,
-        passcode,
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    await store.setJSON(teamPasscodeKey(teamId), {
+      teamId,
+      passcode,
+      updatedAt: new Date().toISOString(),
+    });
     const logId = buildLogId();
     await store.setJSON(securityLogKey(teamId, logId), {
       id: logId,
@@ -566,6 +576,7 @@ export default async (req) => {
     }
 
     const isPasscodeChange = data.team.passcodeHash !== existing?.team?.passcodeHash;
+    const passcode = String(payload?.passcode || '').trim();
     if (isPasscodeChange) {
       if (!ADMIN_TEAM_PASSWORD_CODE) {
         return jsonResponse({ error: 'Administrator code is not configured.', code: 'ADMIN_CODE_NOT_CONFIGURED' }, 500);
@@ -576,6 +587,12 @@ export default async (req) => {
       }
       if (adminCode !== ADMIN_TEAM_PASSWORD_CODE) {
         return jsonResponse({ error: 'Invalid administrator code.', code: 'INVALID_ADMIN_CODE' }, 401);
+      }
+      if (!passcode || !isValidPasscode(passcode)) {
+        return jsonResponse({
+          error: `Passcode must be ${MIN_PASSCODE_LENGTH} - ${MAX_PASSCODE_LENGTH} characters.`,
+          code: 'INVALID_PASSCODE_LENGTH',
+        }, 400);
       }
     }
 
@@ -598,14 +615,11 @@ export default async (req) => {
 
     await store.setJSON(key, data);
     if (isPasscodeChange) {
-      const passcode = String(payload?.passcode || '').trim();
-      if (passcode) {
-        await store.setJSON(teamPasscodeKey(teamId), {
-          teamId,
-          passcode,
-          updatedAt: new Date().toISOString(),
-        });
-      }
+      await store.setJSON(teamPasscodeKey(teamId), {
+        teamId,
+        passcode,
+        updatedAt: new Date().toISOString(),
+      });
     }
     return jsonResponse({ ok: true, passcodeHash: data.team.passcodeHash });
   }

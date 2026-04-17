@@ -20,10 +20,11 @@ const MAX_TEAM_CODE_LENGTH = 24;
 const MIN_PASSCODE_LENGTH = 4;
 const MAX_PASSCODE_LENGTH = 12;
 const FIXED_CLUB_ID = 'murdoch-melville';
+const MURDOCH_LOGO_URL = 'https://mumfc.com.au/favicon.ico';
 const FIXED_CLUB = {
   id: FIXED_CLUB_ID,
   name: 'Murdoch University Melville FC',
-  logoUrl: getClubById(FIXED_CLUB_ID)?.logoUrl || 'https://mumfc.com.au/favicon.ico',
+  logoUrl: getClubById(FIXED_CLUB_ID)?.logoUrl || MURDOCH_LOGO_URL,
 };
 
 function normalizeTeamCode(value) {
