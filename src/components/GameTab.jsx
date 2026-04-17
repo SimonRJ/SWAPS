@@ -134,6 +134,10 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [goalForm, setGoalForm] = useState({ playerId: '', minute: '' });
   const [saveForm, setSaveForm] = useState({ playerId: '', saves: 1 });
+  const [deletePromptIndex, setDeletePromptIndex] = useState(null);
+  const [deleteAdminPassword, setDeleteAdminPassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -431,6 +435,19 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     setShowSaveForm(false);
   }
 
+  function openDeletePrompt(originalIndex) {
+    setDeletePromptIndex(originalIndex);
+    setDeleteAdminPassword('');
+    setDeleteError('');
+  }
+
+  function closeDeletePrompt() {
+    setDeletePromptIndex(null);
+    setDeleteAdminPassword('');
+    setDeleteError('');
+    setDeleteInProgress(false);
+  }
+
   function saveEditedGame() {
     if (editingGameIndex === null || !editDraft) return;
     const updatedHistory = [...(data.gameHistory || [])];
@@ -480,14 +497,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
     closeEditGame();
   }
 
-  async function deleteGameFromHistory(originalIndex) {
-    if (!window.confirm('Delete this game? This will recalculate all season stats from game history.')) return;
-    const adminCode = window.prompt('Enter the administrator password to delete this game.');
-    if (adminCode === null) return;
-    if (!adminCode.trim()) {
-      window.alert('Administrator password is required to delete a game.');
-      return;
-    }
+  async function deleteGameFromHistory(originalIndex, adminCode) {
     const nextHistory = (data.gameHistory || [])
       .filter((_, idx) => idx !== originalIndex)
       .map((g, idx) => ({ ...g, gameNumber: idx + 1 }));
@@ -499,15 +509,30 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
         gameHistory: nextHistory,
       },
       {
-        adminCode: adminCode.trim(),
+        adminCode,
         optimistic: false,
       },
     );
     if (updateResult?.ok === false) {
-      window.alert(updateResult?.error?.message || 'Unable to delete the game. Check the administrator password.');
-      return;
+      setDeleteError(updateResult?.error?.message || 'Unable to delete the game. Check the administrator password.');
+      return false;
     }
     closeEditGame();
+    return true;
+  }
+
+  async function confirmDeleteGame() {
+    if (deletePromptIndex === null) return;
+    if (!deleteAdminPassword.trim()) {
+      setDeleteError('Administrator password is required to delete a game.');
+      return;
+    }
+    setDeleteInProgress(true);
+    const ok = await deleteGameFromHistory(deletePromptIndex, deleteAdminPassword.trim());
+    setDeleteInProgress(false);
+    if (ok) {
+      closeDeletePrompt();
+    }
   }
 
   const sortedGoals = editDraft
@@ -611,7 +636,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                       Edit
                     </button>
                     <button
-                      onClick={() => deleteGameFromHistory(originalIndex)}
+                      onClick={() => openDeletePrompt(originalIndex)}
                       className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
                     >
                       Delete
@@ -624,7 +649,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
         </div>
       )}
 
-        {editDraft && (
+      {editDraft && (
           <div className="fixed inset-0 h-dvh bg-black/60 z-[70] flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeEditGame}>
           <div className="bg-white dark:bg-slate-900 w-full h-dvh sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Header with result badge */}
@@ -709,7 +734,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                         setGoalForm({ playerId: players[0].id, minute: '' });
                         setShowGoalForm(true);
                       }}
-                      className="flex items-center gap-1 text-xs text-pitch-600 font-bold px-3 py-1.5 rounded-full bg-pitch-50 active:bg-pitch-100 transition-colors dark:bg-emerald-900/40 dark:text-emerald-200"
+                      disabled={players.length === 0}
+                      className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+                        players.length === 0
+                          ? 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+                          : 'text-pitch-600 bg-pitch-50 active:bg-pitch-100 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      }`}
                     >
                       <span className="text-base leading-none">+</span> Goal Scorer
                     </button>
@@ -810,7 +840,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                         setSaveForm({ playerId: keeperOptions[0].id, saves: 1 });
                         setShowSaveForm(true);
                       }}
-                      className="flex items-center gap-1 text-xs text-pitch-600 font-bold px-3 py-1.5 rounded-full bg-pitch-50 active:bg-pitch-100 transition-colors dark:bg-emerald-900/40 dark:text-emerald-200"
+                      disabled={keeperOptions.length === 0}
+                      className={`flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+                        keeperOptions.length === 0
+                          ? 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-500 cursor-not-allowed'
+                          : 'text-pitch-600 bg-pitch-50 active:bg-pitch-100 dark:bg-emerald-900/40 dark:text-emerald-200'
+                      }`}
                     >
                       <span className="text-base leading-none">+</span> Add Save
                     </button>
@@ -827,7 +862,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                         </select>
                         <input
                           type="number"
-                          min={0}
+                          min={1}
                           className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center tabular-nums font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                           value={saveForm.saves}
                           onChange={e => setSaveForm(form => ({ ...form, saves: e.target.value }))}
@@ -913,12 +948,52 @@ export default function GameTab({ data, onUpdate, onSwitchToGame }) {
                   Cancel
                 </button>
                 <button
-                  onClick={() => deleteGameFromHistory(editingGameIndex)}
+                  onClick={() => openDeletePrompt(editingGameIndex)}
                   className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
                 >
                   Delete Game
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {deletePromptIndex !== null && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center px-4" onClick={closeDeletePrompt}>
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <div className="text-3xl mb-1">🗑️</div>
+              <h3 className="text-lg font-black text-gray-900 dark:text-slate-100">Delete this game?</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">This will recalculate all season stats from game history.</p>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Administrator Password</label>
+              <input
+                type="password"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-pitch-500 focus:border-transparent bg-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                value={deleteAdminPassword}
+                onChange={e => {
+                  setDeleteAdminPassword(e.target.value);
+                  if (deleteError) setDeleteError('');
+                }}
+                placeholder="Enter admin password"
+                autoComplete="current-password"
+              />
+              {deleteError && (
+                <p className="text-xs text-red-600 dark:text-red-300">{deleteError}</p>
+              )}
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={closeDeletePrompt} className="btn-secondary flex-1 text-sm" disabled={deleteInProgress}>
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteGame}
+                className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-colors ${deleteInProgress ? 'bg-red-200 text-red-500 dark:bg-red-900/40 dark:text-red-200' : 'bg-red-50 text-red-600 active:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50'}`}
+                disabled={deleteInProgress}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
