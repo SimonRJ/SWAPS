@@ -1132,7 +1132,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
       {/* Goal Picker Modal */}
       {showGoalPicker && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4" onClick={() => setShowGoalPicker(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-4">
               <div className="text-4xl mb-1">⚽</div>
               <h3 className="text-xl font-black text-gray-900 dark:text-slate-100">Who scored?</h3>
