@@ -105,9 +105,16 @@ export default function AdminPanel({ onBack }) {
 
   const selectedClub = FIXED_CLUB;
   const sortedTeamCodes = useMemo(() => [...teamCodes].sort((a, b) => a.localeCompare(b)), [teamCodes]);
-  const passcodesByTeamId = useMemo(
+  const teamPasscodeMap = useMemo(
     () => new Map((securityTeams || []).map(teamEntry => [teamEntry.teamId, teamEntry.passcode || ''])),
     [securityTeams],
+  );
+  const requestEntriesWithPasscodes = useMemo(
+    () => requestEntries.map(entry => ({
+      ...entry,
+      passcode: teamPasscodeMap.get(entry.teamId) || '',
+    })),
+    [requestEntries, teamPasscodeMap],
   );
 
   async function handleCreate(e) {
@@ -691,50 +698,47 @@ export default function AdminPanel({ onBack }) {
                 </div>
                 {requestsError && <p className="text-sm text-red-600 dark:text-red-300">{requestsError}</p>}
                 {requestsStatus && <p className="text-sm text-green-700 dark:text-emerald-300">{requestsStatus}</p>}
-                {requestEntries.length > 0 && (
+                {requestEntriesWithPasscodes.length > 0 && (
                   <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-slate-800 dark:bg-slate-900">
-                    {requestEntries.map(request => {
-                      const passcode = passcodesByTeamId.get(request.teamId) || '';
-                      return (
-                        <div key={request.id} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                              {request.type === 'delete_game' ? 'Delete game request' : 'Team request'}
-                            </p>
-                            <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${
-                              request.status === 'completed'
-                                ? 'text-emerald-600 dark:text-emerald-300'
-                                : 'text-amber-600 dark:text-amber-300'
-                            }`}>
-                              {request.status === 'completed' ? 'Completed' : 'Open'}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">
-                            Team: {request.teamId || 'Unknown'}{request.teamName ? ` · ${request.teamName}` : ''}
+                    {requestEntriesWithPasscodes.map(request => (
+                      <div key={request.id} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                            {request.type === 'delete_game' ? 'Delete game request' : 'Team request'}
                           </p>
-                          <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">
-                            Passcode: {passcode || 'Not stored'}
-                          </p>
-                          {request.description && (
-                            <p className="mt-2 text-xs text-gray-700 dark:text-slate-200">{request.description}</p>
-                          )}
-                          {Array.isArray(request.details) && request.details.length > 0 && (
-                            <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">{request.details.join(' · ')}</p>
-                          )}
-                          <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-slate-400">
-                            <span>{formatLogTime(request.createdAt)}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleCompleteRequest(request.id)}
-                              disabled={request.status === 'completed'}
-                              className="rounded-lg border border-emerald-300 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
-                            >
-                              {request.status === 'completed' ? 'Completed' : 'Mark Complete'}
-                            </button>
-                          </div>
+                          <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                            request.status === 'completed'
+                              ? 'text-emerald-600 dark:text-emerald-300'
+                              : 'text-amber-600 dark:text-amber-300'
+                          }`}>
+                            {request.status === 'completed' ? 'Completed' : 'Open'}
+                          </span>
                         </div>
-                      );
-                    })}
+                        <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">
+                          Team: {request.teamId || 'Unknown'}{request.teamName ? ` · ${request.teamName}` : ''}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-600 dark:text-slate-300">
+                          Passcode: {request.passcode || 'Not stored'}
+                        </p>
+                        {request.description && (
+                          <p className="mt-2 text-xs text-gray-700 dark:text-slate-200">{request.description}</p>
+                        )}
+                        {Array.isArray(request.details) && request.details.length > 0 && (
+                          <p className="mt-1 text-[11px] text-gray-500 dark:text-slate-400">{request.details.join(' · ')}</p>
+                        )}
+                        <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-slate-400">
+                          <span>{formatLogTime(request.createdAt)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCompleteRequest(request.id)}
+                            disabled={request.status === 'completed'}
+                            className="rounded-lg border border-emerald-300 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                          >
+                            {request.status === 'completed' ? 'Completed' : 'Mark Complete'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

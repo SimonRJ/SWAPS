@@ -69,7 +69,9 @@ function normalizeMaxTeams(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
   if (parsed <= 0) return null;
-  return Math.min(Math.max(1, Math.round(parsed)), MAX_ALLOWED_TEAMS);
+  const rounded = Math.round(parsed);
+  if (rounded < 1) return 1;
+  return Math.min(rounded, MAX_ALLOWED_TEAMS);
 }
 
 function buildLogId() {
@@ -280,7 +282,13 @@ async function listAdminRequests() {
     }
     cursor = page?.cursor;
   } while (cursor);
-  entries.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  for (const entry of entries) {
+    entry._createdAtMs = Date.parse(entry.createdAt || '') || 0;
+  }
+  entries.sort((a, b) => (b._createdAtMs || 0) - (a._createdAtMs || 0));
+  for (const entry of entries) {
+    delete entry._createdAtMs;
+  }
   return entries.slice(0, MAX_REQUEST_ENTRIES);
 }
 
