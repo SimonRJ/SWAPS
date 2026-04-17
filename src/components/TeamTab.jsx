@@ -306,7 +306,6 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                     onChange({ date: e.target.value });
                     setShowDatePicker(false);
                   }}
-                  onBlur={() => setShowDatePicker(false)}
                   className="input-field max-w-[12rem]"
                 />
               ) : (
