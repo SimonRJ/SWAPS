@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { buildSeasonSchedule, migrateData } from './utils/storage.js';
 import Login from './components/Login.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
@@ -220,6 +220,8 @@ export default function App() {
   const hasLiveGame = Boolean(data?.currentGame);
   const isViewOnly = Boolean(session?.viewOnly);
   const [errorLogCount, setErrorLogCount] = useState(() => getClientErrorLogs().length);
+  const saveQueueRef = useRef(Promise.resolve());
+  const sessionRef = useRef(session);
   const switchToGame = useCallback(() => setActiveTab('game'), []);
   const toggleTheme = useCallback(() => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
@@ -311,6 +313,26 @@ export default function App() {
     }
   }, [isDarkTheme, theme]);
 
+  useEffect(() => {
+    sessionRef.current = session;
+    if (!session) {
+      saveQueueRef.current = Promise.resolve();
+    }
+  }, [session]);
+
+  const queueSave = useCallback((newData, options) => {
+    const runSave = async () => {
+      const activeSession = sessionRef.current;
+      if (!activeSession) {
+        throw new Error('No session available.');
+      }
+      return saveTeamData(activeSession, newData, options);
+    };
+    const savePromise = saveQueueRef.current.then(runSave, runSave);
+    saveQueueRef.current = savePromise.catch(() => {});
+    return savePromise;
+  }, []);
+
   const handleLogin = useCallback(({ data: loginData, session: loginSession }) => {
     const migrated = migrateData(loginData);
     setData(migrated);
@@ -338,16 +360,17 @@ export default function App() {
     if (optimistic) {
       setData(newData);
     }
-    if (!session) return;
+    if (!sessionRef.current) return;
     try {
-      const updatedSession = await saveTeamData(session, newData, options);
+      const updatedSession = await queueSave(newData, options);
       setSyncError('');
       if (!optimistic) {
         setData(newData);
       }
-      if (updatedSession.passcodeHash !== session.passcodeHash) {
+      if (updatedSession?.passcodeHash && updatedSession.passcodeHash !== sessionRef.current?.passcodeHash) {
         setSession(updatedSession);
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
+        sessionRef.current = updatedSession;
       }
       return { ok: true };
     } catch (error) {
@@ -358,7 +381,7 @@ export default function App() {
         error,
       };
     }
-  }, [session]);
+  }, [queueSave, session]);
 
   useEffect(() => {
     if (!session?.viewOnly || !loggedIn) return undefined;
