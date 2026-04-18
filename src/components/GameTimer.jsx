@@ -404,7 +404,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     if (!lastToastId) {
       newEvents = [matchEvents[matchEvents.length - 1]];
     } else {
-      const lastIndex = matchEvents.findIndex(event => event.id === lastToastId);
+      let lastIndex = -1;
+      for (let i = matchEvents.length - 1; i >= 0; i -= 1) {
+        if (matchEvents[i].id === lastToastId) {
+          lastIndex = i;
+          break;
+        }
+      }
       if (lastIndex === -1) {
         newEvents = [matchEvents[matchEvents.length - 1]];
       } else if (lastIndex < matchEvents.length - 1) {
@@ -415,8 +421,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     const latestEvent = newEvents[newEvents.length - 1];
     let toastEvents = [latestEvent];
     if (newEvents.length > 1) {
-      const allSubs = newEvents.every(event => event.type === 'sub');
-      const sameMinute = newEvents.every(event => event.minute === latestEvent.minute);
+      let allSubs = true;
+      let sameMinute = true;
+      for (const event of newEvents) {
+        if (event.type !== 'sub') allSubs = false;
+        if (event.minute !== latestEvent.minute) sameMinute = false;
+        if (!allSubs && !sameMinute) break;
+      }
       if (allSubs && sameMinute) {
         toastEvents = newEvents;
       }
