@@ -287,7 +287,9 @@ export default function App() {
   useEffect(() => {
     if (!session?.viewOnly || !loggedIn) return undefined;
     let cancelled = false;
-    const refreshIntervalMs = hasLiveGame ? 1000 : 10000;
+    const refreshIntervalMs = hasLiveGame
+      ? (activeTab === 'game' ? 1000 : 3000)
+      : 10000;
     const refreshNow = async () => {
       try {
         const latest = await viewTeamData(session.teamId);
@@ -304,7 +306,7 @@ export default function App() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [session, loggedIn, hasLiveGame]);
+  }, [session, loggedIn, hasLiveGame, activeTab]);
 
   function performLogout() {
     setLoggedIn(false);

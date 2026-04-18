@@ -5,6 +5,7 @@ import TeamAvatar from './TeamAvatar.jsx';
 import { applyBlockMinutes } from '../utils/subAlgorithm.js';
 import { buildSeasonSchedule, createScheduleRound, getNextUnresolvedRound } from '../utils/storage.js';
 import { getGameResultLabel } from '../utils/gameResults.js';
+import { buildTimerSyncState } from '../utils/timerSync.js';
 import {
   OPPONENT_CLUBS,
   findOpponentClubByName,
@@ -126,24 +127,6 @@ function sanitizeScore(value) {
   const num = Number(value);
   if (!Number.isFinite(num)) return 0;
   return Math.max(0, num);
-}
-
-function buildTimerSyncState(seconds, paused, nowMs = Date.now()) {
-  const safeSeconds = Math.max(0, Number(seconds) || 0);
-  const safeNowMs = Number.isFinite(nowMs) ? nowMs : Date.now();
-  if (paused) {
-    return {
-      mode: 'paused',
-      elapsedSeconds: safeSeconds,
-      timestampMs: safeNowMs,
-    };
-  }
-  return {
-    mode: 'running',
-    startedAtMs: safeNowMs - (safeSeconds * 1000),
-    elapsedSeconds: safeSeconds,
-    timestampMs: safeNowMs,
-  };
 }
 
 function getCancelledDetails(data) {
