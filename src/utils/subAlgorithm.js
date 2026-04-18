@@ -236,8 +236,8 @@ export function planGame(availablePlayers, formation, gameDuration, rotateGK, al
         break;
       }
     }
-    if (!rotateGK && resolvedGKId) {
-      const fixedAssignment = startingField.find(entry => entry.playerId === resolvedGKId);
+    if (!rotateGK && fixedGKPlayerId) {
+      const fixedAssignment = startingField.find(entry => entry.playerId === fixedGKPlayerId);
       if (!fixedAssignment || fixedAssignment.position !== 'GK') {
         valid = false;
       }
@@ -254,6 +254,13 @@ export function planGame(availablePlayers, formation, gameDuration, rotateGK, al
         }));
         startingOverrideBenchIds = uniqueBenchIds;
       }
+    }
+  }
+
+  if (!rotateGK && startingOverrideField) {
+    const startingGK = startingOverrideField.find(entry => entry.position === 'GK');
+    if (startingGK) {
+      resolvedGKId = startingGK.playerId;
     }
   }
 

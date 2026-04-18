@@ -98,9 +98,9 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => {
     if (!readOnly) return;
-    const remoteTick = currentGame.lastTickAtMs || 0;
-    if (remoteTick && remoteTick < lastRemoteTickRef.current) return;
-    lastRemoteTickRef.current = remoteTick || Date.now();
+    const remoteTick = Number(currentGame.lastTickAtMs) || 0;
+    if (remoteTick && remoteTick <= lastRemoteTickRef.current) return;
+    lastRemoteTickRef.current = remoteTick;
     setElapsedSeconds(currentGame.elapsedSeconds || 0);
     setIsPaused(Boolean(currentGame.isPaused));
     setBlockIndex(currentGame.blockIndex || 0);
