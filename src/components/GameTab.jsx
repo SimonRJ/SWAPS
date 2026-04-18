@@ -373,12 +373,14 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
       historyType: 'played',
       originalIndex: index,
       displayDate: game.date,
+      historyKey: `played-${game.gameNumber ?? index}`,
     })),
     ...cancelledDetails.map(game => ({
       ...game,
       historyType: 'cancelled',
       gameNumber: game.round,
       displayDate: game.cancelledDate || game.date,
+      historyKey: `cancelled-${game.round}`,
     })),
   ].sort((a, b) => (Number(a.gameNumber) || 0) - (Number(b.gameNumber) || 0));
 
@@ -664,13 +666,13 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
               const label = isCancelled ? 'Cancelled' : getGameResultLabel(g);
               const fixtureType = g.homeAway === 'AWAY' ? 'Away' : 'Home';
               const dateText = g.displayDate || g.date || 'Date TBC';
-              const itemKey = `${g.historyType}-${g.gameNumber || g.round || ''}-${g.displayDate || g.date || ''}`;
+              const roundNumber = g.gameNumber ?? g.round ?? '';
               const metaText = isCancelled
                 ? `${fixtureType} fixture`
                 : `${g.formation || 'Formation TBC'} · ${g.playerCount ?? 0}p${g.absentCount ? ` · ${g.absentCount} absent` : ''}`;
               return (
               <li
-                key={itemKey}
+                key={g.historyKey || `${g.historyType}-${roundNumber}`}
                 className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -691,7 +693,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                     )}
                     <div className="min-w-0">
                       <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">
-                        {isCancelled ? 'Round' : 'Game'} {g.gameNumber}
+                        {isCancelled ? 'Round' : 'Game'} {roundNumber}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                         vs {g.opponentName || 'Opponent'}, {dateText}
