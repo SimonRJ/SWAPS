@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listTeamCodes, loginWithPasscode, loginViewOnly } from '../utils/netlifyData.js';
+import { LAST_TEAM_ID_KEY, TEAM_CODES_KEY } from '../utils/storageKeys.js';
 import loginBackground from '../assets/login-bg.png';
 
 const MAX_TEAM_CODE_LENGTH = 24;
-const TEAM_CODES_KEY = 'soccerSubsTeamCodes';
-const LAST_TEAM_ID_KEY = 'soccerSubsLastTeamId';
 
 function normalizeTeamCode(value) {
   return String(value || '')
@@ -198,7 +197,6 @@ export default function Login({
                     type="button"
                     onClick={onRetrySession}
                     disabled={loading}
-                    aria-disabled={loading}
                     className="mt-2 rounded-full border border-red-200/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20 disabled:opacity-60"
                   >
                     Retry session

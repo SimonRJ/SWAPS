@@ -11,11 +11,11 @@ import ClubLogo from './components/ClubLogo.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import { FOOTBALL_WEST_LOGO_URL } from './utils/clubLogos.js';
 import { loginWithSession, saveTeamData, viewTeamData } from './utils/netlifyData.js';
+import { LAST_TEAM_ID_KEY } from './utils/storageKeys.js';
 import { applyBlockMinutes } from './utils/subAlgorithm.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
-const LAST_TEAM_ID_KEY = 'soccerSubsLastTeamId';
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_NOT_FOUND = 404;
 
@@ -228,6 +228,7 @@ export default function App() {
   const handleSessionRestoreFailure = useCallback((error) => {
     const status = error?.status;
     if (status === HTTP_UNAUTHORIZED || status === HTTP_NOT_FOUND) {
+      // Auth failures or missing teams require clearing the saved session; other errors can be retried.
       setLoggedIn(false);
       setData(null);
       setSession(null);
