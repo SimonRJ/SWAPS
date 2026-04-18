@@ -103,7 +103,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const [manualTimeSeconds, setManualTimeSeconds] = useState(currentGame.elapsedSeconds || 0);
   const [saveFeedback, setSaveFeedback] = useState('');
   const [showLiveFeed, setShowLiveFeed] = useState(false);
-  const [liveToastEvent, setLiveToastEvent] = useState(null);
+  const [liveToast, setLiveToast] = useState(null);
   const feedbackTimeoutRef = useRef(null);
   const toastTimeoutRef = useRef(null);
 
@@ -131,6 +131,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const readOnlySyncRef = useRef(null);
   const onSwitchToGameRef = useRef(onSwitchToGame);
   const lastToastEventIdRef = useRef(null);
+  const lastToastEventIndexRef = useRef(-1);
 
   const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
 
@@ -399,12 +400,47 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => {
     if (matchEvents.length === 0) return;
-    const latest = matchEvents[matchEvents.length - 1];
-    if (!latest?.id || latest.id === lastToastEventIdRef.current) return;
-    lastToastEventIdRef.current = latest.id;
-    setLiveToastEvent(latest);
+    const lastToastId = lastToastEventIdRef.current;
+    let lastIndex = lastToastEventIndexRef.current;
+    let newEvents = [];
+    if (!lastToastId) {
+      newEvents = [matchEvents[matchEvents.length - 1]];
+    } else {
+      if (lastIndex < 0 || matchEvents[lastIndex]?.id !== lastToastId) {
+        lastIndex = -1;
+        for (let i = matchEvents.length - 1; i >= 0; i -= 1) {
+          if (matchEvents[i].id === lastToastId) {
+            lastIndex = i;
+            break;
+          }
+        }
+      }
+      if (lastIndex === -1) {
+        newEvents = [matchEvents[matchEvents.length - 1]];
+      } else if (lastIndex < matchEvents.length - 1) {
+        newEvents = matchEvents.slice(lastIndex + 1);
+      }
+    }
+    if (newEvents.length === 0) return;
+    const latestEvent = newEvents[newEvents.length - 1];
+    let toastEvents = [latestEvent];
+    if (newEvents.length > 1) {
+      let allSubs = true;
+      let sameMinute = true;
+      for (const event of newEvents) {
+        if (!allSubs && !sameMinute) break;
+        if (allSubs && event.type !== 'sub') allSubs = false;
+        if (sameMinute && event.minute !== latestEvent.minute) sameMinute = false;
+      }
+      if (allSubs && sameMinute) {
+        toastEvents = newEvents;
+      }
+    }
+    lastToastEventIdRef.current = latestEvent.id;
+    lastToastEventIndexRef.current = matchEvents.length - 1;
+    setLiveToast({ events: toastEvents });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    toastTimeoutRef.current = setTimeout(() => setLiveToastEvent(null), 5000);
+    toastTimeoutRef.current = setTimeout(() => setLiveToast(null), 5000);
   }, [matchEvents]);
 
   function handlePause() {
@@ -869,6 +905,11 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   function formatMinuteLabel(minute) {
     return Number.isFinite(Number(minute)) ? `${Number(minute)}'` : '';
   }
+  const toastEvents = liveToast?.events || [];
+  const toastLatestEvent = toastEvents.length > 0 ? toastEvents[toastEvents.length - 1] : null;
+  const showSubToastGroup = toastEvents.length > 1 && toastEvents.every(event => event.type === 'sub');
+  const toastMinuteLabel = toastLatestEvent ? formatMinuteLabel(toastLatestEvent.minute) : '';
+  const hasToastEvents = toastEvents.length > 0;
 
   // Render match summary
   if (showMatchSummary) {
@@ -1303,38 +1344,44 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
             </div>
           </div>
 
-          {liveToastEvent && (
+          {liveToast && hasToastEvents && (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[12]">
               <div className="px-4 py-2 rounded-2xl bg-white/90 text-gray-900 text-xs font-semibold shadow-xl border border-white/60">
-                {liveToastEvent.type === 'sub' ? (
+                {showSubToastGroup ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-[10px] uppercase text-gray-400">
+                      <span>{toastEvents.length} Substitutions</span>
+                      {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
+                    </div>
+                    {toastEvents.map(event => (
+                      <div key={event.id} className="flex items-center gap-2">
+                        <span className="text-red-500">{event.offPlayerName || '?'}</span>
+                        <span className="text-gray-500">⇄</span>
+                        <span className="text-emerald-600">{event.onPlayerName || '?'}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : toastLatestEvent.type === 'sub' ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-red-500">{liveToastEvent.offPlayerName || '?'}</span>
+                    <span className="text-red-500">{toastLatestEvent.offPlayerName || '?'}</span>
                     <span className="text-gray-500">⇄</span>
-                    <span className="text-emerald-600">{liveToastEvent.onPlayerName || '?'}</span>
-                    {formatMinuteLabel(liveToastEvent.minute) && (
-                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
-                    )}
+                    <span className="text-emerald-600">{toastLatestEvent.onPlayerName || '?'}</span>
+                    {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
-                ) : liveToastEvent.type === 'save' ? (
+                ) : toastLatestEvent.type === 'save' ? (
                   <div className="flex items-center gap-2">
-                    <span>🧤 Save by {liveToastEvent.playerName || '?'}</span>
-                    {formatMinuteLabel(liveToastEvent.minute) && (
-                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
-                    )}
+                    <span>🧤 Save by {toastLatestEvent.playerName || '?'}</span>
+                    {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
-                ) : liveToastEvent.type === 'opponent-goal' ? (
+                ) : toastLatestEvent.type === 'opponent-goal' ? (
                   <div className="flex items-center gap-2">
-                    <span>⚽ Goal for {liveToastEvent.opponentName || currentGame.opponentName}</span>
-                    {formatMinuteLabel(liveToastEvent.minute) && (
-                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
-                    )}
+                    <span>⚽ Goal for {toastLatestEvent.opponentName || currentGame.opponentName}</span>
+                    {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span>⚽ Goal for {team?.name || 'Home'} by {liveToastEvent.playerName || '?'}</span>
-                    {formatMinuteLabel(liveToastEvent.minute) && (
-                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
-                    )}
+                    <span>⚽ Goal for {team?.name || 'Home'} by {toastLatestEvent.playerName || '?'}</span>
+                    {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
                 )}
               </div>
