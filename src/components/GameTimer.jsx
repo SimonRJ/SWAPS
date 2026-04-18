@@ -428,9 +428,9 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       let allSubs = true;
       let sameMinute = true;
       for (const event of newEvents) {
+        if (!allSubs && !sameMinute) break;
         if (allSubs && event.type !== 'sub') allSubs = false;
         if (sameMinute && event.minute !== latestEvent.minute) sameMinute = false;
-        if (!allSubs && !sameMinute) break;
       }
       if (allSubs && sameMinute) {
         toastEvents = newEvents;
@@ -906,9 +906,10 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     return Number.isFinite(Number(minute)) ? `${Number(minute)}'` : '';
   }
   const toastEvents = liveToast?.events || [];
-  const toastPrimaryEvent = toastEvents[0] || null;
+  const toastLatestEvent = toastEvents.length > 0 ? toastEvents[toastEvents.length - 1] : null;
   const showSubToastGroup = toastEvents.length > 1 && toastEvents.every(event => event.type === 'sub');
-  const toastMinuteLabel = toastPrimaryEvent ? formatMinuteLabel(toastPrimaryEvent.minute) : '';
+  const toastMinuteLabel = toastLatestEvent ? formatMinuteLabel(toastLatestEvent.minute) : '';
+  const hasToastEvents = toastEvents.length > 0;
 
   // Render match summary
   if (showMatchSummary) {
@@ -1343,7 +1344,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
             </div>
           </div>
 
-          {liveToast && toastPrimaryEvent && (
+          {liveToast && hasToastEvents && (
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[12]">
               <div className="px-4 py-2 rounded-2xl bg-white/90 text-gray-900 text-xs font-semibold shadow-xl border border-white/60">
                 {showSubToastGroup ? (
@@ -1360,26 +1361,26 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
                       </div>
                     ))}
                   </div>
-                ) : toastPrimaryEvent.type === 'sub' ? (
+                ) : toastLatestEvent.type === 'sub' ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-red-500">{toastPrimaryEvent.offPlayerName || '?'}</span>
+                    <span className="text-red-500">{toastLatestEvent.offPlayerName || '?'}</span>
                     <span className="text-gray-500">⇄</span>
-                    <span className="text-emerald-600">{toastPrimaryEvent.onPlayerName || '?'}</span>
+                    <span className="text-emerald-600">{toastLatestEvent.onPlayerName || '?'}</span>
                     {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
-                ) : toastPrimaryEvent.type === 'save' ? (
+                ) : toastLatestEvent.type === 'save' ? (
                   <div className="flex items-center gap-2">
-                    <span>🧤 Save by {toastPrimaryEvent.playerName || '?'}</span>
+                    <span>🧤 Save by {toastLatestEvent.playerName || '?'}</span>
                     {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
-                ) : toastPrimaryEvent.type === 'opponent-goal' ? (
+                ) : toastLatestEvent.type === 'opponent-goal' ? (
                   <div className="flex items-center gap-2">
-                    <span>⚽ Goal for {toastPrimaryEvent.opponentName || currentGame.opponentName}</span>
+                    <span>⚽ Goal for {toastLatestEvent.opponentName || currentGame.opponentName}</span>
                     {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span>⚽ Goal for {team?.name || 'Home'} by {toastPrimaryEvent.playerName || '?'}</span>
+                    <span>⚽ Goal for {team?.name || 'Home'} by {toastLatestEvent.playerName || '?'}</span>
                     {toastMinuteLabel && <span className="text-gray-400">{toastMinuteLabel}</span>}
                   </div>
                 )}
