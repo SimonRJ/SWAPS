@@ -26,6 +26,10 @@ function posLabelSmall(pos) {
   return 'pos-bench';
 }
 
+function clampDeltaSeconds(deltaSeconds, maxSeconds) {
+  return Math.max(0, Math.min(deltaSeconds, maxSeconds));
+}
+
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
 const SUB_INTERVAL_SECONDS = 10 * 60;
@@ -105,13 +109,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   useEffect(() => {
     if (!readOnly) return;
     const remoteTick = Number(currentGame.lastTickAtMs) || 0;
-    const remoteElapsed = currentGame.elapsedSeconds || 0;
+    const remoteElapsed = currentGame.elapsedSeconds ?? 0;
     const remotePaused = Boolean(currentGame.isPaused);
     const now = Date.now();
     let nextElapsed = remoteElapsed;
     if (!remotePaused && remoteTick) {
       const rawDeltaSeconds = Math.floor((now - remoteTick) / 1000);
-      const deltaSeconds = Math.max(0, Math.min(rawDeltaSeconds, MAX_REMOTE_TICK_DRIFT_SECONDS));
+      const deltaSeconds = clampDeltaSeconds(rawDeltaSeconds, MAX_REMOTE_TICK_DRIFT_SECONDS);
       nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
     }
     const derivedBlock = Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex);
