@@ -57,7 +57,7 @@ function formatGoalEntry(goal) {
 }
 
 function formatGoalSummary(goals = []) {
-  if (!goals || goals.length === 0) return 'No goals recorded';
+  if (goals.length === 0) return 'No goals recorded';
   return `Goals: ${goals.map(goal => formatGoalEntry(goal)).join(', ')}`;
 }
 
@@ -224,7 +224,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   }, [readOnly, setupMode]);
 
   useEffect(() => {
-    if (!editDraft && !reportGame) return undefined;
+    if (!editDraft && !reportGame) return;
     const scrollY = window.scrollY || window.pageYOffset || 0;
     const originalStyles = {
       overflow: document.body.style.overflow,
