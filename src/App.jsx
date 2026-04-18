@@ -181,9 +181,6 @@ function buildLogoutEndGameData(data) {
     startingBenchIds: Array.isArray(currentGame.startingBench)
       ? currentGame.startingBench.filter(id => typeof id === 'string')
       : [],
-    startingBench: Array.isArray(currentGame.startingBench)
-      ? currentGame.startingBench.filter(id => typeof id === 'string')
-      : [],
     matchReport,
   };
 
@@ -352,7 +349,7 @@ export default function App() {
   }, []);
 
   const handleUpdate = useCallback(async (newData, options = {}) => {
-    if (session?.viewOnly) {
+    if (sessionRef.current?.viewOnly) {
       return {
         ok: false,
         error: new Error('View-only mode.'),
@@ -383,7 +380,7 @@ export default function App() {
         error,
       };
     }
-  }, [queueSave, session]);
+  }, [queueSave]);
 
   useEffect(() => {
     if (!session?.viewOnly || !loggedIn) return undefined;

@@ -438,9 +438,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       availablePlayers: currentGame.availablePlayers || [],
       absentPlayers: currentGame.absentPlayers || [],
       startingField: currentGame.startingField || [],
-      // startingBench is an array of player ID strings (set in GameDaySetup)
+      // startingBenchIds is an array of player ID strings (set in GameDaySetup)
       startingBenchIds,
-      startingBench: startingBenchIds,
       matchReport,
     };
 
