@@ -29,6 +29,7 @@ const RETRY_JITTER_RATIO = 0.2;
 const RETRY_DELAY_SCHEDULE_MS = Array.from({ length: RETRY_MAX_ATTEMPTS + 1 }, (_, attempt) => (
   Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * (2 ** attempt))
 ));
+const RETRY_MAX_ATTEMPT_INDEX = RETRY_DELAY_SCHEDULE_MS.length - 1;
 const SYNC_OFFLINE_MESSAGE = 'Offline right now — changes are saved on this device and will sync automatically.';
 const SYNC_RETRY_MESSAGE = 'Connection issue — saving locally and retrying automatically.';
 
@@ -426,12 +427,12 @@ export default function App() {
   }, []);
 
   const incrementRetryAttempt = useCallback(() => {
-    retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPTS);
+    retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPT_INDEX);
   }, []);
 
   const scheduleRetry = useCallback((delayOverride) => {
     if (retryTimeoutRef.current) return;
-    const attempt = Math.min(retryAttemptRef.current, RETRY_MAX_ATTEMPTS);
+    const attempt = Math.min(retryAttemptRef.current, RETRY_MAX_ATTEMPT_INDEX);
     const baseDelay = RETRY_DELAY_SCHEDULE_MS[attempt] ?? RETRY_MAX_DELAY_MS;
     const delay = Math.max(0, delayOverride ?? baseDelay);
     const jitter = Math.round(delay * RETRY_JITTER_RATIO * Math.random());
@@ -589,9 +590,7 @@ export default function App() {
         persistPendingSave(newData, options);
         scheduleRetry();
         setSyncError(SYNC_RETRY_MESSAGE);
-        if (error) {
-          console.warn('Retrying save after sync error:', error);
-        }
+        console.warn('Retrying save after sync error:', error);
         const retryError = new Error(SYNC_RETRY_MESSAGE, { cause: error });
         if (error?.message) {
           retryError.details = error.message;
