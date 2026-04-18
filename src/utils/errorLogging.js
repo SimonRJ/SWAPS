@@ -1,6 +1,16 @@
 const ERROR_LOG_KEY = 'swapsErrorLogs';
 const MAX_LOG_ENTRIES = 50;
 const MAX_FIELD_LENGTH = 2000;
+let entryCounter = 0;
+
+function buildEntryId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  entryCounter = (entryCounter + 1) % 100000;
+  const perfNow = typeof performance !== 'undefined' ? Math.round(performance.now() * 1000) : 0;
+  return `${Date.now()}-${perfNow}-${entryCounter}`;
+}
 
 function truncate(value, maxLength = MAX_FIELD_LENGTH) {
   if (value === null || value === undefined) return '';
@@ -53,7 +63,7 @@ export function recordClientError({
   context,
 } = {}) {
   const entry = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: buildEntryId(),
     timestamp: new Date().toISOString(),
     message: truncate(message || 'Unknown error'),
     name: truncate(name),

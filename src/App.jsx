@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { buildSeasonSchedule, migrateData } from './utils/storage.js';
 import Login from './components/Login.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
@@ -219,7 +219,7 @@ export default function App() {
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
   const isViewOnly = Boolean(session?.viewOnly);
-  const errorLogCount = useMemo(() => getClientErrorLogs().length, [syncError]);
+  const errorLogCount = getClientErrorLogs().length;
   const switchToGame = useCallback(() => setActiveTab('game'), []);
   const toggleTheme = useCallback(() => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
