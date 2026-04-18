@@ -132,6 +132,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   const [setupMode, setSetupMode] = useState(false);
   const [editingGameIndex, setEditingGameIndex] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
+  const [restoringCancelledRound, setRestoringCancelledRound] = useState(null);
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [goalForm, setGoalForm] = useState({ playerId: '', minute: '' });
@@ -437,6 +438,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
     const history = data.gameHistory || [];
     const game = history[originalIndex];
     if (!game) return;
+    setRestoringCancelledRound(null);
     setEditingGameIndex(originalIndex);
     setShowGoalForm(false);
     setShowSaveForm(false);
@@ -455,12 +457,52 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
     });
   }
 
+  function openEditCancelledGame(game) {
+    if (!game) return;
+    const historyLength = (data.gameHistory || []).length;
+    setRestoringCancelledRound(game.round);
+    setEditingGameIndex(historyLength);
+    setShowGoalForm(false);
+    setShowSaveForm(false);
+    const defaultPlayerId = players.length > 0 ? players[0].id : null;
+    setGoalForm({ playerId: defaultPlayerId, minute: '' });
+    setSaveForm({ playerId: defaultPlayerId, saves: 1 });
+    setSaveFormError('');
+    const matchedClub = findOpponentClubByName(game.opponentName || '');
+    setEditDraft({
+      gameNumber: game.round,
+      date: game.date || game.cancelledDate || '',
+      opponentName: game.opponentName || 'Opponent',
+      opponentLogoUrl: game.opponentLogoUrl || '',
+      homeScore: 0,
+      awayScore: 0,
+      goals: [],
+      gkSaves: {},
+      playerMinuteDeltas: [],
+      opponentClubId: matchedClub?.id || '__custom__',
+      opponentSelectionTouched: false,
+    });
+  }
+
   function closeEditGame() {
     setEditingGameIndex(null);
     setEditDraft(null);
     setShowGoalForm(false);
     setShowSaveForm(false);
     setSaveFormError('');
+    setRestoringCancelledRound(null);
+  }
+
+  function removeCancelledGame(round) {
+    if (!window.confirm(`Remove cancelled status for Round ${round}?`)) return;
+    const updatedCancelled = getCancelledDetails(data)
+      .filter(item => Number(item.round) !== Number(round))
+      .sort((a, b) => (a.round || 0) - (b.round || 0));
+    onUpdate({
+      ...data,
+      cancelledGameDetails: updatedCancelled,
+      cancelledGames: updatedCancelled.length,
+    });
   }
 
   function openDeletePrompt(originalIndex) {
@@ -531,7 +573,20 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
       playerMinuteDeltas: updatedMinuteDeltas,
     };
     const recalculatedPlayers = applyHistoryToPlayers(players, updatedHistory);
-    onUpdate({ ...data, players: recalculatedPlayers, gameHistory: updatedHistory });
+    const updatedCancelled = restoringCancelledRound
+      ? getCancelledDetails(data).filter(item => Number(item.round) !== Number(restoringCancelledRound))
+      : getCancelledDetails(data);
+    onUpdate({
+      ...data,
+      players: recalculatedPlayers,
+      gameHistory: updatedHistory,
+      ...(restoringCancelledRound
+        ? {
+            cancelledGameDetails: updatedCancelled,
+            cancelledGames: updatedCancelled.length,
+          }
+        : {}),
+    });
     closeEditGame();
   }
 
@@ -615,6 +670,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
       .map((goal, idx) => ({ ...goal, originalIndex: idx }))
       .sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0))
     : [];
+  const canDeleteGame = editingGameIndex !== null && editingGameIndex < (data.gameHistory || []).length;
   const keeperCandidates = editDraft ? getKeeperCandidates(editDraft, players) : [];
   const keeperDisplayIds = new Set([
     ...keeperCandidates.map(player => player.id),
@@ -715,22 +771,39 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                       {label}
                     </span>
                   </div>
-                  {!isCancelled && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => openEditGame(g.originalIndex)}
-                        className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => openDeletePrompt(g.originalIndex)}
-                        className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isCancelled ? (
+                      <>
+                        <button
+                          onClick={() => openEditCancelledGame(g)}
+                          className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => removeCancelledGame(g.round ?? g.gameNumber)}
+                          className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => openEditGame(g.originalIndex)}
+                          className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => openDeletePrompt(g.originalIndex)}
+                          className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </li>
             )})}
@@ -1046,12 +1119,16 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                 <button onClick={closeEditGame} className="btn-secondary text-sm">
                   Cancel
                 </button>
-                <button
-                  onClick={() => openDeletePrompt(editingGameIndex)}
-                  className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
-                >
-                  Delete Game
-                </button>
+                {canDeleteGame ? (
+                  <button
+                    onClick={() => openDeletePrompt(editingGameIndex)}
+                    className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
+                  >
+                    Delete Game
+                  </button>
+                ) : (
+                  <div aria-hidden="true" />
+                )}
               </div>
             </div>
           </div>

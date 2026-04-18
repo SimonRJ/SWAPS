@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { calculateSeasonTargets, planRemainingSeasonSheets, getSubsBetweenBlocks } from '../utils/subAlgorithm.js';
 import { parseFormation, formatFormation } from '../utils/formations.js';
 import { buildSeasonSchedule } from '../utils/storage.js';
 import { getGameResultLabel } from '../utils/gameResults.js';
 import { generateRoundPdf } from '../utils/pdfRoundSheet.js';
 import OpponentTeamInput from './OpponentTeamInput.jsx';
+import LogoImageInput from './LogoImageInput.jsx';
 import TeamAvatar from './TeamAvatar.jsx';
 import PlayerAvatar from './PlayerAvatar.jsx';
 
@@ -28,6 +29,23 @@ function MinuteBar({ label, minutes, maxMinutes, colorClass, target }) {
 
 function getDateDisplay(date) {
   return date || 'Date TBC';
+}
+
+function formatRoundDateLabel(dateValue) {
+  if (!dateValue) return 'Date not set';
+  const parsed = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function getVenueBadgeClasses(venue) {
+  if (venue === 'away') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+  if (venue === 'home') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200';
+  return 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200';
 }
 
 function resultColorClass(label) {
@@ -57,13 +75,22 @@ export default function StatsTab({ data, onUpdate }) {
   const [overviewView, setOverviewView] = useState('overview');
   const [editingRound, setEditingRound] = useState(null);
   const [roundDraft, setRoundDraft] = useState(null);
+  const [showRoundDatePicker, setShowRoundDatePicker] = useState(false);
   const [editingCancelledRound, setEditingCancelledRound] = useState(null);
   const [cancelledDraft, setCancelledDraft] = useState(null);
   const [teamSheetRound, setTeamSheetRound] = useState(null);
+  const roundDateInputRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [overviewView, selectedPlayer]);
+
+  useEffect(() => {
+    if (!showRoundDatePicker) return;
+    const input = roundDateInputRef.current;
+    input?.focus();
+    input?.showPicker?.();
+  }, [showRoundDatePicker]);
 
   const activePlayers = players.filter(p => p.isActive);
   const history = useMemo(() => gameHistory || [], [gameHistory]);
@@ -161,27 +188,32 @@ export default function StatsTab({ data, onUpdate }) {
     setEditingRound(round.round);
     setRoundDraft({
       ...round,
+      location: round.location || '',
+      opponentLogoUrl: round.opponentLogoUrl || '',
       homeAway: round.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
     });
+    setShowRoundDatePicker(false);
   }
 
   function closeRoundEditor() {
     setEditingRound(null);
     setRoundDraft(null);
+    setShowRoundDatePicker(false);
   }
 
   function saveRoundEditor() {
     if (!roundDraft || !onUpdate) return;
     const updatedSchedule = schedule.map(item => (
-      item.round === editingRound
-        ? {
-            ...item,
-            opponentName: roundDraft.opponentName || '',
-            opponentLogoUrl: item.opponentLogoUrl || '',
-            date: roundDraft.date || '',
-            homeAway: roundDraft.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
-          }
-        : item
+        item.round === editingRound
+          ? {
+              ...item,
+              opponentName: roundDraft.opponentName || '',
+              opponentLogoUrl: roundDraft.opponentLogoUrl || '',
+              date: roundDraft.date || '',
+              location: roundDraft.location || '',
+              homeAway: roundDraft.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
+            }
+          : item
     ));
     onUpdate({ ...data, seasonSchedule: updatedSchedule });
     closeRoundEditor();
@@ -360,6 +392,16 @@ export default function StatsTab({ data, onUpdate }) {
       openInNewTab: hasLiveGame,
     });
   }
+
+  const roundVenue = roundDraft?.homeAway === 'AWAY'
+    ? 'away'
+    : roundDraft?.homeAway === 'HOME'
+      ? 'home'
+      : '';
+  const roundDateLabel = formatRoundDateLabel(roundDraft?.date);
+  const roundDateInputId = editingRound ? `remaining-round-date-${editingRound}` : 'remaining-round-date';
+  const roundDateButtonText = roundDraft?.date ? roundDateLabel : 'Date';
+  const roundDateButtonAriaLabel = roundDraft?.date ? `Select date: ${roundDateLabel}` : 'Select date';
 
   if (selectedPlayer) {
     const p = players.find(pl => pl.id === selectedPlayer);
@@ -902,51 +944,131 @@ export default function StatsTab({ data, onUpdate }) {
         <div className="card space-y-3">
           <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Remaining Games</h2>
           {editingRound && roundDraft && (
-            <div className="rounded-xl border border-pitch-200 bg-pitch-50 dark:border-emerald-800 dark:bg-emerald-900/30 p-3 space-y-2">
-              <p className="text-sm font-semibold text-pitch-800 dark:text-emerald-200">Edit Round {editingRound}</p>
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-slate-800 w-fit">
+            <div className="rounded-xl border border-pitch-200 bg-pitch-50 dark:border-emerald-800 dark:bg-emerald-900/30 p-4 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-base font-bold text-gray-900 dark:text-slate-100">Round {editingRound}</p>
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${getVenueBadgeClasses(roundVenue)}`}>
+                      {roundVenue ? roundVenue.charAt(0).toUpperCase() + roundVenue.slice(1) : 'Venue'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{roundDateLabel}</p>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
+                </div>
                 <button
-                  onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'HOME' }))}
-                  className={`px-3 py-1 text-xs font-semibold ${roundDraft.homeAway !== 'AWAY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300'}`}
+                  type="button"
+                  onClick={closeRoundEditor}
+                  className="rounded-full bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 shadow-sm"
                 >
-                  Home
-                </button>
-                <button
-                  onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'AWAY' }))}
-                  className={`px-3 py-1 text-xs font-semibold ${roundDraft.homeAway === 'AWAY' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300'}`}
-                >
-                  Away
+                  Back
                 </button>
               </div>
-              <OpponentTeamInput
-                label="Opponent"
-                team={{
-                  name: roundDraft.opponentName || '',
-                  logoUrl: roundDraft.opponentLogoUrl || '',
-                  confirmed: true,
-                }}
-                onTeamChange={next => setRoundDraft(d => ({
-                  ...d,
-                  opponentName: next.name,
-                }))}
-                showLogoInput={false}
-              />
-              <div className="relative">
-                <input
-                  type="date"
-                  className="input-field"
-                  value={roundDraft.date}
-                  onChange={e => setRoundDraft(d => ({ ...d, date: e.target.value }))}
+
+              <div className="space-y-4">
+                <OpponentTeamInput
+                  label="Opponent Team"
+                  team={{
+                    name: roundDraft.opponentName || '',
+                    logoUrl: roundDraft.opponentLogoUrl || '',
+                    confirmed: Boolean((roundDraft.opponentName || '').trim()),
+                  }}
+                  hidePreview
+                  compact
+                  logoInline
+                  showLogoInput={false}
+                  onTeamChange={(nextTeam) => setRoundDraft(d => ({
+                    ...d,
+                    opponentName: nextTeam?.name || '',
+                    opponentLogoUrl: nextTeam?.logoUrl || '',
+                  }))}
                 />
-                {!roundDraft.date && (
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 dark:text-slate-500">
-                    Date
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={saveRoundEditor} className="btn-primary">Save Round</button>
-                <button onClick={closeRoundEditor} className="btn-secondary">Cancel</button>
+
+                <LogoImageInput
+                  label="Opponent Logo Upload"
+                  helperText=""
+                  value={roundDraft.opponentLogoUrl || ''}
+                  previewName={roundDraft.opponentName || 'Opponent'}
+                  hidePreview
+                  compact
+                  onChange={(logoUrl) => setRoundDraft(d => ({ ...d, opponentLogoUrl: logoUrl }))}
+                />
+
+                <div>
+                  <label htmlFor={roundDateInputId} className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
+                    Date of Match
+                  </label>
+                  {showRoundDatePicker ? (
+                    <input
+                      ref={roundDateInputRef}
+                      id={roundDateInputId}
+                      type="date"
+                      value={roundDraft.date || ''}
+                      onChange={(e) => {
+                        setRoundDraft(d => ({ ...d, date: e.target.value }));
+                        setShowRoundDatePicker(false);
+                      }}
+                      className="input-field max-w-[12rem]"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowRoundDatePicker(true)}
+                      aria-label={roundDateButtonAriaLabel}
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {roundDateButtonText}
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-200">Home or Away</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'HOME' }))}
+                      className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                        roundDraft.homeAway !== 'AWAY'
+                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                          : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
+                      }`}
+                    >
+                      Home
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoundDraft(d => ({ ...d, homeAway: 'AWAY' }))}
+                      className={`rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                        roundDraft.homeAway === 'AWAY'
+                          ? 'border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200'
+                          : 'border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200'
+                      }`}
+                    >
+                      Away
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">Location</label>
+                  <input
+                    type="text"
+                    value={roundDraft.location || ''}
+                    onChange={(e) => setRoundDraft(d => ({ ...d, location: e.target.value }))}
+                    placeholder="Enter field, oval, address, or venue"
+                    className="input-field"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={closeRoundEditor} className="btn-secondary flex-1">
+                    Back
+                  </button>
+                  <button type="button" onClick={saveRoundEditor} className="btn-primary flex-1">
+                    Save Round
+                  </button>
+                </div>
               </div>
             </div>
           )}

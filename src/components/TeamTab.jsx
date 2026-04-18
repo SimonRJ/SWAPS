@@ -485,16 +485,6 @@ export default function TeamTab({ data, onUpdate }) {
     setPlayersError('');
   }
 
-  function toggleActive(id) {
-    setPlayerForm((current) =>
-      current.map((player) =>
-        player.id === id ? { ...player, isActive: !player.isActive } : player,
-      ),
-    );
-    setPlayersStatus('');
-    setPlayersError('');
-  }
-
   function updateShirtNumber(id, shirtNumberInput) {
     const shirtNumber = normalizeShirtNumber(shirtNumberInput);
     setPlayerForm((current) =>
@@ -897,8 +887,8 @@ export default function TeamTab({ data, onUpdate }) {
                           className="grid grid-cols-2 justify-items-center gap-x-3 text-[11px] leading-4 text-gray-600 dark:text-slate-300 font-semibold text-center"
                           style={{ minWidth: SQUAD_PREVIEW_STATS_MIN_WIDTH }}
                         >
-                          <span className="tabular-nums">{stats.gamesPlayed}</span>
-                          <span className="tabular-nums">{stats.goals}</span>
+                          <span className="tabular-nums w-full text-center">{stats.gamesPlayed}</span>
+                          <span className="tabular-nums w-full text-center">{stats.goals}</span>
                         </div>
                       </li>
                     );
@@ -1294,58 +1284,55 @@ export default function TeamTab({ data, onUpdate }) {
                   No players yet. Add your squad.
                 </p>
               ) : (
-                <ul className="divide-y divide-gray-100 dark:divide-slate-800 pb-20">
-                  {playerForm.map((player) => (
-                    <li key={player.id} className="flex items-center gap-3 py-3">
-                      <PlayerAvatar
-                        player={player}
-                        sizeClass="w-8 h-8"
-                        className={
-                          player.isActive
-                            ? 'bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200'
-                            : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500'
-                        }
-                        textClassName="text-sm"
-                      />
-                      <span
-                        className={`flex-1 font-medium ${
-                          player.isActive
-                            ? 'text-gray-900 dark:text-slate-100'
-                            : 'text-gray-400 dark:text-slate-500 line-through'
-                        }`}
-                      >
-                        {player.name}
-                      </span>
-                      <input
-                        className="input-field w-16 !px-2 !py-1 text-sm"
-                        placeholder="#"
-                        inputMode="numeric"
-                        maxLength={2}
-                        value={player.shirtNumber || ''}
-                        onChange={(e) => updateShirtNumber(player.id, e.target.value)}
-                        aria-label={`${player.name} shirt number`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => toggleActive(player.id)}
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          player.isActive
-                            ? 'bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200'
-                            : 'bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400'
-                        }`}
-                      >
-                        {player.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removePlayer(player.id)}
-                        className="p-1 text-lg leading-none text-red-400 dark:text-red-300"
-                      >
-                        ×
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
+                    <span className="w-8" aria-hidden="true" />
+                    <span className="flex-1">Player</span>
+                    <span className="w-16 text-center">Shirt number</span>
+                    <span className="w-6" aria-hidden="true" />
+                  </div>
+                  <ul className="divide-y divide-gray-100 dark:divide-slate-800 pb-20">
+                    {playerForm.map((player) => (
+                      <li key={player.id} className="flex items-center gap-3 py-3">
+                        <PlayerAvatar
+                          player={player}
+                          sizeClass="w-8 h-8"
+                          className={
+                            player.isActive
+                              ? 'bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200'
+                              : 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500'
+                          }
+                          textClassName="text-sm"
+                        />
+                        <span
+                          className={`flex-1 font-medium ${
+                            player.isActive
+                              ? 'text-gray-900 dark:text-slate-100'
+                              : 'text-gray-400 dark:text-slate-500 line-through'
+                          }`}
+                        >
+                          {player.name}
+                        </span>
+                        <input
+                          className="input-field w-16 !px-2 !py-1 text-sm text-center"
+                          placeholder="#"
+                          inputMode="numeric"
+                          maxLength={2}
+                          value={player.shirtNumber || ''}
+                          onChange={(e) => updateShirtNumber(player.id, e.target.value)}
+                          aria-label={`${player.name} shirt number`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePlayer(player.id)}
+                          className="p-1 text-lg leading-none text-red-400 dark:text-red-300"
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
 
               {playersError && <p className="text-sm text-red-600 dark:text-red-300">{playersError}</p>}
