@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FOOTBALL_WEST_LOGO_URL } from '../utils/clubLogos.js';
 import { getFormationSlotXPercent, POSITION_Y_PERCENT } from '../utils/formations.js';
 import TeamAvatar from './TeamAvatar.jsx';
@@ -26,8 +26,14 @@ function posLabelSmall(pos) {
   return 'pos-bench';
 }
 
+function clampDeltaSeconds(deltaSeconds, maxSeconds) {
+  return Math.max(0, Math.min(deltaSeconds, maxSeconds));
+}
+
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
+const SUB_INTERVAL_SECONDS = 10 * 60;
+const MAX_REMOTE_TICK_DRIFT_SECONDS = 10;
 const PITCH_MARKINGS = {
   penaltyAreaDepthPct: 15.7,
   penaltyAreaWidthPct: 59.3,
@@ -41,6 +47,8 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const { currentGame, players, team } = data;
   const { plan, availablePlayers } = currentGame;
   const opponentLogo = currentGame.opponentLogoUrl || '';
+  const planLength = plan.length;
+  const lastBlockIndex = Math.max(planLength - 1, 0);
 
   const [elapsedSeconds, setElapsedSeconds] = useState(currentGame.elapsedSeconds || 0);
   const [isPaused, setIsPaused] = useState(currentGame.isPaused || false);
@@ -81,6 +89,8 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const lastRemoteTickRef = useRef(currentGame.lastTickAtMs || 0);
   const onSwitchToGameRef = useRef(onSwitchToGame);
 
+  const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
+
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   useEffect(() => { customFieldRef.current = customField; }, [customField]);
@@ -99,11 +109,23 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   useEffect(() => {
     if (!readOnly) return;
     const remoteTick = Number(currentGame.lastTickAtMs) || 0;
-    if (remoteTick && remoteTick <= lastRemoteTickRef.current) return;
+    const remoteElapsed = currentGame.elapsedSeconds ?? 0;
+    const remotePaused = Boolean(currentGame.isPaused);
+    const now = Date.now();
+    let nextElapsed = remoteElapsed;
+    if (!remotePaused && remoteTick) {
+      const rawDeltaSeconds = Math.floor((now - remoteTick) / 1000);
+      const deltaSeconds = clampDeltaSeconds(rawDeltaSeconds, MAX_REMOTE_TICK_DRIFT_SECONDS);
+      nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
+    }
+    const derivedBlock = Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex);
     lastRemoteTickRef.current = remoteTick;
-    setElapsedSeconds(currentGame.elapsedSeconds || 0);
-    setIsPaused(Boolean(currentGame.isPaused));
-    setBlockIndex(currentGame.blockIndex || 0);
+    // Align local tick base with the most recent remote update for read-only display.
+    lastTickMsRef.current = now;
+    elapsedRef.current = nextElapsed;
+    setElapsedSeconds(nextElapsed);
+    setIsPaused(remotePaused);
+    setBlockIndex(derivedBlock);
     setHomeScore(currentGame.homeScore || 0);
     setAwayScore(currentGame.awayScore || 0);
     setGoals(currentGame.goals || []);
@@ -123,11 +145,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     );
     setShowGoalPicker(false);
     setShowResumeOptions(false);
-    lastTickMsRef.current = Date.now();
-  }, [readOnly, currentGame]);
-
-  const gameDurationSeconds = team.gameDuration * 60;
-  const subIntervalSeconds = 10 * 60;
+  }, [readOnly, currentGame, gameDurationSeconds, planLength, lastBlockIndex]);
 
   // Use custom assignments if set, otherwise use plan
   const fieldAssignments = customField;
@@ -210,10 +228,10 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       });
 
       // Check if we've crossed a sub block boundary
-      const newBlock = Math.floor(newElapsed / subIntervalSeconds);
-      const currentBlockFromTime = Math.min(newBlock, plan.length - 1);
-      const nextBlockIndex = Math.floor(newElapsed / subIntervalSeconds) + 1;
-      const nextBlockAt = nextBlockIndex * subIntervalSeconds;
+      const newBlock = Math.floor(newElapsed / SUB_INTERVAL_SECONDS);
+      const currentBlockFromTime = Math.min(newBlock, lastBlockIndex);
+      const nextBlockIndex = Math.floor(newElapsed / SUB_INTERVAL_SECONDS) + 1;
+      const nextBlockAt = nextBlockIndex * SUB_INTERVAL_SECONDS;
 
       // 2-minute warning
       if (
@@ -260,7 +278,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     }, 1000);
 
     return () => clearInterval(intervalRef.current);
-  }, [isPaused, subIntervalSeconds, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock]);
+  }, [isPaused, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock, lastBlockIndex]);
 
   // Persist state periodically
   useEffect(() => {
@@ -333,7 +351,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     const manualValue = Number(manualTimeSeconds);
     const safeValue = Number.isFinite(manualValue) ? manualValue : elapsedSeconds;
     const nextTime = Math.max(0, Math.min(gameDurationSeconds, safeValue));
-    const nextBlock = Math.min(Math.floor(nextTime / subIntervalSeconds), plan.length - 1);
+    const nextBlock = Math.min(Math.floor(nextTime / SUB_INTERVAL_SECONDS), lastBlockIndex);
     setElapsedSeconds(nextTime);
     setBlockIndex(nextBlock);
     setIsPaused(true);
@@ -591,9 +609,9 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const currentSubs = pendingBlockIndex !== null && pendingBlockIndex < plan.length
     ? getSubsBetween(fieldAssignments, plan[pendingBlockIndex]?.onField || [])
     : [];
-  const nextBlockIndex = Math.floor(elapsedSeconds / subIntervalSeconds) + 1;
+  const nextBlockIndex = Math.floor(elapsedSeconds / SUB_INTERVAL_SECONDS) + 1;
   const hasNextBlock = !gameOver && nextBlockIndex < plan.length;
-  const nextBlockAtSeconds = nextBlockIndex * subIntervalSeconds;
+  const nextBlockAtSeconds = nextBlockIndex * SUB_INTERVAL_SECONDS;
   const nextBlockSecondsRemaining = hasNextBlock ? Math.max(0, nextBlockAtSeconds - elapsedSeconds) : 0;
   const nextSubs = hasNextBlock
     ? getSubsBetween(fieldAssignments, plan[nextBlockIndex]?.onField || [])
