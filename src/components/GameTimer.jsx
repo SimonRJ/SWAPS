@@ -232,10 +232,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   // Timer tick
   useEffect(() => {
-    if (readOnly) {
-      clearInterval(intervalRef.current);
-      return undefined;
-    }
+    if (readOnly) return undefined;
     if (isPaused) {
       clearInterval(intervalRef.current);
       return;
