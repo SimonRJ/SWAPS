@@ -475,7 +475,7 @@ export default function AdminPanel({ onBack }) {
                   <div className="flex items-center gap-2">
                     {openRequestCount > 0 && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
-                        New Requests {openRequestCount}
+                        {openRequestCount} New Requests
                       </span>
                     )}
                     <button
