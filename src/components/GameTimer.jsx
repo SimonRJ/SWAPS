@@ -60,6 +60,19 @@ const PITCH_MARKINGS = {
   penaltySpotDistancePct: 10.5,
 };
 
+let matchEventCounter = 0;
+
+function buildMatchEvent(type, minute, payload = {}) {
+  matchEventCounter += 1;
+  return {
+    id: `event-${matchEventCounter}`,
+    type,
+    minute,
+    createdAtMs: Date.now(),
+    ...payload,
+  };
+}
+
 export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, readOnly = false }) {
   const { currentGame, players, team } = data;
   const { plan, availablePlayers } = currentGame;
@@ -427,7 +440,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       const newField = targetBlock.onField;
       const newBench = targetBlock.onBench;
       const subs = getSubsBetween(fieldAssignments, newField);
-      const subEvents = subs.map(sub => buildMatchEvent('sub', {
+      const subEvents = subs.map(sub => buildMatchEvent('sub', Math.floor(elapsedSeconds / 60), {
         offPlayerId: sub.off,
         offPlayerName: getPlayer(sub.off)?.name || '?',
         onPlayerId: sub.on,
@@ -506,7 +519,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     };
     const newGoals = [...goals, newGoal];
     const nextHomeScore = homeScore + 1;
-    const nextEvents = appendMatchEvent(buildMatchEvent('goal', {
+    const nextEvents = appendMatchEvent(buildMatchEvent('goal', Math.floor(elapsedSeconds / 60), {
       playerId,
       playerName: player?.name || '?',
       teamName: team?.name || 'Home',
@@ -522,7 +535,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   function addOpponentGoal() {
     if (readOnly) return;
     const nextAwayScore = awayScore + 1;
-    const nextEvents = appendMatchEvent(buildMatchEvent('opponent-goal', {
+    const nextEvents = appendMatchEvent(buildMatchEvent('opponent-goal', Math.floor(elapsedSeconds / 60), {
       opponentName: currentGame.opponentName || 'Opponent',
     }));
     setAwayScore(nextAwayScore);
@@ -542,16 +555,6 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     setSaveFeedback(message);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     feedbackTimeoutRef.current = setTimeout(() => setSaveFeedback(''), 1800);
-  }
-
-  function buildMatchEvent(type, payload = {}) {
-    return {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-      type,
-      minute: Math.floor(elapsedSeconds / 60),
-      createdAtMs: Date.now(),
-      ...payload,
-    };
   }
 
   function appendMatchEvent(event) {
@@ -581,7 +584,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       ...gkSaves,
       [goalkeeper.playerId]: (gkSaves[goalkeeper.playerId] || 0) + 1,
     };
-    const nextEvents = appendMatchEvent(buildMatchEvent('save', {
+    const nextEvents = appendMatchEvent(buildMatchEvent('save', Math.floor(elapsedSeconds / 60), {
       playerId: goalkeeper.playerId,
       playerName: goalkeeperName,
     }));
@@ -639,7 +642,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
         setCustomField(currentFieldArr);
         setCustomBench(newBench);
-        const nextEvents = appendMatchEvent(buildMatchEvent('sub', {
+        const nextEvents = appendMatchEvent(buildMatchEvent('sub', Math.floor(elapsedSeconds / 60), {
           offPlayerId: targetFieldPlayer.playerId,
           offPlayerName: getPlayer(targetFieldPlayer.playerId)?.name || '?',
           onPlayerId: playerId,
@@ -675,7 +678,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
       setCustomField(currentFieldArr);
       setCustomBench(newBench);
-      const nextEvents = appendMatchEvent(buildMatchEvent('sub', {
+      const nextEvents = appendMatchEvent(buildMatchEvent('sub', Math.floor(elapsedSeconds / 60), {
         offPlayerId: playerId,
         offPlayerName: getPlayer(playerId)?.name || '?',
         onPlayerId: benchPlayerId,
@@ -718,7 +721,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       currentFieldArr[targetFieldIdx] = { playerId, position: targetPosition };
       setCustomField(currentFieldArr);
       setCustomBench(newBench);
-      const nextEvents = appendMatchEvent(buildMatchEvent('sub', {
+      const nextEvents = appendMatchEvent(buildMatchEvent('sub', Math.floor(elapsedSeconds / 60), {
         offPlayerId: targetPlayerId,
         offPlayerName: getPlayer(targetPlayerId)?.name || '?',
         onPlayerId: playerId,

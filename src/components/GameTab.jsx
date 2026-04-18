@@ -5,8 +5,8 @@ import TeamAvatar from './TeamAvatar.jsx';
 import { applyBlockMinutes } from '../utils/subAlgorithm.js';
 import { buildSeasonSchedule, createScheduleRound, getNextUnresolvedRound } from '../utils/storage.js';
 import { getGameResultLabel } from '../utils/gameResults.js';
-import { buildMatchReport } from '../utils/matchReport.js';
 import { findOpponentClubByName } from '../utils/clubLogos.js';
+import { buildMatchReport } from '../utils/matchReport.js';
 
 function secondsToMinutes(seconds) {
   return Math.round((seconds || 0) / 60);
@@ -264,109 +264,6 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, readOnly = fal
   }
 
   if (currentGame && !setupMode) {
-    return (
-      <GameTimer
-        data={data}
-        onUpdate={readOnly ? () => {} : handleUpdateGame}
-        onEndGame={handleEndGame}
-        onSwitchToGame={onSwitchToGame}
-        readOnly={readOnly}
-      />
-    );
-  }
-
-  if (setupMode) {
-    return (
-      <GameDaySetup
-        data={data}
-        onStartGame={handleStartGame}
-        onUpdate={readOnly ? () => {} : onUpdate}
-        onCancel={() => {
-          if (data.pendingGameSetup) {
-            onUpdate({ ...data, pendingGameSetup: null });
-          }
-          setSetupMode(false);
-        }}
-        readOnly={readOnly}
-      />
-    );
-  }
-
-  // No game in progress
-  const activePlayers = players.filter(p => p.isActive);
-  const canStartGame = activePlayers.length >= (team.fieldPlayers + 1);
-  const history = data.gameHistory || [];
-  const cancelledDetails = getCancelledDetails(data);
-  const reportData = reportGame
-    ? (reportGame.matchReport || buildMatchReport({ game: reportGame, players, team }))
-    : null;
-  const historyItems = [
-    ...history.map((game, index) => ({
-      ...game,
-      historyType: 'played',
-      originalIndex: index,
-      displayDate: game.date,
-      historyKey: `played-${game.gameNumber ?? index}`,
-    })),
-    ...cancelledDetails.map(game => ({
-      ...game,
-      historyType: 'cancelled',
-      gameNumber: game.round,
-      displayDate: game.cancelledDate || game.date,
-      historyKey: `cancelled-${game.round}`,
-    })),
-  ].sort((a, b) => (Number(a.gameNumber) || 0) - (Number(b.gameNumber) || 0));
-
-  function handleCancelGame() {
-    if (readOnly) return;
-    const round = getNextUnresolvedRound(data);
-    const schedule = buildSeasonSchedule(team.gamesPerSeason, data.seasonSchedule);
-    const scheduledRound = schedule.find(item => item.round === round) || createScheduleRound(round);
-    const fixtureType = scheduledRound.homeAway === 'AWAY' ? 'Away' : 'Home';
-    let opponentName = (scheduledRound.opponentName || '').trim();
-    let opponentLogoUrl = scheduledRound.opponentLogoUrl || '';
-
-    if (!opponentName) {
-      const enteredOpponent = window.prompt(
-        `Round ${round} is scheduled as a ${fixtureType.toLowerCase()} fixture with no opponent set.\nEnter an opponent for this cancelled game (optional):`,
-        '',
-      );
-      if (enteredOpponent === null) return;
-      opponentName = enteredOpponent.trim();
-      if (opponentName) {
-        const matchedClub = findOpponentClubByName(opponentName);
-        opponentName = matchedClub?.name || opponentName;
-        opponentLogoUrl = matchedClub?.logoUrl || '';
-      }
-    }
-
-    const roundSummary = `Round ${round} · ${fixtureType} · ${opponentName || 'Opponent TBC'}`;
-    if (!window.confirm(`Record cancelled game for ${roundSummary}? This adjusts season tracking.`)) return;
-
-    const updatedScheduledRound = {
-      ...scheduledRound,
-      round,
-      opponentName,
-      opponentLogoUrl,
-    };
-    const updatedSchedule = schedule.map(item => (
-      item.round === round ? updatedScheduledRound : item
-    ));
-    const nextCancelled = [
-      ...getCancelledDetails(data).filter(item => Number(item.round) !== round),
-      {
-        ...updatedScheduledRound,
-        cancelledDate: new Date().toLocaleDateString(),
-      },
-    ].sort((a, b) => a.round - b.round);
-    onUpdate({
-      ...data,
-      cancelledGameDetails: nextCancelled,
-      cancelledGames: nextCancelled.length,
-      seasonSchedule: updatedSchedule,
-    });
-  }
-
   return (
     <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
       <div className="card text-center py-8 space-y-4">
@@ -386,6 +283,19 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, readOnly = fal
           }}
           disabled={!canStartGame || readOnly}
           className={`btn-primary w-full text-lg ${(!canStartGame || readOnly) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          🟢 Start New Game
+        </button>
+        <button
+          onClick={handleCancelGame}
+          disabled={readOnly}
+          className={`btn-secondary w-full text-sm ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          ❌ Record Cancelled Game
+        </button>
+        {readOnly && (
+          <p className="text-xs text-gray-400 dark:text-slate-500">View-only mode: game controls are disabled.</p>
+        )}
         {!canStartGame && (
           <p className="text-xs text-gray-400 dark:text-slate-500">Add more players in the Team tab</p>
         )}
@@ -410,40 +320,62 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, readOnly = fal
                 ? `${fixtureType} fixture`
                 : (goalSummary || 'No goals recorded');
               return (
-              <li
-                key={g.historyKey || `${g.historyType}-${roundNumber}`}
-                className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800"
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">
-                        {isCancelled ? 'Round' : 'Game'} {roundNumber}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                        vs {g.opponentName || 'Opponent'}, {dateText}
-                      </p>
+                <li
+                  key={g.historyKey || `${g.historyType}-${roundNumber}`}
+                  className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {g.opponentLogoUrl ? (
+                        <TeamAvatar
+                          src={g.opponentLogoUrl}
+                          alt={`${g.opponentName || 'Opponent'} logo`}
+                          name={g.opponentName || 'Opponent'}
+                          sizeClass="w-8 h-8"
+                        />
+                      ) : (
+                        <TeamAvatar
+                          alt="Opponent logo"
+                          name={g.opponentName || 'Opponent'}
+                          sizeClass="w-8 h-8"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">
+                          {isCancelled ? 'Round' : 'Game'} {roundNumber}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                          vs {g.opponentName || 'Opponent'}, {dateText}
+                        </p>
+                      </div>
                     </div>
+                    {(g.homeScore !== undefined) ? (
+                      <div className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-bold text-gray-900 dark:bg-slate-800 dark:text-slate-100">
+                        {g.homeScore} - {g.awayScore}
+                      </div>
+                    ) : null}
                   </div>
-                  {(g.homeScore !== undefined) ? (
-                    <div className="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-bold text-gray-900 dark:bg-slate-800 dark:text-slate-100">
-                      {g.homeScore} - {g.awayScore}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-gray-500 dark:text-slate-400">
+                        {metaText}
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 font-semibold ${resultColorClass(label)}`}>
+                        {label}
+                      </span>
                     </div>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-gray-500 dark:text-slate-400">
-                      {metaText}
-                    </span>
-                    <span className={`rounded-full px-2 py-0.5 font-semibold ${resultColorClass(label)}`}>
-                      {label}
-                    </span>
+                    {!isCancelled && (
+                      <button
+                        onClick={() => setReportGame(g)}
+                        className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
+                      >
+                        View Report
+                      </button>
+                    )}
                   </div>
-                  {!isCancelled && (
-                    <button
-                      onClick={() => setReportGame(g)}
-                      className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
-                </div>
-              </li>
-            )})}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
