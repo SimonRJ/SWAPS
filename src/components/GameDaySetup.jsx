@@ -95,14 +95,16 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
 
   const effectivePlan = preferredPlan || gamePlan;
 
-  const totalSubs = Math.max(selectedPlayers.length - FORCED_STARTER_COUNT, 0);
-  const lineupRequiredCounts = {
-    GK: 1,
-    DEF: FORCED_FORMATION[0],
-    MID: FORCED_FORMATION[1],
-    ATK: FORCED_FORMATION[2],
-    SUB: totalSubs,
-  };
+  const lineupRequiredCounts = useMemo(() => {
+    const totalSubs = Math.max(selectedPlayers.length - FORCED_STARTER_COUNT, 0);
+    return {
+      GK: 1,
+      DEF: FORCED_FORMATION[0],
+      MID: FORCED_FORMATION[1],
+      ATK: FORCED_FORMATION[2],
+      SUB: totalSubs,
+    };
+  }, [selectedPlayers.length]);
   const lineupSelectedCounts = useMemo(() => {
     const counts = { GK: 0, DEF: 0, MID: 0, ATK: 0, SUB: 0 };
     for (const player of selectedPlayers) {
@@ -113,15 +115,15 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
     }
     return counts;
   }, [lineupSelections, selectedPlayers]);
-  const lineupRemainingCounts = {
+  const lineupRemainingCounts = useMemo(() => ({
     GK: Math.max(lineupRequiredCounts.GK - lineupSelectedCounts.GK, 0),
     DEF: Math.max(lineupRequiredCounts.DEF - lineupSelectedCounts.DEF, 0),
     MID: Math.max(lineupRequiredCounts.MID - lineupSelectedCounts.MID, 0),
     ATK: Math.max(lineupRequiredCounts.ATK - lineupSelectedCounts.ATK, 0),
     SUB: Math.max(lineupRequiredCounts.SUB - lineupSelectedCounts.SUB, 0),
-  };
+  }), [lineupRequiredCounts, lineupSelectedCounts]);
   const lineupRemainingLabel = useMemo(() => (
-    `Need ${lineupRemainingCounts.GK} GK, ${lineupRemainingCounts.DEF} DEF, ${lineupRemainingCounts.MID} MID, ${lineupRemainingCounts.ATK} ATK and ${lineupRemainingCounts.SUB} Sub${lineupRemainingCounts.SUB === 1 ? '' : 's'}.`
+    `Need ${lineupRemainingCounts.GK} GK, ${lineupRemainingCounts.DEF} DEF, ${lineupRemainingCounts.MID} MID, ${lineupRemainingCounts.ATK} ATK, and ${lineupRemainingCounts.SUB} Sub${lineupRemainingCounts.SUB === 1 ? '' : 's'}.`
   ), [
     lineupRemainingCounts.GK,
     lineupRemainingCounts.DEF,
