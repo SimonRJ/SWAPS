@@ -18,8 +18,15 @@ import { downloadClientErrorLogs, ERROR_LOG_EVENT, getClientErrorLogs } from './
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
+const PENDING_SAVE_KEY_PREFIX = 'soccerSubsPendingSave';
+const PENDING_SAVE_VERSION = 1;
 const HTTP_UNAUTHORIZED = 401;
 const HTTP_NOT_FOUND = 404;
+const RETRY_BASE_DELAY_MS = 2000;
+const RETRY_MAX_DELAY_MS = 60000;
+const RETRY_JITTER_RATIO = 0.2;
+const SYNC_OFFLINE_MESSAGE = 'Offline right now — changes are saved on this device and will sync automatically.';
+const SYNC_RETRY_MESSAGE = 'Connection issue — saving locally and retrying automatically.';
 
 function readStoredSession() {
   try {
@@ -40,6 +47,57 @@ function getInitialTheme() {
   }
   if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
   return 'light';
+}
+
+function pendingSaveKey(teamId) {
+  return `${PENDING_SAVE_KEY_PREFIX}:${teamId}`;
+}
+
+function readPendingSave(teamId) {
+  if (typeof window === 'undefined' || !teamId) return null;
+  try {
+    const raw = localStorage.getItem(pendingSaveKey(teamId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || parsed.version !== PENDING_SAVE_VERSION || !parsed.data) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingSave(teamId, payload) {
+  if (typeof window === 'undefined' || !teamId) return;
+  try {
+    localStorage.setItem(pendingSaveKey(teamId), JSON.stringify(payload));
+  } catch {
+    // ignore storage write errors
+  }
+}
+
+function clearPendingSave(teamId) {
+  if (typeof window === 'undefined' || !teamId) return;
+  try {
+    localStorage.removeItem(pendingSaveKey(teamId));
+  } catch {
+    // ignore storage write errors
+  }
+}
+
+function sanitizePendingOptions(options) {
+  if (!options) return undefined;
+  const next = { ...options };
+  delete next.adminCode;
+  delete next.passcode;
+  delete next.optimistic;
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function isRetriableSyncError(error) {
+  const status = Number(error?.status);
+  if (!Number.isFinite(status)) return true;
+  if (status === 408 || status === 429) return true;
+  return status >= 500;
 }
 
 function secondsToMinutes(seconds) {
@@ -219,6 +277,10 @@ export default function App() {
   const [errorLogCount, setErrorLogCount] = useState(() => getClientErrorLogs().length);
   const saveQueueRef = useRef(Promise.resolve());
   const sessionRef = useRef(session);
+  const pendingSaveRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
+  const retryAttemptRef = useRef(0);
+  const flushPendingSaveRef = useRef(() => {});
   const switchToGame = useCallback(() => setActiveTab('game'), []);
   const toggleTheme = useCallback(() => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
@@ -335,6 +397,121 @@ export default function App() {
     return savePromise;
   }, []);
 
+  const updateSessionFromSave = useCallback((updatedSession) => {
+    if (updatedSession?.passcodeHash && updatedSession.passcodeHash !== sessionRef.current?.passcodeHash) {
+      setSession(updatedSession);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
+      sessionRef.current = updatedSession;
+    }
+  }, []);
+
+  const scheduleRetry = useCallback((delayOverride) => {
+    if (retryTimeoutRef.current) return;
+    const attempt = retryAttemptRef.current;
+    const baseDelay = Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * (2 ** attempt));
+    const delay = Math.max(0, delayOverride ?? baseDelay);
+    const jitter = Math.round(delay * RETRY_JITTER_RATIO * Math.random());
+    retryTimeoutRef.current = setTimeout(() => {
+      retryTimeoutRef.current = null;
+      flushPendingSaveRef.current();
+    }, delay + jitter);
+  }, []);
+
+  const persistPendingSave = useCallback((newData, options = {}) => {
+    const activeSession = sessionRef.current;
+    if (!activeSession?.teamId) return;
+    const storagePayload = {
+      version: PENDING_SAVE_VERSION,
+      teamId: activeSession.teamId,
+      savedAt: new Date().toISOString(),
+      data: newData,
+      options: sanitizePendingOptions(options),
+    };
+    pendingSaveRef.current = { ...storagePayload, options };
+    writePendingSave(activeSession.teamId, storagePayload);
+  }, []);
+
+  const clearPendingSaveState = useCallback((teamId) => {
+    pendingSaveRef.current = null;
+    retryAttemptRef.current = 0;
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    clearPendingSave(teamId);
+  }, []);
+
+  const flushPendingSave = useCallback(async () => {
+    const pending = pendingSaveRef.current;
+    const activeSession = sessionRef.current;
+    if (!pending || !activeSession || activeSession.viewOnly) return;
+    if (pending.teamId && pending.teamId !== activeSession.teamId) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 8);
+      scheduleRetry();
+      return;
+    }
+    try {
+      const updatedSession = await queueSave(pending.data, pending.options);
+      updateSessionFromSave(updatedSession);
+      clearPendingSaveState(activeSession.teamId);
+      setSyncError('');
+    } catch (error) {
+      if (isRetriableSyncError(error)) {
+        retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 8);
+        scheduleRetry();
+        setSyncError(SYNC_RETRY_MESSAGE);
+      } else {
+        setSyncError(error?.message || 'Could not sync latest change to Netlify. Refresh and try again.');
+      }
+    }
+  }, [clearPendingSaveState, queueSave, scheduleRetry, updateSessionFromSave]);
+
+  useEffect(() => {
+    flushPendingSaveRef.current = flushPendingSave;
+  }, [flushPendingSave]);
+
+  useEffect(() => {
+    if (!session || session.viewOnly) {
+      pendingSaveRef.current = null;
+      return;
+    }
+    const storedPending = readPendingSave(session.teamId);
+    if (storedPending?.data) {
+      const migratedPending = migrateData(storedPending.data);
+      pendingSaveRef.current = {
+        ...storedPending,
+        data: migratedPending,
+      };
+      if (loggedIn) {
+        setData(migratedPending);
+      }
+      setSyncError(SYNC_RETRY_MESSAGE);
+      scheduleRetry(0);
+    } else {
+      pendingSaveRef.current = null;
+    }
+  }, [loggedIn, scheduleRetry, session]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleOnline = () => {
+      if (pendingSaveRef.current) {
+        setSyncError(SYNC_RETRY_MESSAGE);
+        scheduleRetry(0);
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [scheduleRetry]);
+
+  useEffect(() => () => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+  }, []);
+
   const handleLogin = useCallback(({ data: loginData, session: loginSession }) => {
     const migrated = migrateData(loginData);
     setData(migrated);
@@ -363,19 +540,35 @@ export default function App() {
       setData(newData);
     }
     if (!sessionRef.current) return;
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      persistPendingSave(newData, options);
+      scheduleRetry();
+      setSyncError(SYNC_OFFLINE_MESSAGE);
+      return {
+        ok: false,
+        error: new Error(SYNC_OFFLINE_MESSAGE),
+      };
+    }
     try {
       const updatedSession = await queueSave(newData, options);
       setSyncError('');
       if (!optimistic) {
         setData(newData);
       }
-      if (updatedSession?.passcodeHash && updatedSession.passcodeHash !== sessionRef.current?.passcodeHash) {
-        setSession(updatedSession);
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
-        sessionRef.current = updatedSession;
-      }
+      updateSessionFromSave(updatedSession);
+      clearPendingSaveState(sessionRef.current?.teamId);
       return { ok: true };
     } catch (error) {
+      if (isRetriableSyncError(error)) {
+        persistPendingSave(newData, options);
+        scheduleRetry();
+        setSyncError(SYNC_RETRY_MESSAGE);
+        return {
+          ok: false,
+          error: new Error(SYNC_RETRY_MESSAGE, { cause: error }),
+        };
+      }
       console.error(error);
       setSyncError(error?.message || 'Could not sync latest change to Netlify. Refresh and try again.');
       return {
@@ -383,7 +576,7 @@ export default function App() {
         error,
       };
     }
-  }, [queueSave]);
+  }, [clearPendingSaveState, persistPendingSave, queueSave, scheduleRetry, updateSessionFromSave]);
 
   useEffect(() => {
     if (!session?.viewOnly || !loggedIn) return undefined;
