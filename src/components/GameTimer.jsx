@@ -28,6 +28,7 @@ function posLabelSmall(pos) {
 
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
+const SUB_INTERVAL_SECONDS = 10 * 60;
 const PITCH_MARKINGS = {
   penaltyAreaDepthPct: 15.7,
   penaltyAreaWidthPct: 59.3,
@@ -83,7 +84,6 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const onSwitchToGameRef = useRef(onSwitchToGame);
 
   const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
-  const subIntervalSeconds = 10 * 60;
 
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
@@ -112,7 +112,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
     }
     const maxBlockIndex = Math.max(planLength - 1, 0);
-    const derivedBlock = Math.min(Math.floor(nextElapsed / subIntervalSeconds), maxBlockIndex);
+    const derivedBlock = Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), maxBlockIndex);
     lastRemoteTickRef.current = remoteTick;
     lastTickMsRef.current = now;
     elapsedRef.current = nextElapsed;
@@ -138,7 +138,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     );
     setShowGoalPicker(false);
     setShowResumeOptions(false);
-  }, [readOnly, currentGame, gameDurationSeconds, planLength, subIntervalSeconds]);
+  }, [readOnly, currentGame, gameDurationSeconds, planLength]);
 
   // Use custom assignments if set, otherwise use plan
   const fieldAssignments = customField;
@@ -221,10 +221,10 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       });
 
       // Check if we've crossed a sub block boundary
-      const newBlock = Math.floor(newElapsed / subIntervalSeconds);
+      const newBlock = Math.floor(newElapsed / SUB_INTERVAL_SECONDS);
       const currentBlockFromTime = Math.min(newBlock, plan.length - 1);
-      const nextBlockIndex = Math.floor(newElapsed / subIntervalSeconds) + 1;
-      const nextBlockAt = nextBlockIndex * subIntervalSeconds;
+      const nextBlockIndex = Math.floor(newElapsed / SUB_INTERVAL_SECONDS) + 1;
+      const nextBlockAt = nextBlockIndex * SUB_INTERVAL_SECONDS;
 
       // 2-minute warning
       if (
@@ -271,7 +271,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     }, 1000);
 
     return () => clearInterval(intervalRef.current);
-  }, [isPaused, subIntervalSeconds, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock]);
+  }, [isPaused, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock]);
 
   // Persist state periodically
   useEffect(() => {
@@ -344,7 +344,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     const manualValue = Number(manualTimeSeconds);
     const safeValue = Number.isFinite(manualValue) ? manualValue : elapsedSeconds;
     const nextTime = Math.max(0, Math.min(gameDurationSeconds, safeValue));
-    const nextBlock = Math.min(Math.floor(nextTime / subIntervalSeconds), plan.length - 1);
+    const nextBlock = Math.min(Math.floor(nextTime / SUB_INTERVAL_SECONDS), plan.length - 1);
     setElapsedSeconds(nextTime);
     setBlockIndex(nextBlock);
     setIsPaused(true);
@@ -602,9 +602,9 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const currentSubs = pendingBlockIndex !== null && pendingBlockIndex < plan.length
     ? getSubsBetween(fieldAssignments, plan[pendingBlockIndex]?.onField || [])
     : [];
-  const nextBlockIndex = Math.floor(elapsedSeconds / subIntervalSeconds) + 1;
+  const nextBlockIndex = Math.floor(elapsedSeconds / SUB_INTERVAL_SECONDS) + 1;
   const hasNextBlock = !gameOver && nextBlockIndex < plan.length;
-  const nextBlockAtSeconds = nextBlockIndex * subIntervalSeconds;
+  const nextBlockAtSeconds = nextBlockIndex * SUB_INTERVAL_SECONDS;
   const nextBlockSecondsRemaining = hasNextBlock ? Math.max(0, nextBlockAtSeconds - elapsedSeconds) : 0;
   const nextSubs = hasNextBlock
     ? getSubsBetween(fieldAssignments, plan[nextBlockIndex]?.onField || [])
