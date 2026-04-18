@@ -255,7 +255,8 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
       setLineupError(`Need ${requiredCounts.GK} GK, ${requiredCounts.DEF} DEF, ${requiredCounts.MID} MID, ${requiredCounts.ATK} ATK.`);
       return;
     }
-    if (!team.rotateGK && team.fixedGKPlayerId && lineupSelections[team.fixedGKPlayerId] !== 'GK') {
+    const fixedGkAvailable = Boolean(team.fixedGKPlayerId && selectedPlayers.some(player => player.id === team.fixedGKPlayerId));
+    if (!team.rotateGK && fixedGkAvailable && lineupSelections[team.fixedGKPlayerId] !== 'GK') {
       setLineupError('The fixed goalkeeper must be assigned as GK.');
       return;
     }

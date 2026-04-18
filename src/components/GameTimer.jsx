@@ -78,6 +78,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const isPausedRef = useRef(isPaused);
   const customFieldRef = useRef(customField);
   const lastTickMsRef = useRef(currentGame.lastTickAtMs || 0);
+  const lastRemoteTickRef = useRef(currentGame.lastTickAtMs || 0);
   const onSwitchToGameRef = useRef(onSwitchToGame);
 
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
@@ -97,6 +98,9 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => {
     if (!readOnly) return;
+    const remoteTick = currentGame.lastTickAtMs || 0;
+    if (remoteTick && remoteTick < lastRemoteTickRef.current) return;
+    lastRemoteTickRef.current = remoteTick || Date.now();
     setElapsedSeconds(currentGame.elapsedSeconds || 0);
     setIsPaused(Boolean(currentGame.isPaused));
     setBlockIndex(currentGame.blockIndex || 0);

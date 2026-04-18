@@ -55,7 +55,7 @@ function formatRoundDateTimeLabel(dateValue, timeValue) {
 
 function getDateDisplay(date, time) {
   if (!date && !time) return 'Date TBC';
-  if (!date) return formatRoundTimeLabel(time);
+  if (!date) return `Date TBC · ${formatRoundTimeLabel(time)}`;
   return formatRoundDateTimeLabel(date, time);
 }
 
