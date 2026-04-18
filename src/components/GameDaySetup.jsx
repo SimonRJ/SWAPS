@@ -271,8 +271,13 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
       }
       counts[selection] += 1;
     }
-    if (counts.GK !== requiredCounts.GK || counts.DEF !== requiredCounts.DEF || counts.MID !== requiredCounts.MID || counts.ATK !== requiredCounts.ATK) {
-      setLineupError(`Need ${requiredCounts.GK} GK, ${requiredCounts.DEF} DEF, ${requiredCounts.MID} MID, ${requiredCounts.ATK} ATK.`);
+    if (counts.GK !== requiredCounts.GK
+      || counts.DEF !== requiredCounts.DEF
+      || counts.MID !== requiredCounts.MID
+      || counts.ATK !== requiredCounts.ATK
+      || counts.SUB !== requiredCounts.SUB) {
+      const subLabel = requiredCounts.SUB === 1 ? 'Sub' : 'Subs';
+      setLineupError(`Need ${requiredCounts.GK} GK, ${requiredCounts.DEF} DEF, ${requiredCounts.MID} MID, ${requiredCounts.ATK} ATK, and ${requiredCounts.SUB} ${subLabel}.`);
       return;
     }
     const fixedGkAvailable = Boolean(team.fixedGKPlayerId && selectedPlayers.some(player => player.id === team.fixedGKPlayerId));
