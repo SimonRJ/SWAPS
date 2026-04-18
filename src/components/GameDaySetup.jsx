@@ -120,7 +120,15 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
     ATK: Math.max(lineupRequiredCounts.ATK - lineupSelectedCounts.ATK, 0),
     SUB: Math.max(lineupRequiredCounts.SUB - lineupSelectedCounts.SUB, 0),
   };
-  const lineupRemainingLabel = `Need ${lineupRemainingCounts.GK} GK, ${lineupRemainingCounts.DEF} DEF, ${lineupRemainingCounts.MID} MID, ${lineupRemainingCounts.ATK} ATK and ${lineupRemainingCounts.SUB} Sub${lineupRemainingCounts.SUB === 1 ? '' : 's'}.`;
+  const lineupRemainingLabel = useMemo(() => (
+    `Need ${lineupRemainingCounts.GK} GK, ${lineupRemainingCounts.DEF} DEF, ${lineupRemainingCounts.MID} MID, ${lineupRemainingCounts.ATK} ATK and ${lineupRemainingCounts.SUB} Sub${lineupRemainingCounts.SUB === 1 ? '' : 's'}.`
+  ), [
+    lineupRemainingCounts.GK,
+    lineupRemainingCounts.DEF,
+    lineupRemainingCounts.MID,
+    lineupRemainingCounts.ATK,
+    lineupRemainingCounts.SUB,
+  ]);
   const canSelectLineupPosition = (position, playerId) => (
     lineupSelections[playerId] === position || lineupRemainingCounts[position] > 0
   );
@@ -257,7 +265,6 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
   }
 
   function confirmLineupEditor() {
-    const requiredCounts = lineupRequiredCounts;
     const counts = { GK: 0, DEF: 0, MID: 0, ATK: 0, SUB: 0 };
     for (const player of selectedPlayers) {
       const selection = lineupSelections[player.id];
@@ -271,13 +278,13 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
       }
       counts[selection] += 1;
     }
-    if (counts.GK !== requiredCounts.GK
-      || counts.DEF !== requiredCounts.DEF
-      || counts.MID !== requiredCounts.MID
-      || counts.ATK !== requiredCounts.ATK
-      || counts.SUB !== requiredCounts.SUB) {
-      const subLabel = requiredCounts.SUB === 1 ? 'Sub' : 'Subs';
-      setLineupError(`Need ${requiredCounts.GK} GK, ${requiredCounts.DEF} DEF, ${requiredCounts.MID} MID, ${requiredCounts.ATK} ATK, and ${requiredCounts.SUB} ${subLabel}.`);
+    if (counts.GK !== lineupRequiredCounts.GK
+      || counts.DEF !== lineupRequiredCounts.DEF
+      || counts.MID !== lineupRequiredCounts.MID
+      || counts.ATK !== lineupRequiredCounts.ATK
+      || counts.SUB !== lineupRequiredCounts.SUB) {
+      const subLabel = lineupRequiredCounts.SUB === 1 ? 'Sub' : 'Subs';
+      setLineupError(`Need ${lineupRequiredCounts.GK} GK, ${lineupRequiredCounts.DEF} DEF, ${lineupRequiredCounts.MID} MID, ${lineupRequiredCounts.ATK} ATK, and ${lineupRequiredCounts.SUB} ${subLabel}.`);
       return;
     }
     const fixedGkAvailable = Boolean(team.fixedGKPlayerId && selectedPlayers.some(player => player.id === team.fixedGKPlayerId));
