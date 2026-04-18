@@ -363,6 +363,21 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
     }
 
     const gkSaves = matchSummary?.gkSaves ?? currentGame.gkSaves ?? {};
+    const resolvedGoals = matchSummary?.goals ?? currentGame.goals ?? [];
+    const resolvedLog = matchSummary?.gameLog ?? currentGame.gameLog ?? [];
+    const resolvedHomeScore = matchSummary?.homeScore ?? currentGame.homeScore ?? 0;
+    const resolvedAwayScore = matchSummary?.awayScore ?? currentGame.awayScore ?? 0;
+    const resolvedTimers = matchSummary?.playerTimers ?? currentGame.playerTimers ?? {};
+    const reportGame = {
+      ...currentGame,
+      homeScore: resolvedHomeScore,
+      awayScore: resolvedAwayScore,
+      goals: resolvedGoals,
+      gkSaves,
+      gameLog: resolvedLog,
+      playerTimers: resolvedTimers,
+    };
+    const matchReport = buildMatchReport({ game: reportGame, players, team });
     updatedPlayers = updatedPlayers.map(player => ({
       ...player,
       saves: (player.saves || 0) + (Number(gkSaves[player.id]) || 0),
@@ -399,6 +414,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
         saves: (updated.saves || 0) - (original.saves || 0),
       };
     });
+    const startingBenchIds = Array.isArray(currentGame.startingBench)
+      ? currentGame.startingBench.filter(id => typeof id === 'string')
+      : [];
 
     const historyEntry = {
       gameNumber: currentGame.gameNumber,
@@ -409,17 +427,20 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       elapsedSeconds,
       opponentName: currentGame.opponentName || 'Opponent',
       opponentLogoUrl: currentGame.opponentLogoUrl || '',
-      homeScore: matchSummary?.homeScore ?? currentGame.homeScore ?? 0,
-      awayScore: matchSummary?.awayScore ?? currentGame.awayScore ?? 0,
-      goals: matchSummary?.goals ?? currentGame.goals ?? [],
+      homeScore: resolvedHomeScore,
+      awayScore: resolvedAwayScore,
+      goals: resolvedGoals,
       gkSaves,
-      playerTimers: matchSummary?.playerTimers ?? currentGame.playerTimers ?? {},
+      gameLog: resolvedLog,
+      playerTimers: resolvedTimers,
       absentMinutes: currentGame.absentMinutes || [],
       playerMinuteDeltas,
-      // startingBench is an array of player ID strings (set in GameDaySetup)
-      startingBenchIds: Array.isArray(currentGame.startingBench)
-        ? currentGame.startingBench.filter(id => typeof id === 'string')
-        : [],
+      availablePlayers: currentGame.availablePlayers || [],
+      absentPlayers: currentGame.absentPlayers || [],
+      startingField: currentGame.startingField || [],
+      // startingBenchIds is an array of player ID strings (set in GameDaySetup)
+      startingBenchIds,
+      matchReport,
     };
 
     const updatedCancelled = getCancelledDetails(data)

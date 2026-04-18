@@ -45,7 +45,8 @@ export function buildMatchReport({ game, players = [], team }) {
     ...slot,
     playerName: slot?.playerName || getPlayerName(players, slot?.playerId),
   }));
-  const startingBench = (game.startingBench || []).map(playerId => ({
+  const startingBenchIds = game.startingBench || game.startingBenchIds || [];
+  const startingBench = startingBenchIds.map(playerId => ({
     playerId,
     playerName: getPlayerName(players, playerId),
   }));
