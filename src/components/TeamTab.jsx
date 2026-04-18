@@ -1288,7 +1288,7 @@ export default function TeamTab({ data, onUpdate }) {
                   <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">
                     <span className="w-8" aria-hidden="true" />
                     <span className="flex-1">Player</span>
-                    <span className="w-16 text-center">Shirt number</span>
+                    <span className="w-16 text-center">Shirt Number</span>
                     <span className="w-6" aria-hidden="true" />
                   </div>
                   <ul className="divide-y divide-gray-100 dark:divide-slate-800 pb-20">

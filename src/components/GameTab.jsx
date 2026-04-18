@@ -1115,19 +1115,17 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
               <button onClick={saveEditedGame} className="btn-primary w-full text-sm">
                 Save Changes
               </button>
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid gap-3 ${isEditingExistingGame ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <button onClick={closeEditGame} className="btn-secondary text-sm">
                   Cancel
                 </button>
-                {isEditingExistingGame ? (
+                {isEditingExistingGame && (
                   <button
                     onClick={() => openDeletePrompt(editingGameIndex)}
                     className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
                   >
                     Delete Game
                   </button>
-                ) : (
-                  <div aria-hidden="true" />
                 )}
               </div>
             </div>
