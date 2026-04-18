@@ -26,14 +26,21 @@ function posLabelSmall(pos) {
   return 'pos-bench';
 }
 
-function clampDeltaSeconds(deltaSeconds, maxSeconds) {
-  return Math.max(0, Math.min(deltaSeconds, maxSeconds));
+function getReadOnlyElapsed(base, nowMs, gameDurationSeconds) {
+  if (!base) return 0;
+  const safeElapsed = Math.max(0, Number(base.elapsedSeconds) || 0);
+  if (base.isPaused || !base.receivedAtMs) {
+    return Math.min(gameDurationSeconds, safeElapsed);
+  }
+  const deltaSeconds = Math.max(0, Math.floor((nowMs - base.receivedAtMs) / 1000));
+  return Math.min(gameDurationSeconds, safeElapsed + deltaSeconds);
 }
 
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
 const SUB_INTERVAL_SECONDS = 10 * 60;
-const MAX_REMOTE_TICK_DRIFT_SECONDS = 10;
+// Allow minor drift from refresh cadence before resyncing the read-only clock.
+const READONLY_SYNC_THRESHOLD_SECONDS = 2;
 const PITCH_MARKINGS = {
   penaltyAreaDepthPct: 15.7,
   penaltyAreaWidthPct: 59.3,
@@ -86,7 +93,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const isPausedRef = useRef(isPaused);
   const customFieldRef = useRef(customField);
   const lastTickMsRef = useRef(currentGame.lastTickAtMs || 0);
-  const lastRemoteTickRef = useRef(currentGame.lastTickAtMs || 0);
+  const readOnlySyncRef = useRef(null);
   const onSwitchToGameRef = useRef(onSwitchToGame);
 
   const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
@@ -108,24 +115,40 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => {
     if (!readOnly) return;
-    const remoteTick = Number(currentGame.lastTickAtMs) || 0;
-    const remoteElapsed = currentGame.elapsedSeconds ?? 0;
+    const remoteElapsed = Number(currentGame.elapsedSeconds) || 0;
     const remotePaused = Boolean(currentGame.isPaused);
     const now = Date.now();
-    let nextElapsed = remoteElapsed;
-    if (!remotePaused && remoteTick) {
-      const rawDeltaSeconds = Math.floor((now - remoteTick) / 1000);
-      const deltaSeconds = clampDeltaSeconds(rawDeltaSeconds, MAX_REMOTE_TICK_DRIFT_SECONDS);
-      nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
+    const base = readOnlySyncRef.current;
+    const seededBase = base || {
+      elapsedSeconds: remoteElapsed,
+      receivedAtMs: now,
+      isPaused: remotePaused,
+    };
+    const localElapsed = getReadOnlyElapsed(seededBase, now, gameDurationSeconds);
+    const driftSeconds = Math.abs(remoteElapsed - localElapsed);
+    const shouldResync = !base
+      || remotePaused !== seededBase.isPaused
+      || driftSeconds >= READONLY_SYNC_THRESHOLD_SECONDS
+      || (remoteElapsed === 0 && localElapsed > 0);
+
+    if (shouldResync) {
+      readOnlySyncRef.current = {
+        elapsedSeconds: remoteElapsed,
+        receivedAtMs: now,
+        isPaused: remotePaused,
+      };
+      elapsedRef.current = remoteElapsed;
+      setElapsedSeconds(remoteElapsed);
+      setBlockIndex(Math.min(Math.floor(remoteElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
+    } else if (remoteElapsed >= seededBase.elapsedSeconds) {
+      // Remote time advanced slightly; bump baseline without forcing a full resync.
+      readOnlySyncRef.current = {
+        ...seededBase,
+        elapsedSeconds: remoteElapsed,
+        receivedAtMs: now,
+      };
     }
-    const derivedBlock = Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex);
-    lastRemoteTickRef.current = remoteTick;
-    // Align local tick base with the most recent remote update for read-only display.
-    lastTickMsRef.current = now;
-    elapsedRef.current = nextElapsed;
-    setElapsedSeconds(nextElapsed);
     setIsPaused(remotePaused);
-    setBlockIndex(derivedBlock);
     setHomeScore(currentGame.homeScore || 0);
     setAwayScore(currentGame.awayScore || 0);
     setGoals(currentGame.goals || []);
@@ -145,7 +168,32 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     );
     setShowGoalPicker(false);
     setShowResumeOptions(false);
-  }, [readOnly, currentGame, gameDurationSeconds, planLength, lastBlockIndex]);
+  }, [readOnly, currentGame, gameDurationSeconds, lastBlockIndex]);
+
+  useEffect(() => {
+    if (!readOnly) return undefined;
+    const tick = () => {
+      const now = Date.now();
+      let base = readOnlySyncRef.current;
+      if (!base) {
+        base = {
+          elapsedSeconds: elapsedRef.current,
+          receivedAtMs: now,
+          isPaused: isPausedRef.current,
+        };
+        readOnlySyncRef.current = base;
+      }
+      const nextElapsed = getReadOnlyElapsed(base, now, gameDurationSeconds);
+      if (nextElapsed !== elapsedRef.current) {
+        elapsedRef.current = nextElapsed;
+        setElapsedSeconds(nextElapsed);
+        setBlockIndex(Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [readOnly, gameDurationSeconds, lastBlockIndex]);
 
   // Use custom assignments if set, otherwise use plan
   const fieldAssignments = customField;
@@ -187,6 +235,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   // Timer tick
   useEffect(() => {
+    if (readOnly) return undefined;
     if (isPaused) {
       clearInterval(intervalRef.current);
       return;
@@ -278,7 +327,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     }, 1000);
 
     return () => clearInterval(intervalRef.current);
-  }, [isPaused, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock, lastBlockIndex]);
+  }, [readOnly, isPaused, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock, lastBlockIndex]);
 
   // Persist state periodically
   useEffect(() => {
