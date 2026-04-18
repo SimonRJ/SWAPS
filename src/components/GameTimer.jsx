@@ -146,7 +146,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       || remotePaused !== seededBase.isPaused
       || driftSeconds >= READONLY_SYNC_THRESHOLD_SECONDS
       || (remoteActualElapsed === 0 && localElapsed > 0)
-      || (remoteTimerStartedAtMs !== (base.timerStartedAtMs || null));
+      || ((remoteTimerStartedAtMs || null) !== (base.timerStartedAtMs || null));
 
     if (shouldResync) {
       readOnlySyncRef.current = newBase;
@@ -357,7 +357,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     }
     setIsPaused(newPaused);
     const extras = newPaused
-      ? { timerStartedAtMs: null }
+      ? { timerStartedAtMs: null, elapsedSecondsAtTimerStart: elapsedSeconds }
       : { timerStartedAtMs: now, elapsedSecondsAtTimerStart: elapsedSeconds };
     saveState(elapsedSeconds, newPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench, extras);
   }
