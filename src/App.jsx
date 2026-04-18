@@ -24,6 +24,7 @@ const HTTP_UNAUTHORIZED = 401;
 const HTTP_NOT_FOUND = 404;
 const RETRY_BASE_DELAY_MS = 2000;
 const RETRY_MAX_DELAY_MS = 60000;
+const RETRY_MAX_ATTEMPTS = 8;
 const RETRY_JITTER_RATIO = 0.2;
 const SYNC_OFFLINE_MESSAGE = 'Offline right now — changes are saved on this device and will sync automatically.';
 const SYNC_RETRY_MESSAGE = 'Connection issue — saving locally and retrying automatically.';
@@ -47,6 +48,10 @@ function getInitialTheme() {
   }
   if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
   return 'light';
+}
+
+function isOffline() {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
 function pendingSaveKey(teamId) {
@@ -446,8 +451,8 @@ export default function App() {
     const activeSession = sessionRef.current;
     if (!pending || !activeSession || activeSession.viewOnly) return;
     if (pending.teamId && pending.teamId !== activeSession.teamId) return;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 8);
+    if (isOffline()) {
+      retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPTS);
       scheduleRetry();
       return;
     }
@@ -458,7 +463,7 @@ export default function App() {
       setSyncError('');
     } catch (error) {
       if (isRetriableSyncError(error)) {
-        retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 8);
+        retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPTS);
         scheduleRetry();
         setSyncError(SYNC_RETRY_MESSAGE);
       } else {
@@ -540,8 +545,7 @@ export default function App() {
       setData(newData);
     }
     if (!sessionRef.current) return;
-    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
-    if (isOffline) {
+    if (isOffline()) {
       persistPendingSave(newData, options);
       scheduleRetry();
       setSyncError(SYNC_OFFLINE_MESSAGE);
