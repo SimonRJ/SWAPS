@@ -14,7 +14,7 @@ import { loginWithSession, saveTeamData, viewTeamData } from './utils/netlifyDat
 import { LAST_TEAM_ID_KEY } from './utils/storageKeys.js';
 import { applyBlockMinutes } from './utils/subAlgorithm.js';
 import { buildMatchReport } from './utils/matchReport.js';
-import { downloadClientErrorLogs, getClientErrorLogs } from './utils/errorLogging.js';
+import { downloadClientErrorLogs, ERROR_LOG_EVENT, getClientErrorLogs } from './utils/errorLogging.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
@@ -293,8 +293,13 @@ export default function App() {
   }, [activeTab, loggedIn]);
 
   useEffect(() => {
-    setErrorLogCount(getClientErrorLogs().length);
-  }, [syncError]);
+    const handleErrorLogUpdate = () => {
+      setErrorLogCount(getClientErrorLogs().length);
+    };
+    if (typeof window === 'undefined') return undefined;
+    window.addEventListener(ERROR_LOG_EVENT, handleErrorLogUpdate);
+    return () => window.removeEventListener(ERROR_LOG_EVENT, handleErrorLogUpdate);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

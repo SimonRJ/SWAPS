@@ -1,3 +1,4 @@
+export const ERROR_LOG_EVENT = 'swaps-error-log';
 const ERROR_LOG_KEY = 'swapsErrorLogs';
 const MAX_LOG_ENTRIES = 50;
 const MAX_FIELD_LENGTH = 2000;
@@ -70,7 +71,6 @@ export function recordClientError({
     name: truncate(name),
     stack: truncate(stack),
     source: truncate(source),
-    status: Number.isFinite(statusValue) ? statusValue : undefined,
     code: truncate(code),
     action: truncate(action),
     teamId: truncate(teamId),
@@ -79,10 +79,16 @@ export function recordClientError({
     details: safeClone(details),
     context: safeClone(context),
   };
+  if (Number.isFinite(statusValue)) {
+    entry.status = statusValue;
+  }
 
   const entries = readLogs();
   entries.unshift(entry);
   writeLogs(entries.slice(0, MAX_LOG_ENTRIES));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(ERROR_LOG_EVENT, { detail: entry }));
+  }
   return entry;
 }
 
