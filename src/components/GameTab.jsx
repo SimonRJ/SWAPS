@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import GameDaySetup from './GameDaySetup.jsx';
 import GameTimer from './GameTimer.jsx';
 import TeamAvatar from './TeamAvatar.jsx';
@@ -212,6 +212,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   const [requestError, setRequestError] = useState('');
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [reportGame, setReportGame] = useState(null);
+  const overlayScrollYRef = useRef(0);
+  const isOverlayOpen = Boolean(editDraft || reportGame);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -224,8 +226,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   }, [readOnly, setupMode]);
 
   useEffect(() => {
-    if (!editDraft && !reportGame) return undefined;
+    if (!isOverlayOpen) return undefined;
     const scrollY = window.scrollY || window.pageYOffset || 0;
+    overlayScrollYRef.current = scrollY;
     const originalStyles = {
       overflow: document.body.style.overflow,
       position: document.body.style.position,
@@ -250,9 +253,31 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       document.body.style.right = originalStyles.right;
       document.body.style.width = originalStyles.width;
       document.body.style.touchAction = originalStyles.touchAction;
-      window.scrollTo({ top: scrollY, left: 0, behavior: 'auto' });
+      window.scrollTo({ top: overlayScrollYRef.current, left: 0, behavior: 'auto' });
     };
-  }, [editDraft, reportGame]);
+  }, [isOverlayOpen]);
+
+  const playerNameMap = useMemo(
+    () => new Map((players || []).map(player => [player.id, player.name])),
+    [players],
+  );
+  const getPlayerLabel = playerId => playerNameMap.get(playerId) || '?';
+  const reportData = useMemo(() => {
+    if (!reportGame) return null;
+    return reportGame.matchReport || buildMatchReport({ game: reportGame, players, team });
+  }, [reportGame, players, team]);
+  const reportTeamSheet = reportData?.teamSheet;
+  const reportTimeline = reportData?.timeline || [];
+  const reportGoals = reportData?.goals || [];
+  const reportSaves = reportData?.saves?.length
+    ? reportData.saves
+    : (reportData?.saveSummary || []);
+  const reportSubs = reportData?.substitutions || [];
+  const reportOpponentGoals = reportData?.opponentGoals || [];
+  const reportAvailablePlayers = reportTeamSheet?.availablePlayers || [];
+  const reportAbsentPlayers = reportTeamSheet?.absentPlayers || [];
+  const reportStartingField = reportTeamSheet?.startingField || [];
+  const reportStartingBench = reportTeamSheet?.startingBench || [];
 
   function handleStartGame({ availablePlayers, absentPlayers, absentMinutes, formation, plan, gameNumber, opponentName, opponentLogoUrl, startingField, startingBench }) {
     if (readOnly) return;
@@ -462,23 +487,6 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       historyKey: `cancelled-${game.round}`,
     })),
   ].sort((a, b) => (Number(a.gameNumber) || 0) - (Number(b.gameNumber) || 0));
-  const playerNameMap = new Map((players || []).map(player => [player.id, player.name]));
-  const getPlayerLabel = playerId => playerNameMap.get(playerId) || '?';
-  const reportData = reportGame
-    ? (reportGame.matchReport || buildMatchReport({ game: reportGame, players, team }))
-    : null;
-  const reportTeamSheet = reportData?.teamSheet;
-  const reportTimeline = reportData?.timeline || [];
-  const reportGoals = reportData?.goals || [];
-  const reportSaves = reportData?.saves?.length
-    ? reportData.saves
-    : (reportData?.saveSummary || []);
-  const reportSubs = reportData?.substitutions || [];
-  const reportOpponentGoals = reportData?.opponentGoals || [];
-  const reportAvailablePlayers = reportTeamSheet?.availablePlayers || [];
-  const reportAbsentPlayers = reportTeamSheet?.absentPlayers || [];
-  const reportStartingField = reportTeamSheet?.startingField || [];
-  const reportStartingBench = reportTeamSheet?.startingBench || [];
 
   function handleCancelGame() {
     if (readOnly) return;
