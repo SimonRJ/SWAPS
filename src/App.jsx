@@ -219,7 +219,7 @@ export default function App() {
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
   const isViewOnly = Boolean(session?.viewOnly);
-  const errorLogCount = getClientErrorLogs().length;
+  const [errorLogCount, setErrorLogCount] = useState(() => getClientErrorLogs().length);
   const switchToGame = useCallback(() => setActiveTab('game'), []);
   const toggleTheme = useCallback(() => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
@@ -291,6 +291,10 @@ export default function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [activeTab, loggedIn]);
+
+  useEffect(() => {
+    setErrorLogCount(getClientErrorLogs().length);
+  }, [syncError]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -478,6 +482,21 @@ export default function App() {
     );
   }
 
+  const syncErrorContent = syncError ? (
+    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300 flex items-center gap-3">
+      <span className="flex-1">{syncError}</span>
+      {errorLogCount > 0 && (
+        <button
+          type="button"
+          onClick={() => downloadClientErrorLogs()}
+          className="text-[10px] font-semibold uppercase tracking-wide text-red-700/80 hover:text-red-800 dark:text-red-200 dark:hover:text-red-100"
+        >
+          Save log
+        </button>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className={`${isLiveGameScreen ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-gray-50 dark:bg-slate-950`}>
       {/* Header */}
@@ -546,21 +565,10 @@ export default function App() {
         </div>
       )}
 
-      {syncError && isLiveGameScreen && (
+      {syncErrorContent && isLiveGameScreen && (
         <div className="fixed left-0 right-0 z-40" style={{ top: 'calc(var(--app-header-height) + 0.5rem)' }}>
           <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4">
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300 flex items-center gap-3">
-              <span className="flex-1">{syncError}</span>
-              {errorLogCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => downloadClientErrorLogs()}
-                  className="text-[10px] font-semibold uppercase tracking-wide text-red-700/80 hover:text-red-800 dark:text-red-200 dark:hover:text-red-100"
-                >
-                  Save log
-                </button>
-              )}
-            </div>
+            {syncErrorContent}
           </div>
         </div>
       )}
@@ -570,20 +578,9 @@ export default function App() {
         className={isLiveGameScreen ? 'overflow-hidden' : undefined}
         style={isLiveGameScreen ? { height: 'calc(100dvh - var(--app-header-height) - var(--app-tabbar-height))' } : undefined}
       >
-        {syncError && !isLiveGameScreen && (
+        {syncErrorContent && !isLiveGameScreen && (
           <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3">
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300 flex items-center gap-3">
-              <span className="flex-1">{syncError}</span>
-              {errorLogCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => downloadClientErrorLogs()}
-                  className="text-[10px] font-semibold uppercase tracking-wide text-red-700/80 hover:text-red-800 dark:text-red-200 dark:hover:text-red-100"
-                >
-                  Save log
-                </button>
-              )}
-            </div>
+            {syncErrorContent}
           </div>
         )}
         {activeTab === 'team' && (

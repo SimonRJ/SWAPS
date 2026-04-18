@@ -62,6 +62,7 @@ export function recordClientError({
   url,
   context,
 } = {}) {
+  const statusValue = Number(status);
   const entry = {
     id: buildEntryId(),
     timestamp: new Date().toISOString(),
@@ -69,7 +70,7 @@ export function recordClientError({
     name: truncate(name),
     stack: truncate(stack),
     source: truncate(source),
-    status: Number.isFinite(Number(status)) ? Number(status) : undefined,
+    status: Number.isFinite(statusValue) ? statusValue : undefined,
     code: truncate(code),
     action: truncate(action),
     teamId: truncate(teamId),
