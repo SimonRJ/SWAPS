@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import GameDaySetup from './GameDaySetup.jsx';
 import GameTimer from './GameTimer.jsx';
 import TeamAvatar from './TeamAvatar.jsx';
 import { applyBlockMinutes } from '../utils/subAlgorithm.js';
 import { buildSeasonSchedule, createScheduleRound, getNextUnresolvedRound } from '../utils/storage.js';
 import { getGameResultLabel } from '../utils/gameResults.js';
+import { buildMatchReport } from '../utils/matchReport.js';
 import {
   OPPONENT_CLUBS,
   findOpponentClubByName,
@@ -40,6 +41,43 @@ function formatRoundDateTimeLabel(dateValue, timeValue) {
   const dateLabel = formatRoundDateLabel(dateValue);
   if (!timeValue) return dateLabel;
   return `${dateLabel} · ${formatRoundTimeLabel(timeValue)}`;
+}
+
+function formatMinuteLabel(minuteValue) {
+  if (minuteValue === null || minuteValue === undefined || minuteValue === '') return '';
+  const minute = Number(minuteValue);
+  if (!Number.isFinite(minute)) return '';
+  return `${minute}'`;
+}
+
+function formatGoalEntry(goal) {
+  const name = goal?.playerName || '?';
+  const minuteLabel = formatMinuteLabel(goal?.minute);
+  return `${name}${minuteLabel ? ` ${minuteLabel}` : ''}`.trim();
+}
+
+function formatGoalSummary(goals = []) {
+  if (goals.length === 0) return 'No goals recorded';
+  return `Goals: ${goals.map(goal => formatGoalEntry(goal)).join(', ')}`;
+}
+
+function formatReportEvent(event) {
+  const minuteLabel = formatMinuteLabel(event?.minute);
+  const minutePrefix = minuteLabel ? `${minuteLabel} ` : '';
+  if (event?.type === 'goal') {
+    return `${minutePrefix}Goal: ${event.playerName || '?'}`.trim();
+  }
+  if (event?.type === 'opponent-goal') {
+    return `${minutePrefix}Opponent goal${event.opponentName ? ` (${event.opponentName})` : ''}`.trim();
+  }
+  if (event?.type === 'save') {
+    return `${minutePrefix}Save: ${event.playerName || '?'}`.trim();
+  }
+  if (event?.type === 'sub') {
+    const positionLabel = event.position ? ` (${event.position})` : '';
+    return `${minutePrefix}Sub: ${event.offPlayerName || '?'} → ${event.onPlayerName || '?'}${positionLabel}`.trim();
+  }
+  return `${minutePrefix}${event?.type || 'Event'}`.trim();
 }
 
 function resultColorClass(label) {
@@ -173,6 +211,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   const [requestStatus, setRequestStatus] = useState('');
   const [requestError, setRequestError] = useState('');
   const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [reportGame, setReportGame] = useState(null);
+  const overlayScrollYRef = useRef(0);
+  const hasActiveOverlay = Boolean(editDraft || reportGame);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -185,8 +226,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   }, [readOnly, setupMode]);
 
   useEffect(() => {
-    if (!editDraft) return undefined;
+    if (!hasActiveOverlay) return undefined;
     const scrollY = window.scrollY || window.pageYOffset || 0;
+    overlayScrollYRef.current = scrollY;
     const originalStyles = {
       overflow: document.body.style.overflow,
       position: document.body.style.position,
@@ -211,9 +253,31 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       document.body.style.right = originalStyles.right;
       document.body.style.width = originalStyles.width;
       document.body.style.touchAction = originalStyles.touchAction;
-      window.scrollTo({ top: scrollY, left: 0, behavior: 'auto' });
+      window.scrollTo({ top: overlayScrollYRef.current, left: 0, behavior: 'auto' });
     };
-  }, [editDraft]);
+  }, [hasActiveOverlay]);
+
+  const playerNameMap = useMemo(
+    () => new Map((players || []).map(player => [player.id, player.name])),
+    [players],
+  );
+  const getPlayerLabel = playerId => playerNameMap.get(playerId) || '?';
+  const reportData = useMemo(() => {
+    if (!reportGame) return null;
+    return reportGame.matchReport || buildMatchReport({ game: reportGame, players, team });
+  }, [reportGame, players, team]);
+  const reportTeamSheet = reportData?.teamSheet;
+  const reportTimeline = reportData?.timeline || [];
+  const reportGoals = reportData?.goals || [];
+  const reportSaves = reportData?.saves?.length
+    ? reportData.saves
+    : (reportData?.saveSummary || []);
+  const reportSubs = reportData?.substitutions || [];
+  const reportOpponentGoals = reportData?.opponentGoals || [];
+  const reportAvailablePlayers = reportTeamSheet?.availablePlayers || [];
+  const reportAbsentPlayers = reportTeamSheet?.absentPlayers || [];
+  const reportStartingField = reportTeamSheet?.startingField || [];
+  const reportStartingBench = reportTeamSheet?.startingBench || [];
 
   function handleStartGame({ availablePlayers, absentPlayers, absentMinutes, formation, plan, gameNumber, opponentName, opponentLogoUrl, startingField, startingBench }) {
     if (readOnly) return;
@@ -498,34 +562,6 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
     });
   }
 
-  function openEditCancelledGame(game) {
-    if (readOnly) return;
-    if (!game) return;
-    const historyLength = (data.gameHistory || []).length;
-    setRestoringCancelledRound(game.round);
-    setEditingGameIndex(historyLength);
-    setShowGoalForm(false);
-    setShowSaveForm(false);
-    const defaultPlayerId = players.length > 0 ? players[0].id : null;
-    setGoalForm({ playerId: defaultPlayerId, minute: '' });
-    setSaveForm({ playerId: defaultPlayerId, saves: 1 });
-    setSaveFormError('');
-    const matchedClub = findOpponentClubByName(game.opponentName || '');
-    setEditDraft({
-      gameNumber: game.round,
-      date: game.date || game.cancelledDate || '',
-      opponentName: game.opponentName || 'Opponent',
-      opponentLogoUrl: game.opponentLogoUrl || '',
-      homeScore: 0,
-      awayScore: 0,
-      goals: [],
-      gkSaves: {},
-      playerMinuteDeltas: [],
-      opponentClubId: matchedClub?.id || '__custom__',
-      opponentSelectionTouched: false,
-    });
-  }
-
   function closeEditGame() {
     setEditingGameIndex(null);
     setEditDraft(null);
@@ -535,17 +571,19 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
     setRestoringCancelledRound(null);
   }
 
-  function removeCancelledStatus(round) {
-    if (readOnly) return;
-    if (!window.confirm(`Remove cancelled status for Round ${round}?`)) return;
-    const updatedCancelled = getCancelledDetails(data)
-      .filter(item => Number(item.round) !== Number(round))
-      .sort((a, b) => (a.round || 0) - (b.round || 0));
-    onUpdate({
-      ...data,
-      cancelledGameDetails: updatedCancelled,
-      cancelledGames: updatedCancelled.length,
-    });
+  function openGameReport(game) {
+    if (!game || game.historyType === 'cancelled') return;
+    setReportGame(game);
+  }
+
+  function handleEditFromReport() {
+    if (readOnly || !reportGame || reportGame.originalIndex === undefined) return;
+    closeGameReport();
+    openEditGame(reportGame.originalIndex);
+  }
+
+  function closeGameReport() {
+    setReportGame(null);
   }
 
   function openDeletePrompt(originalIndex) {
@@ -774,9 +812,10 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
                 ? g.cancelledDate
                 : formatRoundDateTimeLabel(g.date || g.displayDate, g.kickoffTime);
               const roundNumber = g.gameNumber ?? g.round ?? '';
+              const goalsSummary = formatGoalSummary(g.goals || []);
               const metaText = isCancelled
                 ? `${fixtureType} fixture`
-                : `${g.formation || 'Formation TBC'} · ${g.playerCount ?? 0}p${g.absentCount ? ` · ${g.absentCount} absent` : ''}`;
+                : goalsSummary;
               return (
               <li
                 key={g.historyKey || `${g.historyType}-${roundNumber}`}
@@ -822,43 +861,169 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
                       {label}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {!readOnly && (isCancelled ? (
-                      <>
-                        <button
-                          onClick={() => openEditCancelledGame(g)}
-                          className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => removeCancelledStatus(g.round ?? g.gameNumber)}
-                          className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => openEditGame(g.originalIndex)}
-                          className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => openDeletePrompt(g.originalIndex)}
-                          className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
-                        >
-                          Delete
-                        </button>
-                      </>
-                    ))}
-                  </div>
+                  {!isCancelled && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openGameReport(g)}
+                        className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
+                      >
+                        Game Report
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             )})}
           </ul>
+        </div>
+      )}
+
+      {reportGame && reportData && (
+        <div className="fixed inset-0 h-dvh bg-black/60 z-[70] flex items-stretch sm:items-center justify-center overflow-hidden" onClick={closeGameReport}>
+          <div className="bg-white dark:bg-slate-900 w-full h-dvh sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-pitch-700 to-pitch-600 px-6 pt-6 pb-4 text-white">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold">Game Report {reportGame.gameNumber}</h3>
+                <button onClick={closeGameReport} aria-label="Close game report" className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold active:bg-white/30 transition-colors">
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+              <p className="text-pitch-200 text-sm">{team?.name || 'Home'} vs {reportGame.opponentName || 'Opponent'}</p>
+              <p className="text-pitch-200 text-sm">
+                {formatRoundDateTimeLabel(reportGame.date || reportGame.displayDate, reportGame.kickoffTime)}
+              </p>
+              {!readOnly && (
+                <div className="mt-3">
+                  <button
+                    onClick={handleEditFromReport}
+                    className="text-xs font-semibold text-white px-3 py-1 rounded-lg bg-white/20 active:bg-white/30"
+                  >
+                    Edit Game
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">Final Score</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-slate-100">
+                    {(reportData.homeScore ?? reportGame.homeScore ?? 0)} - {(reportData.awayScore ?? reportGame.awayScore ?? 0)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-slate-400">
+                  <span>Formation: {reportData.formation || reportGame.formation || 'TBC'}</span>
+                  {Number.isFinite(Number(reportData.elapsedSeconds ?? reportGame.elapsedSeconds)) && (
+                    <span>Duration: {secondsToMinutes(reportData.elapsedSeconds ?? reportGame.elapsedSeconds)} min</span>
+                  )}
+                  {reportGame.playerCount ? <span>Players: {reportGame.playerCount}</span> : null}
+                  {reportGame.absentCount ? <span>Absent: {reportGame.absentCount}</span> : null}
+                </div>
+              </div>
+
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Goals</h4>
+                {reportGoals.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
+                    {reportGoals.map((goal, index) => (
+                      <li key={`${goal.playerId || 'goal'}-${index}`}>{formatGoalEntry(goal)}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400 dark:text-slate-500">No goals recorded.</p>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Goalkeeper Saves</h4>
+                {reportSaves.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
+                    {reportSaves.map((save, index) => {
+                      const minuteLabel = formatMinuteLabel(save.minute);
+                      const countLabel = save.count ? `Saves: ${save.count}` : '';
+                      const parts = [save.playerName || '?', minuteLabel, countLabel].filter(Boolean);
+                      return (
+                        <li key={`${save.playerId || 'save'}-${index}`}>{parts.join(' · ')}</li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400 dark:text-slate-500">No saves recorded.</p>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Substitutions</h4>
+                {reportSubs.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
+                    {reportSubs.map((sub, index) => (
+                      <li key={`${sub.id || 'sub'}-${index}`}>{formatReportEvent(sub)}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400 dark:text-slate-500">No substitutions recorded.</p>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Opponent Goals</h4>
+                {reportOpponentGoals.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
+                    {reportOpponentGoals.map((goal, index) => (
+                      <li key={`${goal.id || 'opp-goal'}-${index}`}>{formatReportEvent(goal)}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400 dark:text-slate-500">No opponent goals recorded.</p>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Starting Lineup</h4>
+                {reportStartingField.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
+                    {reportStartingField.map((slot, index) => (
+                      <li key={`${slot.playerId || 'starter'}-${index}`}>
+                        {slot.position ? `${slot.position}: ` : ''}{slot.playerName || getPlayerLabel(slot.playerId)}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400 dark:text-slate-500">No starting lineup recorded.</p>
+                )}
+                <div className="mt-3 space-y-1 text-xs text-gray-500 dark:text-slate-400">
+                  <p>
+                    Bench: {reportStartingBench.length > 0
+                      ? reportStartingBench.map(entry => entry.playerName || getPlayerLabel(entry.playerId)).join(', ')
+                      : 'None recorded'}
+                  </p>
+                  <p>
+                    Available: {reportAvailablePlayers.length > 0
+                      ? reportAvailablePlayers.map(playerId => getPlayerLabel(playerId)).join(', ')
+                      : 'Not recorded'}
+                  </p>
+                  <p>
+                    Absent: {reportAbsentPlayers.length > 0
+                      ? reportAbsentPlayers.map(playerId => getPlayerLabel(playerId)).join(', ')
+                      : 'None recorded'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-6 py-4">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Timeline</h4>
+                {reportTimeline.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
+                    {reportTimeline.map((event, index) => (
+                      <li key={`${event.id || 'event'}-${index}`}>{formatReportEvent(event)}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-gray-400 dark:text-slate-500">No match events recorded.</p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
