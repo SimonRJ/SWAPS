@@ -13,12 +13,18 @@ function normalizeTeamCode(value) {
     .slice(0, MAX_TEAM_CODE_LENGTH);
 }
 
+function normalizeTeamCodes(codes) {
+  return Array.from(new Set((Array.isArray(codes) ? codes : [])
+    .map(code => normalizeTeamCode(code))
+    .filter(Boolean)));
+}
+
 function readCachedTeamCodes() {
   if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(TEAM_CODES_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter(Boolean).map(normalizeTeamCode) : [];
+    return normalizeTeamCodes(parsed);
   } catch {
     return [];
   }
@@ -63,9 +69,7 @@ export default function Login({
     setTeamCodeError('');
     try {
       const codes = await listTeamCodes();
-      const normalized = Array.from(new Set((Array.isArray(codes) ? codes : [])
-        .map(code => normalizeTeamCode(code))
-        .filter(Boolean)));
+      const normalized = normalizeTeamCodes(codes);
       setTeamCodes(normalized);
       writeCachedTeamCodes(normalized);
     } catch {
@@ -193,7 +197,7 @@ export default function Login({
                     disabled={loading}
                     className="mt-2 rounded-full border border-red-200/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20 disabled:opacity-60"
                   >
-                    Retry saved session
+                    Retry session
                   </button>
                 )}
               </div>

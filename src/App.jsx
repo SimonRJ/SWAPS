@@ -202,8 +202,10 @@ export default function App() {
   }, []);
 
   const fetchSessionData = useCallback(async () => {
-    if (!session) return null;
-    return session?.viewOnly
+    if (!session) {
+      throw new Error('No session available.');
+    }
+    return session.viewOnly
       ? await viewTeamData(session.teamId)
       : await loginWithSession(session);
   }, [session]);
