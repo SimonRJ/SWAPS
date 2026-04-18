@@ -378,7 +378,7 @@ export default function AdminPanel({ onBack }) {
                                 : 'border border-pitch-200 text-pitch-700 hover:bg-pitch-50 dark:border-emerald-700 dark:text-emerald-200 dark:hover:bg-emerald-900/40'
                             }`}
                           >
-                            {activeSecurityTeamId === teamEntry.teamId ? 'Hide logs' : 'Display logs'}
+                            {activeSecurityTeamId === teamEntry.teamId ? 'Hide Logs' : 'Display Logs'}
                           </button>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-slate-300">
@@ -475,7 +475,7 @@ export default function AdminPanel({ onBack }) {
                   <div className="flex items-center gap-2">
                     {openRequestCount > 0 && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
-                        New requests {openRequestCount}
+                        New Requests {openRequestCount}
                       </span>
                     )}
                     <button

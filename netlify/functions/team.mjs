@@ -1,5 +1,4 @@
 import { getStore } from '@netlify/blobs';
-import { createHash } from 'crypto';
 
 const BLOBS_SITE_ID = process.env.NETLIFY_SITE_ID || process.env.SITE_ID;
 const BLOBS_TOKEN = process.env.NETLIFY_AUTH_TOKEN || process.env.NETLIFY_API_TOKEN;
@@ -82,9 +81,6 @@ function isValidPasscode(passcode) {
   return passcode.length >= MIN_PASSCODE_LENGTH && passcode.length <= MAX_PASSCODE_LENGTH;
 }
 
-function hashPasscodeValue(passcode) {
-  return createHash('sha256').update(passcode).digest('hex');
-}
 
 function buildLogId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -591,16 +587,13 @@ export default async (req) => {
   if (action === 'login') {
     const loginPasscode = String(payload?.passcode || '').trim();
     if (loginPasscode && isValidPasscode(loginPasscode)) {
-      const computedHash = hashPasscodeValue(loginPasscode);
-      if (computedHash === passcodeHash) {
-        const passcodeEntry = await store.get(teamPasscodeKey(teamId), { type: 'json' });
-        if (!passcodeEntry?.passcode || passcodeEntry.passcode !== loginPasscode) {
-          await store.setJSON(teamPasscodeKey(teamId), {
-            teamId,
-            passcode: loginPasscode,
-            updatedAt: new Date().toISOString(),
-          });
-        }
+      const passcodeEntry = await store.get(teamPasscodeKey(teamId), { type: 'json' });
+      if (!passcodeEntry?.passcode) {
+        await store.setJSON(teamPasscodeKey(teamId), {
+          teamId,
+          passcode: loginPasscode,
+          updatedAt: new Date().toISOString(),
+        });
       }
     }
     return jsonResponse({ data: existing });
