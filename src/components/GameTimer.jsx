@@ -39,6 +39,7 @@ function getReadOnlyElapsed(base, nowMs, gameDurationSeconds) {
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
 const SUB_INTERVAL_SECONDS = 10 * 60;
+// Allow minor drift from refresh cadence before resyncing the read-only clock.
 const READONLY_SYNC_THRESHOLD_SECONDS = 2;
 const PITCH_MARKINGS = {
   penaltyAreaDepthPct: 15.7,
@@ -140,6 +141,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       setElapsedSeconds(remoteElapsed);
       setBlockIndex(Math.min(Math.floor(remoteElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
     } else if (remoteElapsed > seededBase.elapsedSeconds) {
+      // Remote time advanced slightly; bump baseline without forcing a full resync.
       readOnlySyncRef.current = {
         ...seededBase,
         elapsedSeconds: remoteElapsed,
