@@ -16,6 +16,8 @@ import { applyBlockMinutes } from './utils/subAlgorithm.js';
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
 const LAST_TEAM_ID_KEY = 'soccerSubsLastTeamId';
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
 
 function readStoredSession() {
   try {
@@ -225,7 +227,7 @@ export default function App() {
 
   const handleSessionRestoreFailure = useCallback((error) => {
     const status = error?.status;
-    if (status === 401 || status === 404) {
+    if (status === HTTP_UNAUTHORIZED || status === HTTP_NOT_FOUND) {
       setLoggedIn(false);
       setData(null);
       setSession(null);

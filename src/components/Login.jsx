@@ -56,6 +56,7 @@ export default function Login({
   sessionError = '',
   onRetrySession,
 }) {
+  const canRetrySession = typeof onRetrySession === 'function';
   const [teamId, setTeamId] = useState(() => normalizeTeamCode(initialTeamId || readLastTeamId()));
   const [loginPasscode, setLoginPasscode] = useState('');
   const [teamCodes, setTeamCodes] = useState(() => readCachedTeamCodes());
@@ -159,8 +160,9 @@ export default function Login({
 
           <div className="mt-3 space-y-2.5">
             <div>
-              <label className="mb-0.5 block text-xs font-medium text-white/95">Team Code</label>
+              <label htmlFor="team-code" className="mb-0.5 block text-xs font-medium text-white/95">Team Code</label>
               <input
+                id="team-code"
                 list="team-code-options"
                 className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700"
                 value={teamId}
@@ -176,8 +178,9 @@ export default function Login({
             </div>
 
             <div>
-              <label className="mb-0.5 block text-xs font-medium text-white/95">Team Passcode</label>
+              <label htmlFor="team-passcode" className="mb-0.5 block text-xs font-medium text-white/95">Team Passcode</label>
               <input
+                id="team-passcode"
                 type="password"
                 className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700"
                 placeholder="Enter passcode"
@@ -190,11 +193,12 @@ export default function Login({
             {sessionError && (
               <div className="rounded-xl border border-red-200/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">
                 <p>{sessionError}</p>
-                {onRetrySession && (
+                {canRetrySession && (
                   <button
                     type="button"
                     onClick={onRetrySession}
                     disabled={loading}
+                    aria-disabled={loading}
                     className="mt-2 rounded-full border border-red-200/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20 disabled:opacity-60"
                   >
                     Retry session
