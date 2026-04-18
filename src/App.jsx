@@ -26,6 +26,9 @@ const RETRY_BASE_DELAY_MS = 2000;
 const RETRY_MAX_DELAY_MS = 60000;
 const RETRY_MAX_ATTEMPTS = 8;
 const RETRY_JITTER_RATIO = 0.2;
+const RETRY_DELAY_SCHEDULE_MS = Array.from({ length: RETRY_MAX_ATTEMPTS + 1 }, (_, attempt) => (
+  Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * (2 ** attempt))
+));
 const SYNC_OFFLINE_MESSAGE = 'Offline right now — changes are saved on this device and will sync automatically.';
 const SYNC_RETRY_MESSAGE = 'Connection issue — saving locally and retrying automatically.';
 
@@ -429,7 +432,7 @@ export default function App() {
   const scheduleRetry = useCallback((delayOverride) => {
     if (retryTimeoutRef.current) return;
     const attempt = Math.min(retryAttemptRef.current, RETRY_MAX_ATTEMPTS);
-    const baseDelay = Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * (2 ** attempt));
+    const baseDelay = RETRY_DELAY_SCHEDULE_MS[attempt] ?? RETRY_MAX_DELAY_MS;
     const delay = Math.max(0, delayOverride ?? baseDelay);
     const jitter = Math.round(delay * RETRY_JITTER_RATIO * Math.random());
     retryTimeoutRef.current = setTimeout(() => {
@@ -500,15 +503,17 @@ export default function App() {
     const storedPending = readPendingSave(session.teamId);
     if (storedPending?.data) {
       const migratedPending = migrateData(storedPending.data);
-      pendingSaveRef.current = {
+      const refreshedPayload = {
         ...storedPending,
         data: migratedPending,
       };
+      pendingSaveRef.current = refreshedPayload;
+      writePendingSave(session.teamId, refreshedPayload);
       if (loggedIn) {
         setData(migratedPending);
+        setSyncError(SYNC_RETRY_MESSAGE);
+        scheduleRetry(0);
       }
-      setSyncError(SYNC_RETRY_MESSAGE);
-      scheduleRetry(0);
     } else {
       pendingSaveRef.current = null;
     }
@@ -584,10 +589,16 @@ export default function App() {
         persistPendingSave(newData, options);
         scheduleRetry();
         setSyncError(SYNC_RETRY_MESSAGE);
-        const detailMessage = error?.message ? ` (${error.message})` : '';
+        if (error) {
+          console.warn('Retrying save after sync error:', error);
+        }
+        const retryError = new Error(SYNC_RETRY_MESSAGE, { cause: error });
+        if (error?.message) {
+          retryError.details = error.message;
+        }
         return {
           ok: false,
-          error: new Error(`${SYNC_RETRY_MESSAGE}${detailMessage}`, { cause: error }),
+          error: retryError,
         };
       }
       console.error(error);
