@@ -501,6 +501,11 @@ export default function App() {
       )}
     </div>
   ) : null;
+  const syncErrorBanner = syncErrorContent ? (
+    <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4">
+      {syncErrorContent}
+    </div>
+  ) : null;
 
   return (
     <div className={`${isLiveGameScreen ? 'h-dvh overflow-hidden' : 'min-h-screen'} bg-gray-50 dark:bg-slate-950`}>
@@ -570,11 +575,9 @@ export default function App() {
         </div>
       )}
 
-      {syncErrorContent && isLiveGameScreen && (
+      {syncErrorBanner && isLiveGameScreen && (
         <div className="fixed left-0 right-0 z-40" style={{ top: 'calc(var(--app-header-height) + 0.5rem)' }}>
-          <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4">
-            {syncErrorContent}
-          </div>
+          {syncErrorBanner}
         </div>
       )}
 
@@ -583,9 +586,9 @@ export default function App() {
         className={isLiveGameScreen ? 'overflow-hidden' : undefined}
         style={isLiveGameScreen ? { height: 'calc(100dvh - var(--app-header-height) - var(--app-tabbar-height))' } : undefined}
       >
-        {syncErrorContent && !isLiveGameScreen && (
-          <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3">
-            {syncErrorContent}
+        {syncErrorBanner && !isLiveGameScreen && (
+          <div className="pt-3">
+            {syncErrorBanner}
           </div>
         )}
         {activeTab === 'team' && (

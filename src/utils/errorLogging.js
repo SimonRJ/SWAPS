@@ -106,9 +106,9 @@ export function downloadClientErrorLogs(filenamePrefix = 'swaps-error-log') {
   const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const formattedTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
   link.href = url;
-  link.download = `${filenamePrefix}-${timestamp}.json`;
+  link.download = `${filenamePrefix}-${formattedTimestamp}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
