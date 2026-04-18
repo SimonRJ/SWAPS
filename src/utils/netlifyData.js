@@ -38,11 +38,13 @@ export async function createTeam({ teamId, data, passcode }) {
 }
 
 export async function loginWithPasscode(teamId, passcode) {
-  const passcodeHash = await hashPasscode(passcode);
+  const trimmedPasscode = String(passcode || '').trim();
+  const passcodeHash = await hashPasscode(trimmedPasscode);
   const result = await callTeamFunction({
     action: 'login',
     teamId,
     passcodeHash,
+    ...(trimmedPasscode ? { passcode: trimmedPasscode } : {}),
   });
   return {
     data: result.data,
