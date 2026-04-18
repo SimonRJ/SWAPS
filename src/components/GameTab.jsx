@@ -224,7 +224,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   }, [readOnly, setupMode]);
 
   useEffect(() => {
-    if (!editDraft && !reportGame) return;
+    if (!editDraft && !reportGame) return undefined;
     const scrollY = window.scrollY || window.pageYOffset || 0;
     const originalStyles = {
       overflow: document.body.style.overflow,
@@ -877,7 +877,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
             <div className="bg-gradient-to-r from-pitch-700 to-pitch-600 px-6 pt-6 pb-4 text-white">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-bold">Game Report {reportGame.gameNumber}</h3>
-                <button onClick={closeGameReport} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold active:bg-white/30 transition-colors">×</button>
+                <button onClick={closeGameReport} aria-label="Close game report" className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold active:bg-white/30 transition-colors">×</button>
               </div>
               <p className="text-pitch-200 text-sm">{team?.name || 'Home'} vs {reportGame.opponentName || 'Opponent'}</p>
               <p className="text-pitch-200 text-sm">
@@ -931,7 +931,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
                   <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-slate-200">
                     {reportSaves.map((save, index) => {
                       const minuteLabel = formatMinuteLabel(save.minute);
-                      const countLabel = save.count ? `🧤 ${save.count}` : '';
+                      const countLabel = save.count ? `Saves: ${save.count}` : '';
                       const parts = [save.playerName || '?', minuteLabel, countLabel].filter(Boolean);
                       return (
                         <li key={`${save.playerId || 'save'}-${index}`}>{parts.join(' · ')}</li>
