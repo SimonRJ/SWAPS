@@ -27,6 +27,7 @@ const TEAM_PASSCODE_PREFIX = 'team-passcodes/';
 const ADMIN_SETTINGS_KEY = 'admin-settings';
 const DEFAULT_MAX_TEAMS = 10;
 const MAX_ALLOWED_TEAMS = 100;
+const MAX_SECURITY_LOG_ENTRIES = 100;
 const MAX_REQUEST_ENTRIES = 200;
 const MIN_PASSCODE_LENGTH = 4;
 const MAX_PASSCODE_LENGTH = 12;
@@ -79,6 +80,7 @@ function normalizeMaxTeams(value) {
 function isValidPasscode(passcode) {
   return passcode.length >= MIN_PASSCODE_LENGTH && passcode.length <= MAX_PASSCODE_LENGTH;
 }
+
 
 function buildLogId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -190,13 +192,30 @@ async function listSecurityLogsForTeam(teamId) {
     for (const blob of page?.blobs || []) {
       if (!blob?.key) continue;
       const entry = await store.get(blob.key, { type: 'json' });
-      if (entry) entries.push(entry);
+      if (entry) entries.push({ entry, key: blob.key });
     }
     cursor = page?.cursor;
   } while (cursor);
 
-  entries.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-  return entries.slice(0, 120);
+  const sortedEntries = entries
+    .map(item => ({
+      ...item,
+      timestampMs: Date.parse(item.entry?.timestamp || '') || 0,
+    }))
+    .sort((a, b) => b.timestampMs - a.timestampMs);
+  const keepEntries = sortedEntries.slice(0, MAX_SECURITY_LOG_ENTRIES);
+  const removalCandidates = sortedEntries.slice(MAX_SECURITY_LOG_ENTRIES);
+
+  if (removalCandidates.length > 0) {
+    const deletions = [];
+    for (const item of removalCandidates) {
+      if (item?.key) deletions.push(store.delete(item.key));
+      if (item.entry?.snapshotKey) deletions.push(store.delete(item.entry.snapshotKey));
+    }
+    await Promise.allSettled(deletions);
+  }
+
+  return keepEntries.map(item => item.entry);
 }
 
 async function listActiveTeamCodes() {
@@ -566,6 +585,17 @@ export default async (req) => {
   }
 
   if (action === 'login') {
+    const loginPasscode = String(payload?.passcode || '').trim();
+    if (loginPasscode && isValidPasscode(loginPasscode)) {
+      const passcodeEntry = await store.get(teamPasscodeKey(teamId), { type: 'json' });
+      if (!passcodeEntry?.passcode) {
+        await store.setJSON(teamPasscodeKey(teamId), {
+          teamId,
+          passcode: loginPasscode,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
     return jsonResponse({ data: existing });
   }
 

@@ -97,6 +97,10 @@ export default function AdminPanel({ onBack }) {
     })),
     [requestEntries, teamPasscodeMap],
   );
+  const openRequestCount = useMemo(
+    () => requestEntries.filter(entry => entry.status !== 'completed').length,
+    [requestEntries],
+  );
 
   async function handleDeleteTeam(e) {
     e.preventDefault();
@@ -178,6 +182,13 @@ export default function AdminPanel({ onBack }) {
       setSecurityLogs([]);
       return;
     }
+    if (activeSecurityTeamId === normalizedTeamId) {
+      setActiveSecurityTeamId('');
+      setSecurityLogs([]);
+      setSecurityStatus('');
+      setSecurityError('');
+      return;
+    }
     if (!securityPassword.trim()) {
       setSecurityError('Enter the administrator password.');
       setSecurityStatus('');
@@ -188,10 +199,11 @@ export default function AdminPanel({ onBack }) {
     setSecurityLoading(true);
     setSecurityError('');
     setSecurityStatus('');
+    setSecurityLogs([]);
+    setActiveSecurityTeamId(normalizedTeamId);
     try {
       const entries = await listSecurityLogs(normalizedTeamId, securityPassword.trim());
       setSecurityLogs(entries);
-      setActiveSecurityTeamId(normalizedTeamId);
       setSecurityStatus(entries.length > 0 ? `Loaded ${entries.length} log entries.` : 'No security log entries yet.');
     } catch (loadError) {
       setSecurityLogs([]);
@@ -366,7 +378,7 @@ export default function AdminPanel({ onBack }) {
                                 : 'border border-pitch-200 text-pitch-700 hover:bg-pitch-50 dark:border-emerald-700 dark:text-emerald-200 dark:hover:bg-emerald-900/40'
                             }`}
                           >
-                            {activeSecurityTeamId === teamEntry.teamId ? 'Viewing Logs' : 'View Logs'}
+                            {activeSecurityTeamId === teamEntry.teamId ? 'Hide Logs' : 'Display Logs'}
                           </button>
                         </div>
                         <p className="text-xs text-gray-600 dark:text-slate-300">
@@ -381,7 +393,7 @@ export default function AdminPanel({ onBack }) {
               <div className="space-y-2">
                 {securityError && <p className="text-sm text-red-600 dark:text-red-300">{securityError}</p>}
                 {securityStatus && <p className="text-sm text-green-700 dark:text-emerald-300">{securityStatus}</p>}
-                {securityLogs.length > 0 && (
+                {activeSecurityTeamId && securityLogs.length > 0 && (
                   <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-slate-800 dark:bg-slate-900">
                     {securityLogs.map(log => (
                       <div key={log.id} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
@@ -460,14 +472,21 @@ export default function AdminPanel({ onBack }) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500 dark:text-slate-400">Requests</p>
-                  <button
-                    type="button"
-                    onClick={handleLoadRequests}
-                    disabled={requestsLoading}
-                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                  >
-                    {requestsLoading ? 'Loading...' : 'Load Requests'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {openRequestCount > 0 && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                        {openRequestCount} New Requests
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleLoadRequests}
+                      disabled={requestsLoading}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {requestsLoading ? 'Loading...' : 'Load Requests'}
+                    </button>
+                  </div>
                 </div>
                 {requestsError && <p className="text-sm text-red-600 dark:text-red-300">{requestsError}</p>}
                 {requestsStatus && <p className="text-sm text-green-700 dark:text-emerald-300">{requestsStatus}</p>}
