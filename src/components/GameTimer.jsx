@@ -140,7 +140,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       elapsedRef.current = remoteElapsed;
       setElapsedSeconds(remoteElapsed);
       setBlockIndex(Math.min(Math.floor(remoteElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
-    } else if (remoteElapsed > seededBase.elapsedSeconds) {
+    } else if (remoteElapsed >= seededBase.elapsedSeconds) {
       // Remote time advanced slightly; bump baseline without forcing a full resync.
       readOnlySyncRef.current = {
         ...seededBase,
@@ -174,12 +174,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     if (!readOnly) return undefined;
     const tick = () => {
       const now = Date.now();
-      const base = readOnlySyncRef.current || {
-        elapsedSeconds: elapsedRef.current,
-        receivedAtMs: now,
-        isPaused: isPausedRef.current,
-      };
-      if (!readOnlySyncRef.current) {
+      let base = readOnlySyncRef.current;
+      if (!base) {
+        base = {
+          elapsedSeconds: elapsedRef.current,
+          receivedAtMs: now,
+          isPaused: isPausedRef.current,
+        };
         readOnlySyncRef.current = base;
       }
       const nextElapsed = getReadOnlyElapsed(base, now, gameDurationSeconds);
