@@ -1,0 +1,99 @@
+const ERROR_LOG_KEY = 'swapsErrorLogs';
+const MAX_LOG_ENTRIES = 50;
+const MAX_FIELD_LENGTH = 2000;
+
+function truncate(value, maxLength = MAX_FIELD_LENGTH) {
+  if (value === null || value === undefined) return '';
+  const text = String(value);
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}…`;
+}
+
+function safeClone(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return truncate(value);
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return truncate(value);
+  }
+}
+
+function readLogs() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(ERROR_LOG_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLogs(entries) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(entries));
+  } catch {
+    // ignore storage write errors
+  }
+}
+
+export function recordClientError({
+  message,
+  name,
+  stack,
+  source,
+  status,
+  code,
+  details,
+  action,
+  teamId,
+  url,
+  context,
+} = {}) {
+  const entry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    timestamp: new Date().toISOString(),
+    message: truncate(message || 'Unknown error'),
+    name: truncate(name),
+    stack: truncate(stack),
+    source: truncate(source),
+    status: Number.isFinite(Number(status)) ? Number(status) : undefined,
+    code: truncate(code),
+    action: truncate(action),
+    teamId: truncate(teamId),
+    url: truncate(url),
+    location: typeof window !== 'undefined' ? truncate(window.location.href) : '',
+    details: safeClone(details),
+    context: safeClone(context),
+  };
+
+  const entries = readLogs();
+  entries.unshift(entry);
+  writeLogs(entries.slice(0, MAX_LOG_ENTRIES));
+  return entry;
+}
+
+export function getClientErrorLogs() {
+  return readLogs();
+}
+
+export function clearClientErrorLogs() {
+  writeLogs([]);
+}
+
+export function downloadClientErrorLogs(filenamePrefix = 'swaps-error-log') {
+  if (typeof window === 'undefined') return;
+  const entries = readLogs();
+  const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  link.href = url;
+  link.download = `${filenamePrefix}-${timestamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

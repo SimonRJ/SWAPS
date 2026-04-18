@@ -1,13 +1,28 @@
 import { hashPasscode } from './storage.js';
+import { recordClientError } from './errorLogging.js';
 
 const TEAM_FUNCTION_URL = '/.netlify/functions/team';
 
 async function callTeamFunction(payload) {
-  const response = await fetch(TEAM_FUNCTION_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch(TEAM_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    recordClientError({
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      source: 'team-function',
+      action: payload?.action,
+      teamId: payload?.teamId,
+      url: TEAM_FUNCTION_URL,
+    });
+    throw error;
+  }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(body.error || 'Request failed.');
@@ -17,6 +32,18 @@ async function callTeamFunction(payload) {
     if (body.maxTeams !== undefined) {
       error.maxTeams = body.maxTeams;
     }
+    recordClientError({
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      source: 'team-function',
+      status: response.status,
+      code: error.code,
+      details: error.details,
+      action: payload?.action,
+      teamId: payload?.teamId,
+      url: TEAM_FUNCTION_URL,
+    });
     throw error;
   }
   return body;

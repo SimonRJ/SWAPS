@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { buildSeasonSchedule, migrateData } from './utils/storage.js';
 import Login from './components/Login.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
@@ -14,6 +14,7 @@ import { loginWithSession, saveTeamData, viewTeamData } from './utils/netlifyDat
 import { LAST_TEAM_ID_KEY } from './utils/storageKeys.js';
 import { applyBlockMinutes } from './utils/subAlgorithm.js';
 import { buildMatchReport } from './utils/matchReport.js';
+import { downloadClientErrorLogs, getClientErrorLogs } from './utils/errorLogging.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
@@ -218,6 +219,7 @@ export default function App() {
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
   const isViewOnly = Boolean(session?.viewOnly);
+  const errorLogCount = useMemo(() => getClientErrorLogs().length, [syncError]);
   const switchToGame = useCallback(() => setActiveTab('game'), []);
   const toggleTheme = useCallback(() => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
@@ -544,14 +546,44 @@ export default function App() {
         </div>
       )}
 
+      {syncError && isLiveGameScreen && (
+        <div className="fixed left-0 right-0 z-40" style={{ top: 'calc(var(--app-header-height) + 0.5rem)' }}>
+          <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300 flex items-center gap-3">
+              <span className="flex-1">{syncError}</span>
+              {errorLogCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => downloadClientErrorLogs()}
+                  className="text-[10px] font-semibold uppercase tracking-wide text-red-700/80 hover:text-red-800 dark:text-red-200 dark:hover:text-red-100"
+                >
+                  Save log
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <main
         className={isLiveGameScreen ? 'overflow-hidden' : undefined}
         style={isLiveGameScreen ? { height: 'calc(100dvh - var(--app-header-height) - var(--app-tabbar-height))' } : undefined}
       >
-        {syncError && (
+        {syncError && !isLiveGameScreen && (
           <div className="max-w-lg md:max-w-3xl lg:max-w-5xl mx-auto px-4 pt-3">
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300">{syncError}</p>
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300 flex items-center gap-3">
+              <span className="flex-1">{syncError}</span>
+              {errorLogCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => downloadClientErrorLogs()}
+                  className="text-[10px] font-semibold uppercase tracking-wide text-red-700/80 hover:text-red-800 dark:text-red-200 dark:hover:text-red-100"
+                >
+                  Save log
+                </button>
+              )}
+            </div>
           </div>
         )}
         {activeTab === 'team' && (
