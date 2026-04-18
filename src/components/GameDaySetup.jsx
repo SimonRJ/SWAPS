@@ -17,8 +17,34 @@ import PlayerAvatar from './PlayerAvatar.jsx';
 const FORCED_FORMATION = [3, 3, 2];
 const FORCED_FORMATION_STR = formatFormation(FORCED_FORMATION);
 
+function formatRoundDateLabel(dateValue) {
+  if (!dateValue) return 'Date not set';
+  const parsed = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatRoundTimeLabel(timeValue) {
+  if (!timeValue) return 'Time not set';
+  const [hours, minutes] = String(timeValue).split(':');
+  const parsed = new Date();
+  parsed.setHours(Number(hours || 0), Number(minutes || 0), 0, 0);
+  if (Number.isNaN(parsed.getTime())) return timeValue;
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatRoundDateTimeLabel(dateValue, timeValue) {
+  const dateLabel = formatRoundDateLabel(dateValue);
+  if (!timeValue) return dateLabel;
+  return `${dateLabel} · ${formatRoundTimeLabel(timeValue)}`;
+}
+
 // Steps: 'away_prompt' | 'select_away' | 'team_sheet'
-export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) {
+export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, readOnly = false }) {
   const { team, players } = data;
   const activePlayers = players.filter(p => p.isActive);
   const minFieldCount = team.fieldPlayers + 1; // +1 for GK
@@ -35,6 +61,10 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
     logoUrl: scheduledRound?.opponentLogoUrl || '',
     confirmed: false,
   }));
+  const [preferredPlan, setPreferredPlan] = useState(null);
+  const [showLineupEditor, setShowLineupEditor] = useState(false);
+  const [lineupSelections, setLineupSelections] = useState({});
+  const [lineupError, setLineupError] = useState('');
 
   // Computed: available and absent players based on away selections
   const selectedPlayers = useMemo(
@@ -61,6 +91,9 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
     );
   }, [selectedPlayers, minFieldCount, team, activePlayers, benchStartCounts, benchProtectedIds]);
 
+  const effectivePlan = preferredPlan || gamePlan;
+
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [step]);
@@ -71,6 +104,10 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+    setPreferredPlan(null);
+    setShowLineupEditor(false);
+    setLineupSelections({});
+    setLineupError('');
   }
 
   function handleConfirmAway() {
@@ -91,6 +128,10 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
         },
       });
     }
+    setPreferredPlan(null);
+    setShowLineupEditor(false);
+    setLineupSelections({});
+    setLineupError('');
     setStep('team_sheet');
   }
 
@@ -117,23 +158,28 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
         },
       });
     }
+    setPreferredPlan(null);
+    setShowLineupEditor(false);
+    setLineupSelections({});
+    setLineupError('');
     setStep('team_sheet');
   }
 
   function handleStart() {
-    if (!gamePlan) {
+    const planToUse = effectivePlan;
+    if (!planToUse) {
       alert('Could not create game plan. Check player count.');
       return;
     }
     const absentMinutes = calculateAbsentPlayerMinutes(absentPlayers, activePlayers, team);
-    const startingField = gamePlan[0]?.onField || [];
-    const startingBench = gamePlan[0]?.onBench || [];
+    const startingField = planToUse[0]?.onField || [];
+    const startingBench = planToUse[0]?.onBench || [];
     onStartGame({
       availablePlayers: selectedPlayers.map(p => p.id),
       absentPlayers: absentPlayers.map(p => p.id),
       absentMinutes,
       formation: FORCED_FORMATION_STR,
-      plan: gamePlan,
+      plan: planToUse,
       startingField,
       startingBench,
       gameNumber: nextRound,
@@ -145,6 +191,10 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
   function clearPendingSetup() {
     if (!onUpdate || !data.pendingGameSetup) return;
     onUpdate({ ...data, pendingGameSetup: null });
+    setPreferredPlan(null);
+    setShowLineupEditor(false);
+    setLineupSelections({});
+    setLineupError('');
   }
 
   function posLabel(pos) {
@@ -163,6 +213,111 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
     return 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300';
   }
 
+  function openLineupEditor() {
+    if (!effectivePlan?.[0]) return;
+    const selections = {};
+    for (const assignment of effectivePlan[0].onField || []) {
+      selections[assignment.playerId] = assignment.position;
+    }
+    for (const benchId of effectivePlan[0].onBench || []) {
+      selections[benchId] = 'SUB';
+    }
+    setLineupSelections(selections);
+    setLineupError('');
+    setShowLineupEditor(true);
+  }
+
+  function cancelLineupEditor() {
+    setShowLineupEditor(false);
+    setLineupError('');
+  }
+
+  function confirmLineupEditor() {
+    const requiredCounts = {
+      GK: 1,
+      DEF: FORCED_FORMATION[0],
+      MID: FORCED_FORMATION[1],
+      ATK: FORCED_FORMATION[2],
+    };
+    const counts = { GK: 0, DEF: 0, MID: 0, ATK: 0, SUB: 0 };
+    for (const player of selectedPlayers) {
+      const selection = lineupSelections[player.id];
+      if (!selection) {
+        setLineupError('Select a position for every available player.');
+        return;
+      }
+      if (!Object.prototype.hasOwnProperty.call(counts, selection)) {
+        setLineupError('Use the position dropdowns to assign each player.');
+        return;
+      }
+      counts[selection] += 1;
+    }
+    if (counts.GK !== requiredCounts.GK || counts.DEF !== requiredCounts.DEF || counts.MID !== requiredCounts.MID || counts.ATK !== requiredCounts.ATK) {
+      setLineupError(`Need ${requiredCounts.GK} GK, ${requiredCounts.DEF} DEF, ${requiredCounts.MID} MID, ${requiredCounts.ATK} ATK.`);
+      return;
+    }
+    if (!team.rotateGK && team.fixedGKPlayerId && lineupSelections[team.fixedGKPlayerId] !== 'GK') {
+      setLineupError('The fixed goalkeeper must be assigned as GK.');
+      return;
+    }
+
+    const startingField = selectedPlayers
+      .filter(player => lineupSelections[player.id] !== 'SUB')
+      .map(player => ({ playerId: player.id, position: lineupSelections[player.id] }));
+    const startingBench = selectedPlayers
+      .filter(player => lineupSelections[player.id] === 'SUB')
+      .map(player => player.id);
+
+    const customPlan = planGame(
+      selectedPlayers,
+      FORCED_FORMATION,
+      team.gameDuration,
+      team.rotateGK,
+      activePlayers,
+      team,
+      team.fixedGKPlayerId || null,
+      { benchStartCounts, benchProtectedIds, startingField, startingBench },
+    );
+    if (!customPlan) {
+      setLineupError('Unable to build a lineup with those selections.');
+      return;
+    }
+    const absentMinutes = calculateAbsentPlayerMinutes(absentPlayers, activePlayers, team);
+    if (onUpdate) {
+      onUpdate({
+        ...data,
+        pendingGameSetup: {
+          roundNumber: nextRound,
+          plan: customPlan,
+          absentPlayerIds: absentPlayers.map(player => player.id),
+          absentMinutes,
+        },
+      });
+    }
+    setPreferredPlan(customPlan);
+    setShowLineupEditor(false);
+    setLineupError('');
+  }
+
+  if (readOnly) {
+    return (
+      <div className="max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto h-[calc(100dvh-var(--app-header-height)-var(--app-tabbar-height))] flex flex-col overflow-hidden">
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="card text-center py-8 space-y-3 w-full max-w-md">
+            <div className="text-4xl">👀</div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">View-only mode</h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              Game setup is disabled for viewer accounts.
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 px-4 py-3 border-t border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <button onClick={onCancel} className="btn-secondary w-full">Back</button>
+        </div>
+      </div>
+    );
+  }
+
   // --- Step: Is Anyone Away Today? ---
   if (step === 'away_prompt') {
     return (
@@ -174,6 +329,9 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
             <p className="text-lg font-semibold text-gray-700 dark:text-slate-200">Is anyone away today?</p>
             <p className="text-sm text-gray-500 dark:text-slate-400">
               {activePlayers.length} active player{activePlayers.length !== 1 ? 's' : ''} · Formation 3-3-2
+            </p>
+            <p className="text-sm text-gray-500 dark:text-slate-400">
+              {formatRoundDateTimeLabel(scheduledRound?.date, scheduledRound?.kickoffTime)}
             </p>
             <div className="flex gap-3 pt-2">
               <button onClick={() => setStep('select_away')} className="btn-secondary flex-1 text-lg py-4">
@@ -254,15 +412,16 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
   // --- Step: Team Sheet Display ---
   if (step === 'team_sheet') {
     const roundInfo = scheduledRound;
-    const numBlocks = gamePlan ? gamePlan.length : 0;
+    const planForDisplay = effectivePlan;
+    const numBlocks = planForDisplay ? planForDisplay.length : 0;
 
     const playerMinutes = {};
-    if (gamePlan) {
+    if (planForDisplay) {
       for (const player of selectedPlayers) {
         playerMinutes[player.id] = { field: 0, bench: 0, positions: {} };
       }
       for (let blockIndex = 0; blockIndex < numBlocks; blockIndex++) {
-        const block = gamePlan[blockIndex];
+        const block = planForDisplay[blockIndex];
         for (const { playerId, position } of block.onField) {
           if (!playerMinutes[playerId]) continue;
           playerMinutes[playerId].field += 10;
@@ -276,9 +435,9 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
     }
 
     const subChanges = [];
-    if (gamePlan && gamePlan.length > 1) {
-      for (let blockIndex = 1; blockIndex < gamePlan.length; blockIndex++) {
-        const changes = getSubsBetweenBlocks(gamePlan[blockIndex - 1], gamePlan[blockIndex]);
+    if (planForDisplay && planForDisplay.length > 1) {
+      for (let blockIndex = 1; blockIndex < planForDisplay.length; blockIndex++) {
+        const changes = getSubsBetweenBlocks(planForDisplay[blockIndex - 1], planForDisplay[blockIndex]);
         if (changes.length > 0) {
           subChanges.push({ minute: blockIndex * 10, subs: changes });
         }
@@ -297,6 +456,9 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
             </span>
           </div>
           <p className="text-xs text-gray-500 dark:text-slate-400">
+            {formatRoundDateTimeLabel(roundInfo?.date, roundInfo?.kickoffTime)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">
             Formation: {FORCED_FORMATION_STR} · {team.gameDuration} min game
           </p>
           <OpponentTeamInput
@@ -313,7 +475,56 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
           )}
         </div>
 
-        {!gamePlan ? (
+        {showLineupEditor && (
+          <div className="card border border-pitch-200 dark:border-emerald-800 bg-pitch-50/70 dark:bg-emerald-900/20 space-y-3">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Coach Preferred Lineup</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Assign each available player to GK, DEF, MID, ATK, or SUB.
+              </p>
+            </div>
+            {lineupError && (
+              <p className="text-xs font-semibold text-red-600 dark:text-red-300">{lineupError}</p>
+            )}
+            <div className="space-y-2">
+              {selectedPlayers.map(player => (
+                <div key={player.id} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <PlayerAvatar
+                      player={player}
+                      sizeClass="w-7 h-7"
+                      className="bg-pitch-100 text-pitch-700 dark:bg-emerald-900/40 dark:text-emerald-200"
+                      textClassName="text-xs"
+                    />
+                    <span className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">{player.name}</span>
+                  </div>
+                  <select
+                    className="input-field max-w-[9.5rem]"
+                    value={lineupSelections[player.id] || ''}
+                    onChange={(e) => setLineupSelections(current => ({ ...current, [player.id]: e.target.value }))}
+                  >
+                    <option value="">Select</option>
+                    <option value="GK">Goalkeeper</option>
+                    <option value="DEF">Defence</option>
+                    <option value="MID">Midfield</option>
+                    <option value="ATK">Attack</option>
+                    <option value="SUB">Substitute</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button onClick={confirmLineupEditor} className="btn-primary flex-1">
+                Confirm Lineup
+              </button>
+              <button onClick={cancelLineupEditor} className="btn-secondary flex-1">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!planForDisplay ? (
           <div className="card text-center py-6 space-y-3">
             <p className="text-gray-400 text-sm dark:text-slate-500">Not enough active players to generate a team sheet. Need at least {minFieldCount}.</p>
             <button
@@ -329,23 +540,26 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
         ) : (
           <>
             <div className="card">
-              <div className="flex gap-3 mb-3">
+              <div className="grid grid-cols-1 gap-3 mb-3 sm:grid-cols-3">
                 <button
                   onClick={() => {
                     clearPendingSetup();
                     setStep(absentPlayers.length > 0 ? 'select_away' : 'away_prompt');
                   }}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary"
                 >
                   ← Back
                 </button>
-                <button onClick={handleStart} className="btn-primary flex-1">
+                <button onClick={openLineupEditor} className="btn-secondary">
+                  🧠 New Lineup
+                </button>
+                <button onClick={handleStart} className="btn-primary">
                   🟢 Start Game
                 </button>
               </div>
               <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Starting Lineup</h3>
               <div className="space-y-2">
-                {gamePlan[0].onField.map(({ playerId, position }) => {
+                {planForDisplay[0].onField.map(({ playerId, position }) => {
                   const player = getPlayer(playerId);
                   return (
                     <div key={playerId} className="flex items-center gap-3 py-1">
@@ -358,11 +572,11 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate }) 
               </div>
             </div>
 
-            {gamePlan[0].onBench.length > 0 && (
+            {planForDisplay[0].onBench.length > 0 && (
               <div className="card">
                 <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Starting on Bench</h3>
                 <div className="space-y-2">
-                  {gamePlan[0].onBench.map(id => {
+                  {planForDisplay[0].onBench.map(id => {
                     const player = getPlayer(id);
                     return (
                       <div key={id} className="flex items-center gap-3 py-1">

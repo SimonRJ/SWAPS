@@ -27,10 +27,6 @@ function MinuteBar({ label, minutes, maxMinutes, colorClass, target }) {
   );
 }
 
-function getDateDisplay(date) {
-  return date || 'Date TBC';
-}
-
 function formatRoundDateLabel(dateValue) {
   if (!dateValue) return 'Date not set';
   const parsed = new Date(`${dateValue}T00:00:00`);
@@ -40,6 +36,27 @@ function formatRoundDateLabel(dateValue) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatRoundTimeLabel(timeValue) {
+  if (!timeValue) return 'Time not set';
+  const [hours, minutes] = String(timeValue).split(':');
+  const parsed = new Date();
+  parsed.setHours(Number(hours || 0), Number(minutes || 0), 0, 0);
+  if (Number.isNaN(parsed.getTime())) return timeValue;
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatRoundDateTimeLabel(dateValue, timeValue) {
+  const dateLabel = formatRoundDateLabel(dateValue);
+  if (!timeValue) return dateLabel;
+  return `${dateLabel} · ${formatRoundTimeLabel(timeValue)}`;
+}
+
+function getDateDisplay(date, time) {
+  if (!date && !time) return 'Date TBC';
+  if (!date) return formatRoundTimeLabel(time);
+  return formatRoundDateTimeLabel(date, time);
 }
 
 function getVenueBadgeClasses(venue) {
@@ -75,17 +92,19 @@ function resultBlobLetter(label) {
   return '?';
 }
 
-export default function StatsTab({ data, onUpdate }) {
+export default function StatsTab({ data, onUpdate, readOnly = false }) {
   const { players, team, gameHistory } = data;
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [overviewView, setOverviewView] = useState('overview');
   const [editingRound, setEditingRound] = useState(null);
   const [roundDraft, setRoundDraft] = useState(null);
   const [showRoundDatePicker, setShowRoundDatePicker] = useState(false);
+  const [showRoundTimePicker, setShowRoundTimePicker] = useState(false);
   const [editingCancelledRound, setEditingCancelledRound] = useState(null);
   const [cancelledDraft, setCancelledDraft] = useState(null);
   const [teamSheetRound, setTeamSheetRound] = useState(null);
   const roundDateInputRef = useRef(null);
+  const roundTimeInputRef = useRef(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -97,6 +116,13 @@ export default function StatsTab({ data, onUpdate }) {
     input?.focus();
     input?.showPicker?.();
   }, [showRoundDatePicker]);
+
+  useEffect(() => {
+    if (!showRoundTimePicker) return;
+    const input = roundTimeInputRef.current;
+    input?.focus();
+    input?.showPicker?.();
+  }, [showRoundTimePicker]);
 
   const activePlayers = players.filter(p => p.isActive);
   const history = useMemo(() => gameHistory || [], [gameHistory]);
@@ -191,24 +217,29 @@ export default function StatsTab({ data, onUpdate }) {
   const maxTotal = activePlayers.reduce((max, p) => Math.max(max, totalMinsWithSick(p)), 1);
 
   function openRoundEditor(round) {
+    if (readOnly) return;
     setEditingRound(round.round);
     setRoundDraft({
       ...round,
       location: round.location || '',
       opponentLogoUrl: round.opponentLogoUrl || '',
       homeAway: round.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
+      kickoffTime: round.kickoffTime || '',
     });
     setShowRoundDatePicker(false);
+    setShowRoundTimePicker(false);
   }
 
   function closeRoundEditor() {
     setEditingRound(null);
     setRoundDraft(null);
     setShowRoundDatePicker(false);
+    setShowRoundTimePicker(false);
   }
 
   function saveRoundEditor() {
     if (!roundDraft || !onUpdate) return;
+    if (readOnly) return;
     const updatedSchedule = schedule.map(item => (
         item.round === editingRound
           ? {
@@ -216,6 +247,7 @@ export default function StatsTab({ data, onUpdate }) {
               opponentName: roundDraft.opponentName || '',
               opponentLogoUrl: roundDraft.opponentLogoUrl || '',
               date: roundDraft.date || '',
+              kickoffTime: roundDraft.kickoffTime || '',
               location: roundDraft.location || '',
               homeAway: roundDraft.homeAway === 'AWAY' ? 'AWAY' : 'HOME',
             }
@@ -226,6 +258,7 @@ export default function StatsTab({ data, onUpdate }) {
   }
 
   function openCancelledEditor(game) {
+    if (readOnly) return;
     setEditingCancelledRound(game.round);
     setCancelledDraft({
       ...game,
@@ -238,8 +271,10 @@ export default function StatsTab({ data, onUpdate }) {
     setCancelledDraft(null);
   }
 
+
   function saveCancelledEditor() {
     if (!cancelledDraft || !onUpdate) return;
+    if (readOnly) return;
     const nextCancelled = cancelledDetails
       .map(item => (
         item.round === editingCancelledRound
@@ -274,6 +309,7 @@ export default function StatsTab({ data, onUpdate }) {
   }
 
   function removeCancelledGame(round) {
+    if (readOnly) return;
     if (!window.confirm(`Remove cancelled status for Round ${round}?`)) return;
     const nextCancelled = cancelledDetails
       .filter(item => Number(item.round) !== Number(round))
@@ -401,9 +437,12 @@ export default function StatsTab({ data, onUpdate }) {
 
   const roundVenue = getVenueFromHomeAway(roundDraft?.homeAway);
   const roundDateLabel = formatRoundDateLabel(roundDraft?.date);
+  const roundDateTimeLabel = formatRoundDateTimeLabel(roundDraft?.date, roundDraft?.kickoffTime);
   const roundDateInputId = editingRound ? `remaining-round-date-${editingRound}` : 'remaining-round-date';
   const roundDateButtonText = roundDraft?.date ? roundDateLabel : 'Date';
   const roundDateButtonAriaLabel = roundDraft?.date ? `Select date: ${roundDateLabel}` : 'Select date';
+  const roundTimeInputId = editingRound ? `remaining-round-time-${editingRound}` : 'remaining-round-time';
+  const roundTimeButtonText = roundDraft?.kickoffTime ? formatRoundTimeLabel(roundDraft?.kickoffTime) : 'Time';
 
   if (selectedPlayer) {
     const p = players.find(pl => pl.id === selectedPlayer);
@@ -610,18 +649,22 @@ export default function StatsTab({ data, onUpdate }) {
                     <p className="font-semibold text-amber-800">Round {game.round}</p>
                     <div className="flex items-center gap-2">
                       <p className="text-xs text-amber-700">{game.cancelledDate || 'Cancelled'}</p>
-                      <button
-                        onClick={() => openCancelledEditor(game)}
-                        className="text-xs font-semibold text-amber-800 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => removeCancelledGame(game.round)}
-                        className="text-xs font-semibold text-red-700 px-2 py-1 rounded-md bg-red-100"
-                      >
-                        Remove
-                      </button>
+                      {!readOnly && (
+                        <>
+                          <button
+                            onClick={() => openCancelledEditor(game)}
+                            className="text-xs font-semibold text-amber-800 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => removeCancelledGame(game.round)}
+                            className="text-xs font-semibold text-red-700 px-2 py-1 rounded-md bg-red-100"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -636,7 +679,7 @@ export default function StatsTab({ data, onUpdate }) {
                       {(game.homeAway === 'AWAY' ? 'Away' : 'Home')} · {game.opponentName || 'Opponent TBC'}
                     </p>
                   </div>
-                  <p className="text-xs text-amber-800">{getDateDisplay(game.date)}</p>
+                  <p className="text-xs text-amber-800">{getDateDisplay(game.date, game.kickoffTime)}</p>
                 </li>
               ))}
             </ul>
@@ -808,7 +851,9 @@ export default function StatsTab({ data, onUpdate }) {
               <span className="text-sm text-gray-700 dark:text-slate-200">vs {roundInfo.opponentName}</span>
             </div>
           )}
-          <p className="text-xs text-gray-500 dark:text-slate-400">{getDateDisplay(roundInfo?.date)} · Formation: {formationStr} · {team.gameDuration} min game</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            {getDateDisplay(roundInfo?.date, roundInfo?.kickoffTime)} · Formation: {formationStr} · {team.gameDuration} min game
+          </p>
           {gamePlan && (
             <button
               onClick={handleDownloadPdf}
@@ -955,7 +1000,7 @@ export default function StatsTab({ data, onUpdate }) {
                       {roundVenue ? roundVenue.charAt(0).toUpperCase() + roundVenue.slice(1) : 'Venue'}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{roundDateLabel}</p>
+                  <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{roundDateTimeLabel}</p>
                   <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
                 </div>
               </div>
@@ -1013,6 +1058,34 @@ export default function StatsTab({ data, onUpdate }) {
                       className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
                       {roundDateButtonText}
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label htmlFor={roundTimeInputId} className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
+                    Kick-off Time
+                  </label>
+                  {showRoundTimePicker ? (
+                    <input
+                      ref={roundTimeInputRef}
+                      id={roundTimeInputId}
+                      type="time"
+                      value={roundDraft.kickoffTime || ''}
+                      onChange={(e) => {
+                        setRoundDraft(d => ({ ...d, kickoffTime: e.target.value }));
+                        setShowRoundTimePicker(false);
+                      }}
+                      className="input-field max-w-[10rem]"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowRoundTimePicker(true)}
+                      aria-label="Select kick-off time"
+                      className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      {roundTimeButtonText}
                     </button>
                   )}
                 </div>
@@ -1080,7 +1153,11 @@ export default function StatsTab({ data, onUpdate }) {
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-semibold text-gray-900 dark:text-slate-100">Round {round.round}</p>
-                    <button onClick={() => openRoundEditor(round)} className="text-xs font-semibold text-pitch-700 dark:text-emerald-300">Edit</button>
+                    {!readOnly && (
+                      <button onClick={() => openRoundEditor(round)} className="text-xs font-semibold text-pitch-700 dark:text-emerald-300">
+                        Edit
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <TeamAvatar
@@ -1092,7 +1169,9 @@ export default function StatsTab({ data, onUpdate }) {
                     <p className="text-sm text-gray-700 dark:text-slate-200">{round.homeAway === 'AWAY' ? 'Away' : 'Home'} · {round.opponentName || 'Opponent TBC'}</p>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-gray-500 dark:text-slate-400">{getDateDisplay(round.date)}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      {getDateDisplay(round.date, round.kickoffTime)}
+                    </p>
                     <div className="flex items-center gap-2">
                       {seasonSheets.find(s => s.round === round.round)?.plan && (
                         <button

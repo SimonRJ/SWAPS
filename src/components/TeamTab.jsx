@@ -63,6 +63,7 @@ function normalizeScheduleForm(gamesPerSeason, seasonSchedule) {
     opponentName: round.opponentName || '',
     opponentLogoUrl: round.opponentLogoUrl || '',
     opponentConfirmed: round.opponentConfirmed ?? Boolean((round.opponentName || '').trim()),
+    kickoffTime: round.kickoffTime || '',
   }));
 }
 
@@ -75,6 +76,21 @@ function formatRoundDateLabel(dateValue) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatRoundTimeLabel(timeValue) {
+  if (!timeValue) return 'Time not set';
+  const [hours, minutes] = String(timeValue).split(':');
+  const parsed = new Date();
+  parsed.setHours(Number(hours || 0), Number(minutes || 0), 0, 0);
+  if (Number.isNaN(parsed.getTime())) return timeValue;
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatRoundDateTimeLabel(dateValue, timeValue) {
+  const dateLabel = formatRoundDateLabel(dateValue);
+  if (!timeValue) return dateLabel;
+  return `${dateLabel} · ${formatRoundTimeLabel(timeValue)}`;
 }
 
 function getPlayedMinutes(player) {
@@ -176,17 +192,24 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   const opponentName = (round.opponentName || '').trim() || 'Opponent not set';
   const locationText = (round.location || '').trim() || 'Location not set';
   const dateLabel = formatRoundDateLabel(round.date);
+  const dateTimeLabel = formatRoundDateTimeLabel(round.date, round.kickoffTime);
   const dateInputId = `round-date-${round.round}`;
+  const timeInputId = `round-time-${round.round}`;
   const dateButtonText = round.date ? dateLabel : 'Date';
   const dateButtonAriaLabel = round.date ? `Select date: ${dateLabel}` : 'Select date';
+  const timeButtonText = round.kickoffTime ? formatRoundTimeLabel(round.kickoffTime) : 'Time';
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const dateInputRef = useRef(null);
+  const timeInputRef = useRef(null);
   const handleOpenRound = () => {
     setShowDatePicker(false);
+    setShowTimePicker(false);
     onOpen();
   };
   const handleCloseRound = () => {
     setShowDatePicker(false);
+    setShowTimePicker(false);
     onClose();
   };
 
@@ -196,6 +219,13 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
     input?.focus();
     input?.showPicker?.();
   }, [showDatePicker]);
+
+  useEffect(() => {
+    if (!showTimePicker) return;
+    const input = timeInputRef.current;
+    input?.focus();
+    input?.showPicker?.();
+  }, [showTimePicker]);
 
   return (
     <div className={`rounded-2xl border shadow-sm transition ${getVenueClasses(venue, isExpanded)}`}>
@@ -221,7 +251,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                 />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{opponentName}</p>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">{formatRoundDateLabel(round.date)}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">{dateTimeLabel}</p>
                 </div>
               </div>
 
@@ -252,7 +282,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
                   {venue ? venue.charAt(0).toUpperCase() + venue.slice(1) : 'Venue'}
                 </span>
               </div>
-              <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{dateLabel}</p>
+              <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{dateTimeLabel}</p>
               <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
             </div>
 
@@ -326,6 +356,34 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
             </div>
 
             <div>
+              <label htmlFor={timeInputId} className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-200">
+                Kick-off Time
+              </label>
+              {showTimePicker ? (
+                <input
+                  ref={timeInputRef}
+                  id={timeInputId}
+                  type="time"
+                  value={round.kickoffTime || ''}
+                  onChange={(e) => {
+                    onChange({ kickoffTime: e.target.value });
+                    setShowTimePicker(false);
+                  }}
+                  className="input-field max-w-[10rem]"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowTimePicker(true)}
+                  aria-label="Select kick-off time"
+                  className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  {timeButtonText}
+                </button>
+              )}
+            </div>
+
+            <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-slate-200">Home or Away</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -379,7 +437,7 @@ function ScheduleRoundTile({ round, isExpanded, onOpen, onClose, onChange }) {
   );
 }
 
-export default function TeamTab({ data, onUpdate }) {
+export default function TeamTab({ data, onUpdate, readOnly = false }) {
   const { team, players, gameHistory } = data;
 
   const [newName, setNewName] = useState('');
@@ -778,13 +836,15 @@ export default function TeamTab({ data, onUpdate }) {
           <div className="card space-y-4">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Team</h2>
-              <button
-                type="button"
-                onClick={startEditing}
-                className="btn-primary !px-4 !py-2 text-sm"
-              >
-                Team Edit
-              </button>
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="btn-primary !px-4 !py-2 text-sm"
+                >
+                  Team Edit
+                </button>
+              )}
             </div>
 
             <div className="space-y-2 text-sm text-gray-700 dark:text-slate-200">

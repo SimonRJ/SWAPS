@@ -37,7 +37,7 @@ const PITCH_MARKINGS = {
   penaltySpotDistancePct: 10.5,
 };
 
-export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame }) {
+export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, readOnly = false }) {
   const { currentGame, players, team } = data;
   const { plan, availablePlayers } = currentGame;
   const opponentLogo = currentGame.opponentLogoUrl || '';
@@ -95,6 +95,33 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
   }, []);
 
+  useEffect(() => {
+    if (!readOnly) return;
+    setElapsedSeconds(currentGame.elapsedSeconds || 0);
+    setIsPaused(Boolean(currentGame.isPaused));
+    setBlockIndex(currentGame.blockIndex || 0);
+    setHomeScore(currentGame.homeScore || 0);
+    setAwayScore(currentGame.awayScore || 0);
+    setGoals(currentGame.goals || []);
+    setGkSaves(currentGame.gkSaves || {});
+    setPlayerTimers(currentGame.playerTimers || {});
+    setCustomField(
+      currentGame.customField
+      || currentGame.startingField
+      || currentGame.plan?.[currentGame.blockIndex || 0]?.onField
+      || []
+    );
+    setCustomBench(
+      currentGame.customBench
+      || currentGame.startingBench
+      || currentGame.plan?.[currentGame.blockIndex || 0]?.onBench
+      || []
+    );
+    setShowGoalPicker(false);
+    setShowResumeOptions(false);
+    lastTickMsRef.current = Date.now();
+  }, [readOnly, currentGame]);
+
   const gameDurationSeconds = team.gameDuration * 60;
   const subIntervalSeconds = 10 * 60;
 
@@ -116,6 +143,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
 
   // Save state to data
   const saveState = useCallback((seconds, paused, bIdx, hScore, aScore, gls, saves, pTimers, cField, cBench) => {
+    if (readOnly) return;
     onUpdate({
       ...data,
       currentGame: {
@@ -133,7 +161,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
         lastTickAtMs: lastTickMsRef.current,
       },
     });
-  }, [data, onUpdate]);
+  }, [data, onUpdate, readOnly]);
 
   // Timer tick
   useEffect(() => {
@@ -241,6 +269,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   const gameOver = elapsedSeconds >= gameDurationSeconds;
 
   function handlePause() {
+    if (readOnly) return;
     const newPaused = !isPaused;
     if (!newPaused) {
       lastTickMsRef.current = Date.now();
@@ -254,7 +283,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
     setShowSubModal(false);
   }
 
+  function skipSubBlock() {
+    if (readOnly) return;
+    setPendingBlockIndex(null);
+    setShowSubModal(false);
+  }
+
   function applySubsFromPlan() {
+    if (readOnly) return;
     // Auto-apply substitutions: update field and bench to match the plan for the pending block
     if (pendingBlockIndex !== null && pendingBlockIndex < plan.length) {
       const targetBlock = plan[pendingBlockIndex];
@@ -266,6 +302,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function finalizeGame() {
+    if (readOnly) return;
     onEndGame(blockIndex, elapsedSeconds, {
       homeScore,
       awayScore,
@@ -276,16 +313,19 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function handleEndGame() {
+    if (readOnly) return;
     if (!window.confirm('End this game? Stats will be saved.')) return;
     clearInterval(intervalRef.current);
     finalizeGame();
   }
 
   function handleConfirmEndGame() {
+    if (readOnly) return;
     finalizeGame();
   }
 
   function applyManualTime() {
+    if (readOnly) return;
     const manualValue = Number(manualTimeSeconds);
     const safeValue = Number.isFinite(manualValue) ? manualValue : elapsedSeconds;
     const nextTime = Math.max(0, Math.min(gameDurationSeconds, safeValue));
@@ -299,6 +339,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function handleResumeNow() {
+    if (readOnly) return;
     lastTickMsRef.current = Date.now();
     setIsPaused(false);
     setShowResumeOptions(false);
@@ -306,6 +347,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function addGoal(playerId) {
+    if (readOnly) return;
     const player = getPlayer(playerId);
     const newGoal = {
       playerId,
@@ -325,6 +367,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function addGoalkeeperSave() {
+    if (readOnly) return;
     const goalkeeper = fieldAssignments.find(a => a.position === 'GK');
     if (!goalkeeper?.playerId) {
       setTimedFeedback('Assign a goalkeeper on field to record saves.');
@@ -340,10 +383,12 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
 
   // Drag and drop handlers
   function handleDragStart(playerId, fromType) {
+    if (readOnly) return;
     setDraggedPlayer({ playerId, fromType });
   }
 
   function handleDropOnPosition(targetPosition, targetIndex, dragInfo = draggedPlayer) {
+    if (readOnly) return;
     if (!dragInfo) return;
     const { playerId, fromType } = dragInfo;
     const currentFieldArr = [...fieldAssignments];
@@ -389,6 +434,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function handleDropOnBench(dragInfo = draggedPlayer) {
+    if (readOnly) return;
     if (!dragInfo) return;
     const { playerId, fromType } = dragInfo;
 
@@ -413,6 +459,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function handleDropOnFieldPlayer(targetPlayerId, dragInfo = draggedPlayer) {
+    if (readOnly) return;
     if (!dragInfo) return;
     const { playerId, fromType } = dragInfo;
     if (playerId === targetPlayerId) {
@@ -451,6 +498,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   const [touchPos, setTouchPos] = useState(null);
 
   function handleTouchStart(e, playerId, fromType) {
+    if (readOnly) return;
     // Prevent page scrolling while dragging players on touch devices.
     e.preventDefault();
     const touch = e.touches[0];
@@ -460,6 +508,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function handleTouchMove(e) {
+    if (readOnly) return;
     if (!touchRef.current) return;
     e.preventDefault();
     const touch = e.touches[0];
@@ -467,6 +516,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
   }
 
   function handleTouchEnd(e) {
+    if (readOnly) return;
     if (!touchRef.current) {
       setTouchDragPlayer(null);
       setTouchPos(null);
@@ -723,9 +773,15 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
           </div>
         </div>
 
-        <button onClick={handleConfirmEndGame} className="btn-primary w-full text-lg">
-          ✅ Save & Finish
-        </button>
+        {!readOnly ? (
+          <button onClick={handleConfirmEndGame} className="btn-primary w-full text-lg">
+            ✅ Save & Finish
+          </button>
+        ) : (
+          <button onClick={() => setShowMatchSummary(false)} className="btn-secondary w-full text-lg">
+            Back to Game
+          </button>
+        )}
       </div>
     );
   }
@@ -763,17 +819,23 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
             <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => {
+                  if (readOnly) return;
                   if (homeScore > 0) {
                     setHomeScore(s => s - 1);
                     setGoals(prev => prev.slice(0, -1));
                   }
                 }}
-                className="w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30"
+                disabled={readOnly}
+                className={`w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30 ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               >−</button>
               <span className="text-[28px] font-black tabular-nums leading-none">{homeScore}</span>
               <button
-                onClick={() => setHomeScore(s => s + 1)}
-                className="w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30"
+                onClick={() => {
+                  if (readOnly) return;
+                  setHomeScore(s => s + 1);
+                }}
+                disabled={readOnly}
+                className={`w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30 ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               >+</button>
             </div>
           </div>
@@ -791,13 +853,21 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
             </div>
             <div className="flex items-center justify-start gap-2">
               <button
-                onClick={() => setAwayScore(s => Math.max(0, s - 1))}
-                className="w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30"
+                onClick={() => {
+                  if (readOnly) return;
+                  setAwayScore(s => Math.max(0, s - 1));
+                }}
+                disabled={readOnly}
+                className={`w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30 ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               >−</button>
               <span className="text-[28px] font-black tabular-nums leading-none">{awayScore}</span>
               <button
-                onClick={() => setAwayScore(s => s + 1)}
-                className="w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30"
+                onClick={() => {
+                  if (readOnly) return;
+                  setAwayScore(s => s + 1);
+                }}
+                disabled={readOnly}
+                className={`w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30 ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               >+</button>
             </div>
           </div>
@@ -810,7 +880,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
       <div className="game-controls-group shrink-0" role="toolbar" aria-label="Game controls">
       {/* Controls */}
       <div className="px-1.5 py-0.5 bg-slate-950/95 border-y border-white/10 flex gap-1 shrink-0">
-        {!gameOver && (
+        {!readOnly && !gameOver && (
           <div className="flex gap-1 w-full">
             <button onClick={handlePause}
               className={`flex-1 text-[11px] font-semibold py-1.5 rounded-lg text-center ${isPaused ? 'bg-emerald-600 text-white active:bg-emerald-700' : 'bg-amber-500 text-white active:bg-amber-600'}`}>
@@ -832,8 +902,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
         )}
         {gameOver && (
           <button onClick={() => setShowMatchSummary(true)} className="btn-primary w-full text-sm">
-            ✅ View Summary & Finish
+            {readOnly ? 'View Summary' : '✅ View Summary & Finish'}
           </button>
+        )}
+        {readOnly && (
+          <div className="w-full text-center text-[11px] text-slate-300 py-1">
+            View-only mode — controls disabled
+          </div>
         )}
       </div>
       {saveFeedback && (
@@ -841,7 +916,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
           {saveFeedback}
         </div>
       )}
-      {showResumeOptions && !gameOver && (
+      {showResumeOptions && !gameOver && !readOnly && (
         <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 space-y-2">
           <p className="text-xs font-semibold text-blue-800">
             Game in progress found. Resume, end, or adjust the timer.
@@ -1015,12 +1090,12 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                   top: `${yPct}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
-                draggable
-                onDragStart={() => handleDragStart(a.playerId, 'field')}
-                onDragEnd={() => setDraggedPlayer(null)}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); handleDropOnFieldPlayer(a.playerId); }}
-                onTouchStart={(e) => handleTouchStart(e, a.playerId, 'field')}
+                draggable={!readOnly}
+                onDragStart={readOnly ? undefined : () => handleDragStart(a.playerId, 'field')}
+                onDragEnd={readOnly ? undefined : () => setDraggedPlayer(null)}
+                onDragOver={readOnly ? undefined : e => e.preventDefault()}
+                onDrop={readOnly ? undefined : e => { e.preventDefault(); handleDropOnFieldPlayer(a.playerId); }}
+                onTouchStart={readOnly ? undefined : (e) => handleTouchStart(e, a.playerId, 'field')}
               >
                 <PlayerAvatar
                   player={player}
@@ -1083,10 +1158,10 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
                   <div
                     key={id}
                     className="flex items-center gap-1 bg-slate-700/95 rounded-lg px-1.5 py-1 cursor-grab active:cursor-grabbing select-none border border-slate-600 min-w-max touch-none"
-                    draggable
-                    onDragStart={() => handleDragStart(id, 'bench')}
-                    onDragEnd={() => setDraggedPlayer(null)}
-                    onTouchStart={(e) => handleTouchStart(e, id, 'bench')}
+                    draggable={!readOnly}
+                    onDragStart={readOnly ? undefined : () => handleDragStart(id, 'bench')}
+                    onDragEnd={readOnly ? undefined : () => setDraggedPlayer(null)}
+                    onTouchStart={readOnly ? undefined : (e) => handleTouchStart(e, id, 'bench')}
                   >
                     <PlayerAvatar
                       player={player}
@@ -1221,14 +1296,18 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame })
               </div>
             )}
             {subAlertType === 'due' ? (
-              <div className="flex gap-3">
-                <button onClick={dismissSubModal} className="btn-secondary flex-1 text-sm">
-                  Cancel
-                </button>
-                <button onClick={applySubsFromPlan} className="btn-primary flex-1 text-sm">
-                  Done ✓
-                </button>
-              </div>
+              readOnly ? (
+                <button onClick={dismissSubModal} className="btn-primary w-full">Close</button>
+              ) : (
+                <div className="flex gap-3">
+                  <button onClick={skipSubBlock} className="btn-secondary flex-1 text-sm">
+                    Skip This Block
+                  </button>
+                  <button onClick={applySubsFromPlan} className="btn-primary flex-1 text-sm">
+                    Done ✓
+                  </button>
+                </div>
+              )
             ) : (
               <button onClick={dismissSubModal} className="btn-primary w-full">Got it! ✓</button>
             )}

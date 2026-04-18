@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { listTeamCodes, loginWithPasscode } from '../utils/netlifyData.js';
+import { listTeamCodes, loginWithPasscode, loginViewOnly } from '../utils/netlifyData.js';
 import loginBackground from '../assets/login-bg.png';
 
 const MAX_TEAM_CODE_LENGTH = 24;
@@ -56,6 +56,24 @@ export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
       onLogin(response);
     } catch (loginError) {
       setError(loginError.message || 'Unable to log in.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleViewOnly() {
+    const normalizedTeamId = normalizeTeamCode(teamId);
+    if (!normalizedTeamId) {
+      setError('Select your team code.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await loginViewOnly(normalizedTeamId);
+      onLogin(response);
+    } catch (loginError) {
+      setError(loginError.message || 'Unable to open view-only team.');
     } finally {
       setLoading(false);
     }
@@ -125,6 +143,14 @@ export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
               className="w-full rounded-xl bg-pitch-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-pitch-700 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? 'Checking...' : 'Log In'}
+            </button>
+            <button
+              type="button"
+              onClick={handleViewOnly}
+              disabled={loading}
+              className="w-full rounded-xl border border-white/40 bg-white/15 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-white/25 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              View Only (No Passcode)
             </button>
           </div>
         </form>

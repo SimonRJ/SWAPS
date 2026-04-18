@@ -579,6 +579,19 @@ export default async (req) => {
     return jsonResponse({ error: 'Team not found.' }, 404);
   }
 
+  if (action === 'view') {
+    const sanitized = {
+      ...existing,
+      team: {
+        ...existing.team,
+      },
+    };
+    if (sanitized.team) {
+      delete sanitized.team.passcodeHash;
+    }
+    return jsonResponse({ data: sanitized });
+  }
+
   const passcodeHash = String(payload?.passcodeHash || '');
   if (!passcodeHash || existing?.team?.passcodeHash !== passcodeHash) {
     return jsonResponse({ error: 'Invalid passcode.', code: 'INVALID_PASSCODE' }, 401);
