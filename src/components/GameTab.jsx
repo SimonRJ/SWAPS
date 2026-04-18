@@ -670,7 +670,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
       .map((goal, idx) => ({ ...goal, originalIndex: idx }))
       .sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0))
     : [];
-  const canDeleteGame = editingGameIndex !== null && editingGameIndex < (data.gameHistory || []).length;
+  const isEditingExistingGame = editingGameIndex !== null && editingGameIndex < (data.gameHistory || []).length;
   const keeperCandidates = editDraft ? getKeeperCandidates(editDraft, players) : [];
   const keeperDisplayIds = new Set([
     ...keeperCandidates.map(player => player.id),
@@ -1119,7 +1119,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                 <button onClick={closeEditGame} className="btn-secondary text-sm">
                   Cancel
                 </button>
-                {canDeleteGame ? (
+                {isEditingExistingGame ? (
                   <button
                     onClick={() => openDeletePrompt(editingGameIndex)}
                     className="py-3 px-6 rounded-xl bg-red-50 text-red-600 font-semibold text-sm active:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:active:bg-red-900/50"
