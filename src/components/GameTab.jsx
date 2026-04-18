@@ -128,6 +128,24 @@ function sanitizeScore(value) {
   return Math.max(0, num);
 }
 
+function buildTimerSyncState(seconds, paused, nowMs = Date.now()) {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  const safeNowMs = Number.isFinite(nowMs) ? nowMs : Date.now();
+  if (paused) {
+    return {
+      mode: 'paused',
+      elapsedSeconds: safeSeconds,
+      timestampMs: safeNowMs,
+    };
+  }
+  return {
+    mode: 'running',
+    startedAtMs: safeNowMs - (safeSeconds * 1000),
+    elapsedSeconds: safeSeconds,
+    timestampMs: safeNowMs,
+  };
+}
+
 function getCancelledDetails(data) {
   return Array.isArray(data.cancelledGameDetails) ? data.cancelledGameDetails : [];
 }
@@ -233,6 +251,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       elapsedSeconds: 0,
       blockIndex: 0,
       isPaused: false,
+      timerSync: buildTimerSyncState(0, false),
       gameLog: [],
       opponentName: opponentName || 'Opponent',
       opponentLogoUrl: opponentLogoUrl || '',

@@ -26,8 +26,24 @@ function posLabelSmall(pos) {
   return 'pos-bench';
 }
 
+function getElapsedFromTimerSync(timerSync, nowMs) {
+  if (!timerSync || typeof timerSync !== 'object') return null;
+  if (timerSync.mode === 'paused') {
+    return Math.max(0, Number(timerSync.elapsedSeconds) || 0);
+  }
+  if (timerSync.mode === 'running' && Number.isFinite(Number(timerSync.startedAtMs))) {
+    const deltaSeconds = Math.max(0, Math.floor((nowMs - Number(timerSync.startedAtMs)) / 1000));
+    return deltaSeconds;
+  }
+  return null;
+}
+
 function getReadOnlyElapsed(base, nowMs, gameDurationSeconds) {
   if (!base) return 0;
+  const syncedElapsed = getElapsedFromTimerSync(base.timerSync, nowMs);
+  if (syncedElapsed !== null) {
+    return Math.min(gameDurationSeconds, syncedElapsed);
+  }
   const safeElapsed = Math.max(0, Number(base.elapsedSeconds) || 0);
   if (base.isPaused || !base.receivedAtMs) {
     return Math.min(gameDurationSeconds, safeElapsed);
@@ -36,11 +52,27 @@ function getReadOnlyElapsed(base, nowMs, gameDurationSeconds) {
   return Math.min(gameDurationSeconds, safeElapsed + deltaSeconds);
 }
 
+function buildTimerSyncState(seconds, paused, nowMs = Date.now()) {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  const safeNowMs = Number.isFinite(nowMs) ? nowMs : Date.now();
+  if (paused) {
+    return {
+      mode: 'paused',
+      elapsedSeconds: safeSeconds,
+      timestampMs: safeNowMs,
+    };
+  }
+  return {
+    mode: 'running',
+    startedAtMs: safeNowMs - (safeSeconds * 1000),
+    elapsedSeconds: safeSeconds,
+    timestampMs: safeNowMs,
+  };
+}
+
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
 const SUB_INTERVAL_SECONDS = 10 * 60;
-// Allow minor drift from refresh cadence before resyncing the read-only clock.
-const READONLY_SYNC_THRESHOLD_SECONDS = 2;
 const PITCH_MARKINGS = {
   penaltyAreaDepthPct: 15.7,
   penaltyAreaWidthPct: 59.3,
@@ -79,6 +111,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const [manualTimeSeconds, setManualTimeSeconds] = useState(currentGame.elapsedSeconds || 0);
   const [saveFeedback, setSaveFeedback] = useState('');
   const feedbackTimeoutRef = useRef(null);
+  const dataRef = useRef(data);
 
   // Custom field/bench assignments (overrides plan)
   const [customField, setCustomField] = useState(() => (
@@ -91,7 +124,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const intervalRef = useRef(null);
   const elapsedRef = useRef(elapsedSeconds);
   const isPausedRef = useRef(isPaused);
+  const blockIndexRef = useRef(blockIndex);
+  const homeScoreRef = useRef(homeScore);
+  const awayScoreRef = useRef(awayScore);
+  const goalsRef = useRef(goals);
+  const gkSavesRef = useRef(gkSaves);
+  const playerTimersRef = useRef(playerTimers);
   const customFieldRef = useRef(customField);
+  const customBenchRef = useRef(customBench);
   const lastTickMsRef = useRef(currentGame.lastTickAtMs || 0);
   const readOnlySyncRef = useRef(null);
   const onSwitchToGameRef = useRef(onSwitchToGame);
@@ -100,8 +140,16 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  useEffect(() => { blockIndexRef.current = blockIndex; }, [blockIndex]);
+  useEffect(() => { homeScoreRef.current = homeScore; }, [homeScore]);
+  useEffect(() => { awayScoreRef.current = awayScore; }, [awayScore]);
+  useEffect(() => { goalsRef.current = goals; }, [goals]);
+  useEffect(() => { gkSavesRef.current = gkSaves; }, [gkSaves]);
+  useEffect(() => { playerTimersRef.current = playerTimers; }, [playerTimers]);
   useEffect(() => { customFieldRef.current = customField; }, [customField]);
+  useEffect(() => { customBenchRef.current = customBench; }, [customBench]);
   useEffect(() => { onSwitchToGameRef.current = onSwitchToGame; }, [onSwitchToGame]);
+  useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => {
     if (!lastTickMsRef.current) lastTickMsRef.current = Date.now();
   }, []);
@@ -115,39 +163,19 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => {
     if (!readOnly) return;
-    const remoteElapsed = Number(currentGame.elapsedSeconds) || 0;
-    const remotePaused = Boolean(currentGame.isPaused);
     const now = Date.now();
-    const base = readOnlySyncRef.current;
-    const seededBase = base || {
-      elapsedSeconds: remoteElapsed,
+    const remotePaused = Boolean(currentGame.isPaused);
+    const syncedBase = {
+      elapsedSeconds: Number(currentGame.elapsedSeconds) || 0,
       receivedAtMs: now,
       isPaused: remotePaused,
+      timerSync: currentGame.timerSync || null,
     };
-    const localElapsed = getReadOnlyElapsed(seededBase, now, gameDurationSeconds);
-    const driftSeconds = Math.abs(remoteElapsed - localElapsed);
-    const shouldResync = !base
-      || remotePaused !== seededBase.isPaused
-      || driftSeconds >= READONLY_SYNC_THRESHOLD_SECONDS
-      || (remoteElapsed === 0 && localElapsed > 0);
-
-    if (shouldResync) {
-      readOnlySyncRef.current = {
-        elapsedSeconds: remoteElapsed,
-        receivedAtMs: now,
-        isPaused: remotePaused,
-      };
-      elapsedRef.current = remoteElapsed;
-      setElapsedSeconds(remoteElapsed);
-      setBlockIndex(Math.min(Math.floor(remoteElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
-    } else if (remoteElapsed >= seededBase.elapsedSeconds) {
-      // Remote time advanced slightly; bump baseline without forcing a full resync.
-      readOnlySyncRef.current = {
-        ...seededBase,
-        elapsedSeconds: remoteElapsed,
-        receivedAtMs: now,
-      };
-    }
+    const remoteElapsed = getReadOnlyElapsed(syncedBase, now, gameDurationSeconds);
+    readOnlySyncRef.current = syncedBase;
+    elapsedRef.current = remoteElapsed;
+    setElapsedSeconds(remoteElapsed);
+    setBlockIndex(Math.min(Math.floor(remoteElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
     setIsPaused(remotePaused);
     setHomeScore(currentGame.homeScore || 0);
     setAwayScore(currentGame.awayScore || 0);
@@ -214,10 +242,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   // Save state to data
   const saveState = useCallback((seconds, paused, bIdx, hScore, aScore, gls, saves, pTimers, cField, cBench) => {
     if (readOnly) return;
+    const sourceData = dataRef.current;
+    if (!sourceData?.currentGame) return;
+    const timerSync = buildTimerSyncState(seconds, paused);
     onUpdate({
-      ...data,
+      ...sourceData,
       currentGame: {
-        ...data.currentGame,
+        ...sourceData.currentGame,
         elapsedSeconds: seconds,
         isPaused: paused,
         blockIndex: bIdx,
@@ -229,9 +260,10 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
         customField: cField,
         customBench: cBench,
         lastTickAtMs: lastTickMsRef.current,
+        timerSync,
       },
     });
-  }, [data, onUpdate, readOnly]);
+  }, [onUpdate, readOnly]);
 
   // Timer tick
   useEffect(() => {
@@ -331,11 +363,23 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   // Persist state periodically
   useEffect(() => {
-    const t = setTimeout(() => {
-      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench);
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, saveState, customField, customBench]);
+    if (readOnly) return undefined;
+    const interval = setInterval(() => {
+      saveState(
+        elapsedRef.current,
+        isPausedRef.current,
+        blockIndexRef.current,
+        homeScoreRef.current,
+        awayScoreRef.current,
+        goalsRef.current,
+        gkSavesRef.current,
+        playerTimersRef.current,
+        customFieldRef.current,
+        customBenchRef.current,
+      );
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [readOnly, saveState]);
 
   const gameOver = elapsedSeconds >= gameDurationSeconds;
 

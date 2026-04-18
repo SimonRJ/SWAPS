@@ -287,14 +287,18 @@ export default function App() {
   useEffect(() => {
     if (!session?.viewOnly || !loggedIn) return undefined;
     let cancelled = false;
-    const refreshIntervalMs = hasLiveGame ? 3000 : 10000;
-    const interval = setInterval(async () => {
+    const refreshIntervalMs = hasLiveGame ? 1000 : 10000;
+    const refreshNow = async () => {
       try {
         const latest = await viewTeamData(session.teamId);
         if (!cancelled) setData(migrateData(latest));
       } catch {
         // ignore view-only refresh errors
       }
+    };
+    refreshNow();
+    const interval = setInterval(async () => {
+      await refreshNow();
     }, refreshIntervalMs);
     return () => {
       cancelled = true;
@@ -312,6 +316,10 @@ export default function App() {
   }
 
   function handleLogout() {
+    if (session?.viewOnly) {
+      performLogout();
+      return;
+    }
     if (data?.currentGame) {
       setLogoutError('');
       setShowLogoutWarning(true);
