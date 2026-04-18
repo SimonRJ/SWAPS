@@ -13,6 +13,7 @@ import { FOOTBALL_WEST_LOGO_URL } from './utils/clubLogos.js';
 import { loginWithSession, saveTeamData, viewTeamData } from './utils/netlifyData.js';
 import { LAST_TEAM_ID_KEY } from './utils/storageKeys.js';
 import { applyBlockMinutes } from './utils/subAlgorithm.js';
+import { buildMatchReport } from './utils/matchReport.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
@@ -145,6 +146,17 @@ function buildLogoutEndGameData(data) {
     };
   });
 
+  const resolvedGoals = currentGame.goals ?? [];
+  const resolvedSaves = currentGame.gkSaves ?? {};
+  const resolvedLog = currentGame.gameLog ?? [];
+  const reportGame = {
+    ...currentGame,
+    goals: resolvedGoals,
+    gkSaves: resolvedSaves,
+    gameLog: resolvedLog,
+  };
+  const matchReport = buildMatchReport({ game: reportGame, players, team });
+
   const historyEntry = {
     gameNumber: currentGame.gameNumber,
     date: new Date().toLocaleDateString(),
@@ -156,14 +168,22 @@ function buildLogoutEndGameData(data) {
     opponentLogoUrl: currentGame.opponentLogoUrl || '',
     homeScore: currentGame.homeScore ?? 0,
     awayScore: currentGame.awayScore ?? 0,
-    goals: currentGame.goals ?? [],
-    gkSaves,
+    goals: resolvedGoals,
+    gkSaves: resolvedSaves,
+    gameLog: resolvedLog,
     playerTimers,
     absentMinutes: currentGame.absentMinutes || [],
     playerMinuteDeltas,
+    availablePlayers: currentGame.availablePlayers || [],
+    absentPlayers: currentGame.absentPlayers || [],
+    startingField: currentGame.startingField || [],
     startingBenchIds: Array.isArray(currentGame.startingBench)
       ? currentGame.startingBench.filter(id => typeof id === 'string')
       : [],
+    startingBench: Array.isArray(currentGame.startingBench)
+      ? currentGame.startingBench.filter(id => typeof id === 'string')
+      : [],
+    matchReport,
   };
 
   const updatedCancelled = getCancelledDetails(data)
@@ -560,7 +580,7 @@ export default function App() {
           )
         )}
         {activeTab === 'stats' && (
-          <StatsTab data={data} onUpdate={handleUpdate} readOnly={isViewOnly} />
+          <StatsTab data={data} onUpdate={handleUpdate} sessionTeamId={session?.teamId} readOnly={isViewOnly} />
         )}
       </main>
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />

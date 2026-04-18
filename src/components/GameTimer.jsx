@@ -74,6 +74,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const [awayScore, setAwayScore] = useState(currentGame.awayScore || 0);
   const [goals, setGoals] = useState(currentGame.goals || []);
   const [gkSaves, setGkSaves] = useState(currentGame.gkSaves || {});
+  const [matchEvents, setMatchEvents] = useState(currentGame.gameLog || []);
   const [playerTimers, setPlayerTimers] = useState(currentGame.playerTimers || {});
   const [showGoalPicker, setShowGoalPicker] = useState(false);
   const [showMatchSummary, setShowMatchSummary] = useState(false);
@@ -88,7 +89,10 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   ));
   const [manualTimeSeconds, setManualTimeSeconds] = useState(currentGame.elapsedSeconds || 0);
   const [saveFeedback, setSaveFeedback] = useState('');
+  const [showLiveFeed, setShowLiveFeed] = useState(false);
+  const [liveToastEvent, setLiveToastEvent] = useState(null);
   const feedbackTimeoutRef = useRef(null);
+  const toastTimeoutRef = useRef(null);
 
   // Custom field/bench assignments (overrides plan)
   const [customField, setCustomField] = useState(() => (
@@ -106,12 +110,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const awayScoreRef = useRef(awayScore);
   const goalsRef = useRef(goals);
   const gkSavesRef = useRef(gkSaves);
+  const matchEventsRef = useRef(matchEvents);
   const playerTimersRef = useRef(playerTimers);
   const customFieldRef = useRef(customField);
   const customBenchRef = useRef(customBench);
   const lastTickMsRef = useRef(currentGame.lastTickAtMs || 0);
   const readOnlySyncRef = useRef(null);
   const onSwitchToGameRef = useRef(onSwitchToGame);
+  const lastToastEventIdRef = useRef(null);
 
   const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
 
@@ -122,6 +128,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   useEffect(() => { awayScoreRef.current = awayScore; }, [awayScore]);
   useEffect(() => { goalsRef.current = goals; }, [goals]);
   useEffect(() => { gkSavesRef.current = gkSaves; }, [gkSaves]);
+  useEffect(() => { matchEventsRef.current = matchEvents; }, [matchEvents]);
   useEffect(() => { playerTimersRef.current = playerTimers; }, [playerTimers]);
   useEffect(() => { customFieldRef.current = customField; }, [customField]);
   useEffect(() => { customBenchRef.current = customBench; }, [customBench]);
@@ -135,6 +142,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   }, [showResumeOptions]);
   useEffect(() => () => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
   }, []);
 
   useEffect(() => {
@@ -175,6 +183,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     setAwayScore(currentGame.awayScore || 0);
     setGoals(currentGame.goals || []);
     setGkSaves(currentGame.gkSaves || {});
+    setMatchEvents(currentGame.gameLog || []);
     setPlayerTimers(currentGame.playerTimers || {});
     setCustomField(
       currentGame.customField
@@ -248,6 +257,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
         goals: gls,
         gkSaves: saves,
         playerTimers: pTimers,
+        gameLog: extras.gameLog ?? matchEventsRef.current,
         customField: cField,
         customBench: cBench,
         lastTickAtMs: lastTickMsRef.current,
@@ -374,6 +384,16 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   const gameOver = elapsedSeconds >= gameDurationSeconds;
 
+  useEffect(() => {
+    if (matchEvents.length === 0) return;
+    const latest = matchEvents[matchEvents.length - 1];
+    if (!latest?.id || latest.id === lastToastEventIdRef.current) return;
+    lastToastEventIdRef.current = latest.id;
+    setLiveToastEvent(latest);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setLiveToastEvent(null), 5000);
+  }, [matchEvents]);
+
   function handlePause() {
     if (readOnly) return;
     const newPaused = !isPaused;
@@ -406,12 +426,23 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       const targetBlock = plan[pendingBlockIndex];
       const newField = targetBlock.onField;
       const newBench = targetBlock.onBench;
+      const subs = getSubsBetween(fieldAssignments, newField);
+      const subEvents = subs.map(sub => buildMatchEvent('sub', {
+        offPlayerId: sub.off,
+        offPlayerName: getPlayer(sub.off)?.name || '?',
+        onPlayerId: sub.on,
+        onPlayerName: getPlayer(sub.on)?.name || '?',
+        position: sub.position,
+      }));
+      const nextEvents = appendMatchEvents(subEvents);
       setCustomField(newField);
       setCustomBench(newBench);
       setPendingBlockIndex(null);
       setShowSubModal(false);
       // Immediately persist so view-only users see the substitution without waiting for the debounce
-      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, newField, newBench);
+      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, newField, newBench, {
+        gameLog: nextEvents,
+      });
     } else {
       setPendingBlockIndex(null);
       setShowSubModal(false);
@@ -426,6 +457,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       goals,
       gkSaves,
       playerTimers,
+      gameLog: matchEventsRef.current,
     });
   }
 
@@ -473,15 +505,68 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       minute: Math.floor(elapsedSeconds / 60),
     };
     const newGoals = [...goals, newGoal];
+    const nextHomeScore = homeScore + 1;
+    const nextEvents = appendMatchEvent(buildMatchEvent('goal', {
+      playerId,
+      playerName: player?.name || '?',
+      teamName: team?.name || 'Home',
+    }));
     setGoals(newGoals);
-    setHomeScore(prev => prev + 1);
+    setHomeScore(nextHomeScore);
+    saveState(elapsedSeconds, isPaused, blockIndex, nextHomeScore, awayScore, newGoals, gkSaves, playerTimers, customField, customBench, {
+      gameLog: nextEvents,
+    });
     setShowGoalPicker(false);
+  }
+
+  function addOpponentGoal() {
+    if (readOnly) return;
+    const nextAwayScore = awayScore + 1;
+    const nextEvents = appendMatchEvent(buildMatchEvent('opponent-goal', {
+      opponentName: currentGame.opponentName || 'Opponent',
+    }));
+    setAwayScore(nextAwayScore);
+    saveState(elapsedSeconds, isPaused, blockIndex, homeScore, nextAwayScore, goals, gkSaves, playerTimers, customField, customBench, {
+      gameLog: nextEvents,
+    });
+  }
+
+  function removeOpponentGoal() {
+    if (readOnly) return;
+    const nextAwayScore = Math.max(0, awayScore - 1);
+    setAwayScore(nextAwayScore);
+    saveState(elapsedSeconds, isPaused, blockIndex, homeScore, nextAwayScore, goals, gkSaves, playerTimers, customField, customBench);
   }
 
   function setTimedFeedback(message) {
     setSaveFeedback(message);
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     feedbackTimeoutRef.current = setTimeout(() => setSaveFeedback(''), 1800);
+  }
+
+  function buildMatchEvent(type, payload = {}) {
+    return {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      type,
+      minute: Math.floor(elapsedSeconds / 60),
+      createdAtMs: Date.now(),
+      ...payload,
+    };
+  }
+
+  function appendMatchEvent(event) {
+    const nextEvents = [...matchEventsRef.current, event];
+    matchEventsRef.current = nextEvents;
+    setMatchEvents(nextEvents);
+    return nextEvents;
+  }
+
+  function appendMatchEvents(events) {
+    if (!events || events.length === 0) return matchEventsRef.current;
+    const nextEvents = [...matchEventsRef.current, ...events];
+    matchEventsRef.current = nextEvents;
+    setMatchEvents(nextEvents);
+    return nextEvents;
   }
 
   function addGoalkeeperSave() {
@@ -492,10 +577,18 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       return;
     }
     const goalkeeperName = getPlayer(goalkeeper.playerId)?.name || 'Goalkeeper';
-    setGkSaves(prev => ({
-      ...prev,
-      [goalkeeper.playerId]: (prev[goalkeeper.playerId] || 0) + 1,
+    const nextSaves = {
+      ...gkSaves,
+      [goalkeeper.playerId]: (gkSaves[goalkeeper.playerId] || 0) + 1,
+    };
+    const nextEvents = appendMatchEvent(buildMatchEvent('save', {
+      playerId: goalkeeper.playerId,
+      playerName: goalkeeperName,
     }));
+    setGkSaves(nextSaves);
+    saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, nextSaves, playerTimers, customField, customBench, {
+      gameLog: nextEvents,
+    });
     setTimedFeedback(`🧤 Save recorded for ${goalkeeperName}.`);
   }
 
@@ -546,6 +639,16 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
         setCustomField(currentFieldArr);
         setCustomBench(newBench);
+        const nextEvents = appendMatchEvent(buildMatchEvent('sub', {
+          offPlayerId: targetFieldPlayer.playerId,
+          offPlayerName: getPlayer(targetFieldPlayer.playerId)?.name || '?',
+          onPlayerId: playerId,
+          onPlayerName: getPlayer(playerId)?.name || '?',
+          position: targetPosition,
+        }));
+        saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, currentFieldArr, newBench, {
+          gameLog: nextEvents,
+        });
       }
     }
     setDraggedPlayer(null);
@@ -572,6 +675,16 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
       setCustomField(currentFieldArr);
       setCustomBench(newBench);
+      const nextEvents = appendMatchEvent(buildMatchEvent('sub', {
+        offPlayerId: playerId,
+        offPlayerName: getPlayer(playerId)?.name || '?',
+        onPlayerId: benchPlayerId,
+        onPlayerName: getPlayer(benchPlayerId)?.name || '?',
+        position,
+      }));
+      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, currentFieldArr, newBench, {
+        gameLog: nextEvents,
+      });
     }
     setDraggedPlayer(null);
   }
@@ -605,6 +718,16 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       currentFieldArr[targetFieldIdx] = { playerId, position: targetPosition };
       setCustomField(currentFieldArr);
       setCustomBench(newBench);
+      const nextEvents = appendMatchEvent(buildMatchEvent('sub', {
+        offPlayerId: targetPlayerId,
+        offPlayerName: getPlayer(targetPlayerId)?.name || '?',
+        onPlayerId: playerId,
+        onPlayerName: getPlayer(playerId)?.name || '?',
+        position: targetPosition,
+      }));
+      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, currentFieldArr, newBench, {
+        gameLog: nextEvents,
+      });
     }
 
     setDraggedPlayer(null);
@@ -732,6 +855,17 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     goalCounts[g.playerId] = (goalCounts[g.playerId] || 0) + 1;
   }
   const totalSaves = Object.values(gkSaves || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  const orderedEvents = useMemo(() => (
+    [...matchEvents].sort((a, b) => {
+      const minuteDiff = (Number(a.minute) || 0) - (Number(b.minute) || 0);
+      if (minuteDiff !== 0) return minuteDiff;
+      return (a.createdAtMs || 0) - (b.createdAtMs || 0);
+    })
+  ), [matchEvents]);
+
+  function formatMinuteLabel(minute) {
+    return Number.isFinite(Number(minute)) ? `${Number(minute)}'` : '';
+  }
 
   // Render match summary
   if (showMatchSummary) {
@@ -971,19 +1105,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
             </div>
             <div className="flex items-center justify-start gap-2">
               <button
-                onClick={() => {
-                  if (readOnly) return;
-                  setAwayScore(s => Math.max(0, s - 1));
-                }}
+                onClick={removeOpponentGoal}
                 disabled={readOnly}
                 className={`w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30 ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               >−</button>
               <span className="text-[28px] font-black tabular-nums leading-none">{awayScore}</span>
               <button
-                onClick={() => {
-                  if (readOnly) return;
-                  setAwayScore(s => s + 1);
-                }}
+                onClick={addOpponentGoal}
                 disabled={readOnly}
                 className={`w-5 h-5 rounded-full bg-white/20 text-white text-xs font-bold active:bg-white/30 ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
               >+</button>
@@ -993,7 +1121,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       </div>
 
       {/* Body: flex-col mobile, grid on landscape tablet */}
-      <div className="game-body-wrapper flex flex-col flex-1 min-h-0" role="region" aria-label="Game field area">
+      <div className="game-body-wrapper flex flex-col flex-1 min-h-0 relative" role="region" aria-label="Game field area">
       {/* Controls group - moves to sidebar on landscape tablet */}
       <div className="game-controls-group shrink-0" role="toolbar" aria-label="Game controls">
       {/* Controls */}
@@ -1060,6 +1188,84 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       )}
       </div>{/* end game-controls-group */}
 
+      <button
+        type="button"
+        onClick={() => setShowLiveFeed(value => !value)}
+        className="absolute right-0 top-1/2 -translate-y-1/2 z-30 bg-slate-900/90 text-white text-xs font-semibold px-3 py-2 rounded-l-xl shadow-lg border border-white/10"
+        aria-label="Toggle live feed"
+      >
+        {showLiveFeed ? 'Close Feed' : 'Live Feed'}
+        {orderedEvents.length > 0 && (
+          <span className="ml-2 inline-flex items-center justify-center text-[10px] font-bold bg-emerald-500 text-white rounded-full w-5 h-5">
+            {orderedEvents.length}
+          </span>
+        )}
+      </button>
+
+      <div
+        className={`absolute right-0 top-0 h-full w-72 max-w-[80vw] bg-white/95 dark:bg-slate-900/95 shadow-2xl border-l border-gray-200 dark:border-slate-800 z-20 transform transition-transform duration-300 ${showLiveFeed ? 'translate-x-0' : 'translate-x-full'}`}
+        aria-hidden={!showLiveFeed}
+      >
+        <div className="h-full flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Live Match Feed</h3>
+            <button
+              type="button"
+              onClick={() => setShowLiveFeed(false)}
+              className="w-7 h-7 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-200 font-bold"
+              aria-label="Close live feed"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            {orderedEvents.length === 0 ? (
+              <p className="text-xs text-gray-500 dark:text-slate-400">No live events yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {orderedEvents.map(event => {
+                  const minuteLabel = formatMinuteLabel(event.minute);
+                  if (event.type === 'sub') {
+                    return (
+                      <li key={event.id} className="rounded-xl border border-gray-100 dark:border-slate-800 p-2">
+                        <p className="text-[10px] uppercase font-semibold text-gray-400 dark:text-slate-500">Substitution {minuteLabel}</p>
+                        <div className="flex items-center gap-2 text-xs font-semibold mt-1">
+                          <span className="text-red-500">{event.offPlayerName || '?'}</span>
+                          <span className="text-gray-400">⇄</span>
+                          <span className="text-emerald-500">{event.onPlayerName || '?'}</span>
+                        </div>
+                      </li>
+                    );
+                  }
+                  if (event.type === 'save') {
+                    return (
+                      <li key={event.id} className="rounded-xl border border-emerald-100 dark:border-emerald-900/40 p-2">
+                        <p className="text-[10px] uppercase font-semibold text-emerald-500">Save {minuteLabel}</p>
+                        <p className="text-xs font-semibold text-gray-900 dark:text-slate-100 mt-1">🧤 {event.playerName || '?'}</p>
+                      </li>
+                    );
+                  }
+                  if (event.type === 'opponent-goal') {
+                    return (
+                      <li key={event.id} className="rounded-xl border border-red-100 dark:border-red-900/40 p-2">
+                        <p className="text-[10px] uppercase font-semibold text-red-500">Opponent Goal {minuteLabel}</p>
+                        <p className="text-xs font-semibold text-gray-900 dark:text-slate-100 mt-1">⚽ {event.opponentName || currentGame.opponentName}</p>
+                      </li>
+                    );
+                  }
+                  return (
+                    <li key={event.id} className="rounded-xl border border-sky-100 dark:border-sky-900/40 p-2">
+                      <p className="text-[10px] uppercase font-semibold text-sky-500">Goal {minuteLabel}</p>
+                      <p className="text-xs font-semibold text-gray-900 dark:text-slate-100 mt-1">⚽ {event.playerName || '?'}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Soccer Field */}
       <div className="game-pitch-area px-1 py-0 flex-1 min-h-0 flex items-center justify-center">
         <div className="relative bg-gradient-to-b from-emerald-700 via-emerald-600 to-emerald-800 rounded-xl overflow-hidden w-full max-w-[470px] md:max-w-[600px] max-h-full aspect-[68/105] border border-emerald-900/60 shadow-2xl touch-none">
@@ -1093,6 +1299,44 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
               )}
             </div>
           </div>
+
+          {liveToastEvent && (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[12]">
+              <div className="px-4 py-2 rounded-2xl bg-white/90 text-gray-900 text-xs font-semibold shadow-xl border border-white/60">
+                {liveToastEvent.type === 'sub' ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-red-500">{liveToastEvent.offPlayerName || '?'}</span>
+                    <span className="text-gray-500">⇄</span>
+                    <span className="text-emerald-600">{liveToastEvent.onPlayerName || '?'}</span>
+                    {formatMinuteLabel(liveToastEvent.minute) && (
+                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
+                    )}
+                  </div>
+                ) : liveToastEvent.type === 'save' ? (
+                  <div className="flex items-center gap-2">
+                    <span>🧤 Save by {liveToastEvent.playerName || '?'}</span>
+                    {formatMinuteLabel(liveToastEvent.minute) && (
+                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
+                    )}
+                  </div>
+                ) : liveToastEvent.type === 'opponent-goal' ? (
+                  <div className="flex items-center gap-2">
+                    <span>⚽ Goal for {liveToastEvent.opponentName || currentGame.opponentName}</span>
+                    {formatMinuteLabel(liveToastEvent.minute) && (
+                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>⚽ Goal for {team?.name || 'Home'} by {liveToastEvent.playerName || '?'}</span>
+                    {formatMinuteLabel(liveToastEvent.minute) && (
+                      <span className="text-gray-400">{formatMinuteLabel(liveToastEvent.minute)}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Field markings */}
           <div className="absolute inset-0">
@@ -1197,6 +1441,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
             const timer = playerTimers[a.playerId];
             const timerSecs = timer?.totalSeconds || 0;
             const playerGoals = goalCounts[a.playerId] || 0;
+            const playerSaves = a.position === 'GK' ? (Number(gkSaves[a.playerId]) || 0) : 0;
 
             return (
               <div
@@ -1231,6 +1476,12 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
                 {playerGoals > 0 && (
                   <div className="text-[10px] md:text-xs leading-none mt-0.5">
                     {Array.from({ length: Math.min(playerGoals, 5) }, () => '⚽').join('')}
+                  </div>
+                )}
+                {playerSaves > 0 && (
+                  <div className="mt-0.5 text-[10px] md:text-xs font-semibold text-emerald-200 bg-emerald-600/80 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span>🧤</span>
+                    <span className="tabular-nums">{playerSaves}</span>
                   </div>
                 )}
               </div>
