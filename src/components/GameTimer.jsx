@@ -131,6 +131,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const readOnlySyncRef = useRef(null);
   const onSwitchToGameRef = useRef(onSwitchToGame);
   const lastToastEventIdRef = useRef(null);
+  const lastToastEventIndexRef = useRef(-1);
 
   const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
 
@@ -400,15 +401,18 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   useEffect(() => {
     if (matchEvents.length === 0) return;
     const lastToastId = lastToastEventIdRef.current;
+    let lastIndex = lastToastEventIndexRef.current;
     let newEvents = [];
     if (!lastToastId) {
       newEvents = [matchEvents[matchEvents.length - 1]];
     } else {
-      let lastIndex = -1;
-      for (let i = matchEvents.length - 1; i >= 0; i -= 1) {
-        if (matchEvents[i].id === lastToastId) {
-          lastIndex = i;
-          break;
+      if (lastIndex < 0 || matchEvents[lastIndex]?.id !== lastToastId) {
+        lastIndex = -1;
+        for (let i = matchEvents.length - 1; i >= 0; i -= 1) {
+          if (matchEvents[i].id === lastToastId) {
+            lastIndex = i;
+            break;
+          }
         }
       }
       if (lastIndex === -1) {
@@ -424,8 +428,8 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       let allSubs = true;
       let sameMinute = true;
       for (const event of newEvents) {
-        if (event.type !== 'sub') allSubs = false;
-        if (event.minute !== latestEvent.minute) sameMinute = false;
+        if (allSubs && event.type !== 'sub') allSubs = false;
+        if (sameMinute && event.minute !== latestEvent.minute) sameMinute = false;
         if (!allSubs && !sameMinute) break;
       }
       if (allSubs && sameMinute) {
@@ -433,6 +437,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       }
     }
     lastToastEventIdRef.current = latestEvent.id;
+    lastToastEventIndexRef.current = matchEvents.length - 1;
     setLiveToast({ events: toastEvents });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = setTimeout(() => setLiveToast(null), 5000);
