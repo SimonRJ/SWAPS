@@ -13,6 +13,7 @@ async function callTeamFunction(payload) {
     const error = new Error(body.error || 'Request failed.');
     error.code = body.code || 'REQUEST_FAILED';
     error.details = body;
+    error.status = response.status;
     if (body.maxTeams !== undefined) {
       error.maxTeams = body.maxTeams;
     }

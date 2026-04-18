@@ -15,6 +15,7 @@ import { applyBlockMinutes } from './utils/subAlgorithm.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
+const LAST_TEAM_ID_KEY = 'soccerSubsLastTeamId';
 
 function readStoredSession() {
   try {
@@ -184,6 +185,7 @@ export default function App() {
   const [session, setSession] = useState(() => readStoredSession());
   const [checkingSession, setCheckingSession] = useState(() => Boolean(readStoredSession()));
   const [syncError, setSyncError] = useState('');
+  const [sessionError, setSessionError] = useState('');
   const [authScreen, setAuthScreen] = useState('login');
   const [activeTab, setActiveTab] = useState('game');
   const [theme, setTheme] = useState(() => getInitialTheme());
@@ -202,10 +204,12 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setCheckingSession(false);
+      setSessionError('');
       return;
     }
     let cancelled = false;
     setCheckingSession(true);
+    setSessionError('');
     (async () => {
       try {
         const loginData = session?.viewOnly
@@ -214,10 +218,24 @@ export default function App() {
         if (cancelled) return;
         setData(migrateData(loginData));
         setLoggedIn(true);
-      } catch {
+        try {
+          localStorage.setItem(LAST_TEAM_ID_KEY, session.teamId);
+        } catch {
+          // ignore
+        }
+      } catch (error) {
         if (cancelled) return;
-        setSession(null);
-        sessionStorage.removeItem(SESSION_KEY);
+        const status = error?.status;
+        if (status === 401 || status === 404) {
+          setLoggedIn(false);
+          setData(null);
+          setSession(null);
+          setSyncError('');
+          setAuthScreen('login');
+          sessionStorage.removeItem(SESSION_KEY);
+        } else {
+          setSessionError(error?.message || 'Unable to load team data. Check your connection and try again.');
+        }
       } finally {
         if (!cancelled) setCheckingSession(false);
       }
@@ -248,7 +266,13 @@ export default function App() {
     setLoggedIn(true);
     setAuthScreen('login');
     setSyncError('');
+    setSessionError('');
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginSession));
+    try {
+      localStorage.setItem(LAST_TEAM_ID_KEY, loginSession.teamId);
+    } catch {
+      // ignore
+    }
   }, []);
 
   const handleUpdate = useCallback(async (newData, options = {}) => {
@@ -307,9 +331,43 @@ export default function App() {
     setData(null);
     setSession(null);
     setSyncError('');
+    setSessionError('');
     setAuthScreen('login');
     sessionStorage.removeItem(SESSION_KEY);
   }
+
+  const retrySessionLogin = useCallback(async () => {
+    if (!session || checkingSession) return;
+    setCheckingSession(true);
+    setSessionError('');
+    try {
+      const loginData = session?.viewOnly
+        ? await viewTeamData(session.teamId)
+        : await loginWithSession(session);
+      setData(migrateData(loginData));
+      setLoggedIn(true);
+      setSyncError('');
+      try {
+        localStorage.setItem(LAST_TEAM_ID_KEY, session.teamId);
+      } catch {
+        // ignore
+      }
+    } catch (error) {
+      const status = error?.status;
+      if (status === 401 || status === 404) {
+        setLoggedIn(false);
+        setData(null);
+        setSession(null);
+        setSyncError('');
+        setAuthScreen('login');
+        sessionStorage.removeItem(SESSION_KEY);
+      } else {
+        setSessionError(error?.message || 'Unable to load team data. Check your connection and try again.');
+      }
+    } finally {
+      setCheckingSession(false);
+    }
+  }, [checkingSession, session]);
 
   function handleLogout() {
     if (!isViewOnly && data?.currentGame) {
@@ -385,6 +443,9 @@ export default function App() {
           onLogin={handleLogin}
           onOpenAdmin={() => setAuthScreen('admin')}
           onOpenCreateTeam={() => setAuthScreen('create-team')}
+          sessionError={sessionError}
+          onRetrySession={session ? retrySessionLogin : undefined}
+          initialTeamId={session?.teamId}
         />
         <div className="fixed right-3 top-3 z-50">
           <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} className="text-white" />
