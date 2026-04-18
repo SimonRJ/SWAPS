@@ -93,7 +93,6 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
 
   const effectivePlan = preferredPlan || gamePlan;
 
-
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [step]);

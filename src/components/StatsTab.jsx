@@ -271,7 +271,6 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
     setCancelledDraft(null);
   }
 
-
   function saveCancelledEditor() {
     if (!cancelledDraft || !onUpdate) return;
     if (readOnly) return;
