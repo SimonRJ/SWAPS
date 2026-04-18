@@ -327,7 +327,7 @@ export default function App() {
     };
     const savePromise = saveQueueRef.current.then(runSave, runSave);
     saveQueueRef.current = savePromise.catch((error) => {
-      console.error(error);
+      console.error('Queued save failed:', error);
     });
     return savePromise;
   }, []);
