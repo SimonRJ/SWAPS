@@ -29,6 +29,7 @@ function posLabelSmall(pos) {
 const PRE_SUB_ALERT_SECONDS_2MIN = 120;
 const PRE_SUB_ALERT_SECONDS_1MIN = 60;
 const SUB_INTERVAL_SECONDS = 10 * 60;
+const MAX_REMOTE_TICK_DRIFT_SECONDS = 10;
 const PITCH_MARKINGS = {
   penaltyAreaDepthPct: 15.7,
   penaltyAreaWidthPct: 59.3,
@@ -43,6 +44,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const { plan, availablePlayers } = currentGame;
   const opponentLogo = currentGame.opponentLogoUrl || '';
   const planLength = plan.length;
+  const lastBlockIndex = Math.max(planLength - 1, 0);
 
   const [elapsedSeconds, setElapsedSeconds] = useState(currentGame.elapsedSeconds || 0);
   const [isPaused, setIsPaused] = useState(currentGame.isPaused || false);
@@ -108,12 +110,13 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     const now = Date.now();
     let nextElapsed = remoteElapsed;
     if (!remotePaused && remoteTick) {
-      const deltaSeconds = Math.max(0, Math.floor((now - remoteTick) / 1000));
+      const rawDeltaSeconds = Math.floor((now - remoteTick) / 1000);
+      const deltaSeconds = Math.max(0, Math.min(rawDeltaSeconds, MAX_REMOTE_TICK_DRIFT_SECONDS));
       nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
     }
-    const maxBlockIndex = Math.max(planLength - 1, 0);
-    const derivedBlock = Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), maxBlockIndex);
+    const derivedBlock = Math.min(Math.floor(nextElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex);
     lastRemoteTickRef.current = remoteTick;
+    // Align local tick base with the most recent remote update for read-only display.
     lastTickMsRef.current = now;
     elapsedRef.current = nextElapsed;
     setElapsedSeconds(nextElapsed);
@@ -138,7 +141,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     );
     setShowGoalPicker(false);
     setShowResumeOptions(false);
-  }, [readOnly, currentGame, gameDurationSeconds, planLength]);
+  }, [readOnly, currentGame, gameDurationSeconds, planLength, lastBlockIndex]);
 
   // Use custom assignments if set, otherwise use plan
   const fieldAssignments = customField;
@@ -222,7 +225,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
       // Check if we've crossed a sub block boundary
       const newBlock = Math.floor(newElapsed / SUB_INTERVAL_SECONDS);
-      const currentBlockFromTime = Math.min(newBlock, plan.length - 1);
+      const currentBlockFromTime = Math.min(newBlock, lastBlockIndex);
       const nextBlockIndex = Math.floor(newElapsed / SUB_INTERVAL_SECONDS) + 1;
       const nextBlockAt = nextBlockIndex * SUB_INTERVAL_SECONDS;
 
@@ -271,7 +274,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     }, 1000);
 
     return () => clearInterval(intervalRef.current);
-  }, [isPaused, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock]);
+  }, [isPaused, gameDurationSeconds, plan, blockIndex, customField, lastPreAlertBlock, lastPreAlert2MinBlock, lastBlockIndex]);
 
   // Persist state periodically
   useEffect(() => {
@@ -344,7 +347,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     const manualValue = Number(manualTimeSeconds);
     const safeValue = Number.isFinite(manualValue) ? manualValue : elapsedSeconds;
     const nextTime = Math.max(0, Math.min(gameDurationSeconds, safeValue));
-    const nextBlock = Math.min(Math.floor(nextTime / SUB_INTERVAL_SECONDS), plan.length - 1);
+    const nextBlock = Math.min(Math.floor(nextTime / SUB_INTERVAL_SECONDS), lastBlockIndex);
     setElapsedSeconds(nextTime);
     setBlockIndex(nextBlock);
     setIsPaused(true);
