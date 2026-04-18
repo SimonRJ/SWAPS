@@ -8,6 +8,7 @@ import OpponentTeamInput from './OpponentTeamInput.jsx';
 import LogoImageInput from './LogoImageInput.jsx';
 import TeamAvatar from './TeamAvatar.jsx';
 import PlayerAvatar from './PlayerAvatar.jsx';
+import { useGameHistoryEditor } from './useGameHistoryEditor.jsx';
 
 function MinuteBar({ label, minutes, maxMinutes, colorClass, target }) {
   const pct = maxMinutes > 0 ? Math.round((minutes / maxMinutes) * 100) : 0;
@@ -92,7 +93,7 @@ function resultBlobLetter(label) {
   return '?';
 }
 
-export default function StatsTab({ data, onUpdate, readOnly = false }) {
+export default function StatsTab({ data, onUpdate, sessionTeamId, readOnly = false }) {
   const { players, team, gameHistory } = data;
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [overviewView, setOverviewView] = useState('overview');
@@ -109,6 +110,13 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [overviewView, selectedPlayer]);
+
+  const {
+    editorUi,
+    openEditGame,
+    openEditCancelledGame,
+    openDeletePrompt,
+  } = useGameHistoryEditor({ data, onUpdate, sessionTeamId, readOnly });
 
   useEffect(() => {
     if (!showRoundDatePicker) return;
@@ -142,7 +150,9 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
   );
   const cancelledDetails = data.cancelledGameDetails || [];
   const playedHistory = useMemo(
-    () => [...history].sort((a, b) => (b.gameNumber || 0) - (a.gameNumber || 0)),
+    () => [...history]
+      .map((game, index) => ({ ...game, originalIndex: index }))
+      .sort((a, b) => (b.gameNumber || 0) - (a.gameNumber || 0)),
     [history],
   );
   const playedRounds = new Set(history.map(g => Number(g.gameNumber)).filter(Number.isFinite));
@@ -514,6 +524,8 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
             <p className="text-center text-gray-400 dark:text-slate-500 text-sm">No games played yet</p>
           )}
         </div>
+        {editorUi}
+      {editorUi}
       </div>
     );
   }
@@ -546,6 +558,22 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
                       </span>
                     </div>
                   </div>
+                  {!readOnly && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditGame(game.originalIndex)}
+                        className="text-xs font-semibold text-pitch-700 dark:text-emerald-300 px-2.5 py-1 rounded-lg bg-pitch-50 dark:bg-emerald-900/30"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => openDeletePrompt(game.originalIndex)}
+                        className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <TeamAvatar
                       src={game.opponentLogoUrl}
@@ -577,6 +605,7 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
             </ul>
           )}
         </div>
+        {editorUi}
       </div>
     );
   }
@@ -651,6 +680,12 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
                       {!readOnly && (
                         <>
                           <button
+                            onClick={() => openEditCancelledGame(game)}
+                            className="text-xs font-semibold text-pitch-700 px-2 py-1 rounded-md bg-pitch-50 dark:bg-emerald-900/30 dark:text-emerald-200"
+                          >
+                            Record Result
+                          </button>
+                          <button
                             onClick={() => openCancelledEditor(game)}
                             className="text-xs font-semibold text-amber-800 px-2 py-1 rounded-md bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200"
                           >
@@ -684,6 +719,7 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
             </ul>
           )}
         </div>
+      {editorUi}
       </div>
     );
   }
@@ -1193,6 +1229,7 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
             </ul>
           )}
         </div>
+        {editorUi}
       </div>
     );
   }
@@ -1317,6 +1354,7 @@ export default function StatsTab({ data, onUpdate, readOnly = false }) {
           <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-400 inline-block" /> Sick/Injured</div>
         </div>
       </div>
+      {editorUi}
     </div>
   );
 }
