@@ -16,6 +16,8 @@ import PlayerAvatar from './PlayerAvatar.jsx';
 // Forced formation: 3-3-2 (3 DEF, 3 MID, 2 ATK + 1 GK)
 const FORCED_FORMATION = [3, 3, 2];
 const FORCED_FORMATION_STR = formatFormation(FORCED_FORMATION);
+const FORCED_OUTFIELD_COUNT = FORCED_FORMATION.reduce((total, count) => total + count, 0);
+const FORCED_STARTER_COUNT = FORCED_OUTFIELD_COUNT + 1;
 
 function formatRoundDateLabel(dateValue) {
   if (!dateValue) return 'Date not set';
@@ -92,6 +94,40 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
   }, [selectedPlayers, minFieldCount, team, activePlayers, benchStartCounts, benchProtectedIds]);
 
   const effectivePlan = preferredPlan || gamePlan;
+
+  const lineupRequiredCounts = useMemo(() => {
+    const totalSubs = Math.max(selectedPlayers.length - FORCED_STARTER_COUNT, 0);
+    return {
+      GK: 1,
+      DEF: FORCED_FORMATION[0],
+      MID: FORCED_FORMATION[1],
+      ATK: FORCED_FORMATION[2],
+      SUB: totalSubs,
+    };
+  }, [selectedPlayers.length]);
+  const lineupSelectedCounts = useMemo(() => {
+    const counts = { GK: 0, DEF: 0, MID: 0, ATK: 0, SUB: 0 };
+    for (const player of selectedPlayers) {
+      const selection = lineupSelections[player.id];
+      if (selection && Object.prototype.hasOwnProperty.call(counts, selection)) {
+        counts[selection] += 1;
+      }
+    }
+    return counts;
+  }, [lineupSelections, selectedPlayers]);
+  const lineupRemainingCounts = useMemo(() => ({
+    GK: Math.max(lineupRequiredCounts.GK - lineupSelectedCounts.GK, 0),
+    DEF: Math.max(lineupRequiredCounts.DEF - lineupSelectedCounts.DEF, 0),
+    MID: Math.max(lineupRequiredCounts.MID - lineupSelectedCounts.MID, 0),
+    ATK: Math.max(lineupRequiredCounts.ATK - lineupSelectedCounts.ATK, 0),
+    SUB: Math.max(lineupRequiredCounts.SUB - lineupSelectedCounts.SUB, 0),
+  }), [lineupRequiredCounts, lineupSelectedCounts]);
+  const lineupRemainingLabel = useMemo(() => (
+    `Need ${lineupRemainingCounts.GK} GK, ${lineupRemainingCounts.DEF} DEF, ${lineupRemainingCounts.MID} MID, ${lineupRemainingCounts.ATK} ATK, and ${lineupRemainingCounts.SUB} Sub${lineupRemainingCounts.SUB === 1 ? '' : 's'}.`
+  ), [lineupRemainingCounts]);
+  const canSelectLineupPosition = (position, playerId) => (
+    lineupSelections[playerId] === position || lineupRemainingCounts[position] > 0
+  );
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -214,14 +250,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
 
   function openLineupEditor() {
     if (!effectivePlan?.[0]) return;
-    const selections = {};
-    for (const assignment of effectivePlan[0].onField || []) {
-      selections[assignment.playerId] = assignment.position;
-    }
-    for (const benchId of effectivePlan[0].onBench || []) {
-      selections[benchId] = 'SUB';
-    }
-    setLineupSelections(selections);
+    setLineupSelections({});
     setLineupError('');
     setShowLineupEditor(true);
   }
@@ -232,12 +261,6 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
   }
 
   function confirmLineupEditor() {
-    const requiredCounts = {
-      GK: 1,
-      DEF: FORCED_FORMATION[0],
-      MID: FORCED_FORMATION[1],
-      ATK: FORCED_FORMATION[2],
-    };
     const counts = { GK: 0, DEF: 0, MID: 0, ATK: 0, SUB: 0 };
     for (const player of selectedPlayers) {
       const selection = lineupSelections[player.id];
@@ -251,8 +274,13 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
       }
       counts[selection] += 1;
     }
-    if (counts.GK !== requiredCounts.GK || counts.DEF !== requiredCounts.DEF || counts.MID !== requiredCounts.MID || counts.ATK !== requiredCounts.ATK) {
-      setLineupError(`Need ${requiredCounts.GK} GK, ${requiredCounts.DEF} DEF, ${requiredCounts.MID} MID, ${requiredCounts.ATK} ATK.`);
+    if (counts.GK !== lineupRequiredCounts.GK
+      || counts.DEF !== lineupRequiredCounts.DEF
+      || counts.MID !== lineupRequiredCounts.MID
+      || counts.ATK !== lineupRequiredCounts.ATK
+      || counts.SUB !== lineupRequiredCounts.SUB) {
+      const subLabel = lineupRequiredCounts.SUB === 1 ? 'Sub' : 'Subs';
+      setLineupError(`Need ${lineupRequiredCounts.GK} GK, ${lineupRequiredCounts.DEF} DEF, ${lineupRequiredCounts.MID} MID, ${lineupRequiredCounts.ATK} ATK, and ${lineupRequiredCounts.SUB} ${subLabel}.`);
       return;
     }
     const fixedGkAvailable = Boolean(team.fixedGKPlayerId && selectedPlayers.some(player => player.id === team.fixedGKPlayerId));
@@ -482,6 +510,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
               <p className="text-xs text-gray-500 dark:text-slate-400">
                 Assign each available player to GK, DEF, MID, ATK, or SUB.
               </p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">{lineupRemainingLabel}</p>
             </div>
             {lineupError && (
               <p className="text-xs font-semibold text-red-600 dark:text-red-300">{lineupError}</p>
@@ -504,11 +533,11 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
                     onChange={(e) => setLineupSelections(current => ({ ...current, [player.id]: e.target.value }))}
                   >
                     <option value="">Select</option>
-                    <option value="GK">Goalkeeper</option>
-                    <option value="DEF">Defence</option>
-                    <option value="MID">Midfield</option>
-                    <option value="ATK">Attack</option>
-                    <option value="SUB">Substitute</option>
+                    {canSelectLineupPosition('GK', player.id) && <option value="GK">Goalkeeper</option>}
+                    {canSelectLineupPosition('DEF', player.id) && <option value="DEF">Defence</option>}
+                    {canSelectLineupPosition('MID', player.id) && <option value="MID">Midfield</option>}
+                    {canSelectLineupPosition('ATK', player.id) && <option value="ATK">Attack</option>}
+                    {canSelectLineupPosition('SUB', player.id) && <option value="SUB">Substitute</option>}
                   </select>
                 </div>
               ))}
