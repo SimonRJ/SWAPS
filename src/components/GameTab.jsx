@@ -659,17 +659,18 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
         <div className="card">
           <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Game History</h3>
           <ul className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
-            {[...historyItems].reverse().map((g, i) => {
+            {[...historyItems].reverse().map((g) => {
               const isCancelled = g.historyType === 'cancelled';
               const label = isCancelled ? 'Cancelled' : getGameResultLabel(g);
               const fixtureType = g.homeAway === 'AWAY' ? 'Away' : 'Home';
               const dateText = g.displayDate || g.date || 'Date TBC';
+              const itemKey = `${g.historyType}-${g.gameNumber || g.round || ''}-${g.displayDate || g.date || ''}`;
               const metaText = isCancelled
                 ? `${fixtureType} fixture`
                 : `${g.formation || 'Formation TBC'} · ${g.playerCount ?? 0}p${g.absentCount ? ` · ${g.absentCount} absent` : ''}`;
               return (
               <li
-                key={`${g.historyType}-${g.gameNumber}-${g.displayDate || g.date || i}`}
+                key={itemKey}
                 className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800"
               >
                 <div className="flex items-start justify-between gap-3">
