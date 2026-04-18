@@ -222,6 +222,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
     for (const id of availablePlayers) {
       playerTimers[id] = { totalSeconds: 0, positionSeconds: {} };
     }
+    const gameStartMs = Date.now();
     const newGame = {
       gameNumber,
       availablePlayers,
@@ -229,8 +230,10 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       absentMinutes: absentMinutes || [],
       formation,
       plan,
-      startTime: Date.now(),
+      startTime: gameStartMs,
       elapsedSeconds: 0,
+      elapsedSecondsAtTimerStart: 0,
+      timerStartedAtMs: gameStartMs,
       blockIndex: 0,
       isPaused: false,
       gameLog: [],

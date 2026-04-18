@@ -28,8 +28,18 @@ function posLabelSmall(pos) {
 
 function getReadOnlyElapsed(base, nowMs, gameDurationSeconds) {
   if (!base) return 0;
+  if (base.isPaused) {
+    return Math.min(gameDurationSeconds, Math.max(0, Number(base.elapsedSeconds) || 0));
+  }
+  // Use server-recorded start timestamp for accurate cross-device timing
+  if (base.timerStartedAtMs) {
+    const timerDeltaSeconds = Math.max(0, Math.floor((nowMs - base.timerStartedAtMs) / 1000));
+    const totalElapsed = (Number(base.elapsedSecondsAtTimerStart) || 0) + timerDeltaSeconds;
+    return Math.min(gameDurationSeconds, totalElapsed);
+  }
+  // Fallback: extrapolate from when this data was received
   const safeElapsed = Math.max(0, Number(base.elapsedSeconds) || 0);
-  if (base.isPaused || !base.receivedAtMs) {
+  if (!base.receivedAtMs) {
     return Math.min(gameDurationSeconds, safeElapsed);
   }
   const deltaSeconds = Math.max(0, Math.floor((nowMs - base.receivedAtMs) / 1000));
@@ -117,36 +127,34 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     if (!readOnly) return;
     const remoteElapsed = Number(currentGame.elapsedSeconds) || 0;
     const remotePaused = Boolean(currentGame.isPaused);
+    const remoteTimerStartedAtMs = currentGame.timerStartedAtMs || null;
+    const remoteElapsedAtTimerStart = Number(currentGame.elapsedSecondsAtTimerStart) || 0;
     const now = Date.now();
     const base = readOnlySyncRef.current;
-    const seededBase = base || {
+    const newBase = {
       elapsedSeconds: remoteElapsed,
       receivedAtMs: now,
       isPaused: remotePaused,
+      timerStartedAtMs: remoteTimerStartedAtMs,
+      elapsedSecondsAtTimerStart: remoteElapsedAtTimerStart,
     };
+    const seededBase = base || newBase;
     const localElapsed = getReadOnlyElapsed(seededBase, now, gameDurationSeconds);
-    const driftSeconds = Math.abs(remoteElapsed - localElapsed);
+    const remoteActualElapsed = getReadOnlyElapsed(newBase, now, gameDurationSeconds);
+    const driftSeconds = Math.abs(remoteActualElapsed - localElapsed);
     const shouldResync = !base
       || remotePaused !== seededBase.isPaused
       || driftSeconds >= READONLY_SYNC_THRESHOLD_SECONDS
-      || (remoteElapsed === 0 && localElapsed > 0);
+      || (remoteActualElapsed === 0 && localElapsed > 0)
+      || (remoteTimerStartedAtMs !== (base.timerStartedAtMs || null));
 
     if (shouldResync) {
-      readOnlySyncRef.current = {
-        elapsedSeconds: remoteElapsed,
-        receivedAtMs: now,
-        isPaused: remotePaused,
-      };
-      elapsedRef.current = remoteElapsed;
-      setElapsedSeconds(remoteElapsed);
-      setBlockIndex(Math.min(Math.floor(remoteElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
-    } else if (remoteElapsed >= seededBase.elapsedSeconds) {
-      // Remote time advanced slightly; bump baseline without forcing a full resync.
-      readOnlySyncRef.current = {
-        ...seededBase,
-        elapsedSeconds: remoteElapsed,
-        receivedAtMs: now,
-      };
+      readOnlySyncRef.current = newBase;
+      elapsedRef.current = remoteActualElapsed;
+      setElapsedSeconds(remoteActualElapsed);
+      setBlockIndex(Math.min(Math.floor(remoteActualElapsed / SUB_INTERVAL_SECONDS), lastBlockIndex));
+    } else {
+      readOnlySyncRef.current = newBase;
     }
     setIsPaused(remotePaused);
     setHomeScore(currentGame.homeScore || 0);
@@ -212,7 +220,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   }
 
   // Save state to data
-  const saveState = useCallback((seconds, paused, bIdx, hScore, aScore, gls, saves, pTimers, cField, cBench) => {
+  const saveState = useCallback((seconds, paused, bIdx, hScore, aScore, gls, saves, pTimers, cField, cBench, extras = {}) => {
     if (readOnly) return;
     onUpdate({
       ...data,
@@ -229,6 +237,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
         customField: cField,
         customBench: cBench,
         lastTickAtMs: lastTickMsRef.current,
+        ...extras,
       },
     });
   }, [data, onUpdate, readOnly]);
@@ -342,11 +351,15 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   function handlePause() {
     if (readOnly) return;
     const newPaused = !isPaused;
+    const now = Date.now();
     if (!newPaused) {
-      lastTickMsRef.current = Date.now();
+      lastTickMsRef.current = now;
     }
     setIsPaused(newPaused);
-    saveState(elapsedSeconds, newPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench);
+    const extras = newPaused
+      ? { timerStartedAtMs: null }
+      : { timerStartedAtMs: now, elapsedSecondsAtTimerStart: elapsedSeconds };
+    saveState(elapsedSeconds, newPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench, extras);
   }
 
   function dismissSubModal() {
@@ -365,11 +378,18 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     // Auto-apply substitutions: update field and bench to match the plan for the pending block
     if (pendingBlockIndex !== null && pendingBlockIndex < plan.length) {
       const targetBlock = plan[pendingBlockIndex];
-      setCustomField(targetBlock.onField);
-      setCustomBench(targetBlock.onBench);
+      const newField = targetBlock.onField;
+      const newBench = targetBlock.onBench;
+      setCustomField(newField);
+      setCustomBench(newBench);
+      setPendingBlockIndex(null);
+      setShowSubModal(false);
+      // Immediately persist so view-only users see the substitution without waiting for the debounce
+      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, newField, newBench);
+    } else {
+      setPendingBlockIndex(null);
+      setShowSubModal(false);
     }
-    setPendingBlockIndex(null);
-    setShowSubModal(false);
   }
 
   function finalizeGame() {
@@ -406,15 +426,16 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     setIsPaused(true);
     elapsedRef.current = nextTime;
     lastTickMsRef.current = Date.now();
-    saveState(nextTime, true, nextBlock, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench);
+    saveState(nextTime, true, nextBlock, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench, { timerStartedAtMs: null });
   }
 
   function handleResumeNow() {
     if (readOnly) return;
-    lastTickMsRef.current = Date.now();
+    const now = Date.now();
+    lastTickMsRef.current = now;
     setIsPaused(false);
     setShowResumeOptions(false);
-    saveState(elapsedSeconds, false, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench);
+    saveState(elapsedSeconds, false, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench, { timerStartedAtMs: now, elapsedSecondsAtTimerStart: elapsedSeconds });
   }
 
   function addGoal(playerId) {
