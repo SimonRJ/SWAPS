@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listTeamCodes, loginWithPasscode, loginViewOnly } from '../utils/netlifyData.js';
+import { LAST_TEAM_ID_KEY, TEAM_CODES_KEY } from '../utils/storageKeys.js';
 import loginBackground from '../assets/login-bg.png';
 
 const MAX_TEAM_CODE_LENGTH = 24;
@@ -11,21 +12,72 @@ function normalizeTeamCode(value) {
     .slice(0, MAX_TEAM_CODE_LENGTH);
 }
 
-export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
-  const [teamId, setTeamId] = useState('');
+function normalizeTeamCodes(codes) {
+  return Array.from(new Set((Array.isArray(codes) ? codes : [])
+    .map(code => normalizeTeamCode(code))
+    .filter(Boolean)));
+}
+
+function readCachedTeamCodes() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(TEAM_CODES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return normalizeTeamCodes(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function readLastTeamId() {
+  if (typeof window === 'undefined') return '';
+  try {
+    return normalizeTeamCode(localStorage.getItem(LAST_TEAM_ID_KEY));
+  } catch {
+    return '';
+  }
+}
+
+function writeCachedTeamCodes(codes) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(TEAM_CODES_KEY, JSON.stringify(codes));
+  } catch {
+    // ignore
+  }
+}
+
+export default function Login({
+  onLogin,
+  onOpenAdmin,
+  onOpenCreateTeam,
+  initialTeamId = '',
+  sessionError = '',
+  onRetrySession,
+}) {
+  const canRetrySession = typeof onRetrySession === 'function';
+  const [teamId, setTeamId] = useState(() => normalizeTeamCode(initialTeamId || readLastTeamId()));
   const [loginPasscode, setLoginPasscode] = useState('');
-  const [teamCodes, setTeamCodes] = useState([]);
-  const [loadingTeamCodes, setLoadingTeamCodes] = useState(true);
+  const [teamCodes, setTeamCodes] = useState(() => readCachedTeamCodes());
+  const [loadingTeamCodes, setLoadingTeamCodes] = useState(() => readCachedTeamCodes().length === 0);
+  const [teamCodeError, setTeamCodeError] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const refreshTeamCodes = useCallback(async () => {
     setLoadingTeamCodes(true);
+    setTeamCodeError('');
     try {
       const codes = await listTeamCodes();
-      setTeamCodes(Array.isArray(codes) ? codes : []);
+      const normalized = normalizeTeamCodes(codes);
+      setTeamCodes(normalized);
+      writeCachedTeamCodes(normalized);
     } catch {
-      setTeamCodes([]);
+      const cached = readCachedTeamCodes();
+      if (cached.length > 0) {
+        setTeamCodes(cached);
+      }
+      setTeamCodeError('Unable to load team codes. You can still enter your team code manually.');
     } finally {
       setLoadingTeamCodes(false);
     }
@@ -35,7 +87,13 @@ export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
     refreshTeamCodes();
   }, [refreshTeamCodes]);
 
-  const sortedTeamCodes = useMemo(() => [...teamCodes].sort((a, b) => a.localeCompare(b)), [teamCodes]);
+  const availableTeamCodes = useMemo(() => {
+    const codes = new Set(teamCodes);
+    const initial = normalizeTeamCode(initialTeamId);
+    if (initial) codes.add(initial);
+    if (teamId) codes.add(teamId);
+    return [...codes].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [initialTeamId, teamCodes, teamId]);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -101,27 +159,27 @@ export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
 
           <div className="mt-3 space-y-2.5">
             <div>
-              <label className="mb-0.5 block text-xs font-medium text-white/95">Team Code</label>
-              <select
+              <label htmlFor="team-code" className="mb-0.5 block text-xs font-medium text-white/95">Team Code</label>
+              <input
+                id="team-code"
+                list="team-code-options"
                 className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm font-semibold uppercase text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700"
                 value={teamId}
                 onChange={e => setTeamId(normalizeTeamCode(e.target.value))}
-                disabled={loadingTeamCodes}
-              >
-                <option value="">
-                  {loadingTeamCodes ? 'Loading team codes...' : 'Select your team code'}
-                </option>
-                {sortedTeamCodes.map(code => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
+                placeholder={loadingTeamCodes ? 'Loading team codes...' : 'Select or enter your team code'}
+                autoComplete="off"
+              />
+              <datalist id="team-code-options">
+                {availableTeamCodes.map(code => (
+                  <option key={code} value={code} />
                 ))}
-              </select>
+              </datalist>
             </div>
 
             <div>
-              <label className="mb-0.5 block text-xs font-medium text-white/95">Team Passcode</label>
+              <label htmlFor="team-passcode" className="mb-0.5 block text-xs font-medium text-white/95">Team Passcode</label>
               <input
+                id="team-passcode"
                 type="password"
                 className="w-full rounded-xl border border-white/35 bg-white/95 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-pitch-400 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700"
                 placeholder="Enter passcode"
@@ -131,9 +189,25 @@ export default function Login({ onLogin, onOpenAdmin, onOpenCreateTeam }) {
               />
             </div>
 
+            {sessionError && (
+              <div className="rounded-xl border border-red-200/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+                <p>{sessionError}</p>
+                {canRetrySession && (
+                  <button
+                    type="button"
+                    onClick={onRetrySession}
+                    disabled={loading}
+                    className="mt-2 rounded-full border border-red-200/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-red-100 transition hover:bg-red-500/20 disabled:opacity-60"
+                  >
+                    Retry session
+                  </button>
+                )}
+              </div>
+            )}
+            {teamCodeError && <p className="text-xs text-amber-100">{teamCodeError}</p>}
             {error && <p className="text-sm font-medium text-red-200">{error}</p>}
 
-            {!loadingTeamCodes && sortedTeamCodes.length === 0 && (
+            {!loadingTeamCodes && availableTeamCodes.length === 0 && (
               <p className="text-xs text-white/80">No teams found. Ask an admin to create one.</p>
             )}
 

@@ -11,10 +11,13 @@ import ClubLogo from './components/ClubLogo.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import { FOOTBALL_WEST_LOGO_URL } from './utils/clubLogos.js';
 import { loginWithSession, saveTeamData, viewTeamData } from './utils/netlifyData.js';
+import { LAST_TEAM_ID_KEY } from './utils/storageKeys.js';
 import { applyBlockMinutes } from './utils/subAlgorithm.js';
 
 const SESSION_KEY = 'soccerSubsSession';
 const THEME_KEY = 'soccerSubsTheme';
+const HTTP_UNAUTHORIZED = 401;
+const HTTP_NOT_FOUND = 404;
 
 function readStoredSession() {
   try {
@@ -184,6 +187,7 @@ export default function App() {
   const [session, setSession] = useState(() => readStoredSession());
   const [checkingSession, setCheckingSession] = useState(() => Boolean(readStoredSession()));
   const [syncError, setSyncError] = useState('');
+  const [sessionError, setSessionError] = useState('');
   const [authScreen, setAuthScreen] = useState('login');
   const [activeTab, setActiveTab] = useState('game');
   const [theme, setTheme] = useState(() => getInitialTheme());
@@ -199,25 +203,60 @@ export default function App() {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
   }, []);
 
+  const fetchSessionData = useCallback(async () => {
+    if (!session) {
+      throw new Error('No session available.');
+    }
+    return session.viewOnly
+      ? await viewTeamData(session.teamId)
+      : await loginWithSession(session);
+  }, [session]);
+
+  const finalizeSessionLogin = useCallback((loginData) => {
+    if (!loginData || !session) return;
+    setData(migrateData(loginData));
+    setLoggedIn(true);
+    setSyncError('');
+    setSessionError('');
+    try {
+      localStorage.setItem(LAST_TEAM_ID_KEY, session.teamId);
+    } catch {
+      // ignore
+    }
+  }, [session]);
+
+  const handleSessionRestoreFailure = useCallback((error) => {
+    const status = error?.status;
+    if (status === HTTP_UNAUTHORIZED || status === HTTP_NOT_FOUND) {
+      // Auth failures or missing teams require clearing the saved session; other errors can be retried.
+      setLoggedIn(false);
+      setData(null);
+      setSession(null);
+      setSyncError('');
+      setAuthScreen('login');
+      sessionStorage.removeItem(SESSION_KEY);
+    } else {
+      setSessionError(error?.message || 'Unable to load team data. Check your connection and try again.');
+    }
+  }, []);
+
   useEffect(() => {
     if (!session) {
       setCheckingSession(false);
+      setSessionError('');
       return;
     }
     let cancelled = false;
     setCheckingSession(true);
+    setSessionError('');
     (async () => {
       try {
-        const loginData = session?.viewOnly
-          ? await viewTeamData(session.teamId)
-          : await loginWithSession(session);
+        const loginData = await fetchSessionData();
         if (cancelled) return;
-        setData(migrateData(loginData));
-        setLoggedIn(true);
-      } catch {
+        finalizeSessionLogin(loginData);
+      } catch (error) {
         if (cancelled) return;
-        setSession(null);
-        sessionStorage.removeItem(SESSION_KEY);
+        handleSessionRestoreFailure(error);
       } finally {
         if (!cancelled) setCheckingSession(false);
       }
@@ -225,7 +264,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [fetchSessionData, finalizeSessionLogin, handleSessionRestoreFailure, session]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -248,7 +287,13 @@ export default function App() {
     setLoggedIn(true);
     setAuthScreen('login');
     setSyncError('');
+    setSessionError('');
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(loginSession));
+    try {
+      localStorage.setItem(LAST_TEAM_ID_KEY, loginSession.teamId);
+    } catch {
+      // ignore
+    }
   }, []);
 
   const handleUpdate = useCallback(async (newData, options = {}) => {
@@ -307,9 +352,24 @@ export default function App() {
     setData(null);
     setSession(null);
     setSyncError('');
+    setSessionError('');
     setAuthScreen('login');
     sessionStorage.removeItem(SESSION_KEY);
   }
+
+  const retrySessionLogin = useCallback(async () => {
+    if (!session || checkingSession) return;
+    setCheckingSession(true);
+    setSessionError('');
+    try {
+      const loginData = await fetchSessionData();
+      finalizeSessionLogin(loginData);
+    } catch (error) {
+      handleSessionRestoreFailure(error);
+    } finally {
+      setCheckingSession(false);
+    }
+  }, [checkingSession, fetchSessionData, finalizeSessionLogin, handleSessionRestoreFailure, session]);
 
   function handleLogout() {
     if (!isViewOnly && data?.currentGame) {
@@ -385,6 +445,9 @@ export default function App() {
           onLogin={handleLogin}
           onOpenAdmin={() => setAuthScreen('admin')}
           onOpenCreateTeam={() => setAuthScreen('create-team')}
+          sessionError={sessionError}
+          onRetrySession={session ? retrySessionLogin : undefined}
+          initialTeamId={session?.teamId}
         />
         <div className="fixed right-3 top-3 z-50">
           <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} className="text-white" />
