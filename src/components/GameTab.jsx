@@ -213,7 +213,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [reportGame, setReportGame] = useState(null);
   const overlayScrollYRef = useRef(0);
-  const isOverlayOpen = Boolean(editDraft || reportGame);
+  const hasActiveOverlay = Boolean(editDraft || reportGame);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -226,7 +226,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
   }, [readOnly, setupMode]);
 
   useEffect(() => {
-    if (!isOverlayOpen) return undefined;
+    if (!hasActiveOverlay) return undefined;
     const scrollY = window.scrollY || window.pageYOffset || 0;
     overlayScrollYRef.current = scrollY;
     const originalStyles = {
@@ -255,7 +255,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       document.body.style.touchAction = originalStyles.touchAction;
       window.scrollTo({ top: overlayScrollYRef.current, left: 0, behavior: 'auto' });
     };
-  }, [isOverlayOpen]);
+  }, [hasActiveOverlay]);
 
   const playerNameMap = useMemo(
     () => new Map((players || []).map(player => [player.id, player.name])),
@@ -573,8 +573,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
 
   function openGameReport(game) {
     if (!game || game.historyType === 'cancelled') return;
-    const report = game.matchReport || buildMatchReport({ game, players, team });
-    setReportGame({ ...game, matchReport: report });
+    setReportGame(game);
   }
 
   function handleEditFromReport() {
@@ -885,7 +884,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
             <div className="bg-gradient-to-r from-pitch-700 to-pitch-600 px-6 pt-6 pb-4 text-white">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-bold">Game Report {reportGame.gameNumber}</h3>
-                <button onClick={closeGameReport} aria-label="Close game report" className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold active:bg-white/30 transition-colors">×</button>
+                <button onClick={closeGameReport} aria-label="Close game report" className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-lg font-bold active:bg-white/30 transition-colors">
+                  <span aria-hidden="true">×</span>
+                </button>
               </div>
               <p className="text-pitch-200 text-sm">{team?.name || 'Home'} vs {reportGame.opponentName || 'Opponent'}</p>
               <p className="text-pitch-200 text-sm">
