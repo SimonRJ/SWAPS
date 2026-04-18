@@ -20,6 +20,7 @@ function resultColorClass(label) {
   if (label === 'Win') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
   if (label === 'Lose') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
   if (label === 'Draw') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+  if (label === 'Cancelled') return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
   return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
 }
 
@@ -365,6 +366,23 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   const activePlayers = players.filter(p => p.isActive);
   const canStartGame = activePlayers.length >= (team.fieldPlayers + 1);
   const history = data.gameHistory || [];
+  const cancelledDetails = getCancelledDetails(data);
+  const historyItems = [
+    ...history.map((game, index) => ({
+      ...game,
+      historyType: 'played',
+      originalIndex: index,
+      displayDate: game.date,
+      historyKey: `played-${game.gameNumber ?? index}`,
+    })),
+    ...cancelledDetails.map(game => ({
+      ...game,
+      historyType: 'cancelled',
+      gameNumber: game.round,
+      displayDate: game.cancelledDate || game.date,
+      historyKey: `cancelled-${game.round}`,
+    })),
+  ].sort((a, b) => (Number(a.gameNumber) || 0) - (Number(b.gameNumber) || 0));
 
   function handleCancelGame() {
     const round = getNextUnresolvedRound(data);
@@ -639,14 +657,24 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
         )}
       </div>
 
-      {history.length > 0 && (
+      {historyItems.length > 0 && (
         <div className="card">
           <h3 className="font-bold text-gray-900 dark:text-slate-100 mb-3">Game History</h3>
           <ul className="space-y-3 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
-            {[...history].reverse().map((g, i) => {
-              const originalIndex = history.length - 1 - i;
+            {[...historyItems].reverse().map((g) => {
+              const isCancelled = g.historyType === 'cancelled';
+              const label = isCancelled ? 'Cancelled' : getGameResultLabel(g);
+              const fixtureType = g.homeAway === 'AWAY' ? 'Away' : 'Home';
+              const dateText = g.displayDate || g.date || 'Date TBC';
+              const roundNumber = g.gameNumber ?? g.round ?? '';
+              const metaText = isCancelled
+                ? `${fixtureType} fixture`
+                : `${g.formation || 'Formation TBC'} · ${g.playerCount ?? 0}p${g.absentCount ? ` · ${g.absentCount} absent` : ''}`;
               return (
-              <li key={i} className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800">
+              <li
+                key={g.historyKey || `${g.historyType}-${roundNumber}`}
+                className="rounded-xl border border-gray-200 p-3 space-y-2 dark:border-slate-800"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
                     {g.opponentLogoUrl ? (
@@ -664,9 +692,11 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                       />
                     )}
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">Game {g.gameNumber}</p>
+                      <p className="font-semibold text-gray-900 dark:text-slate-100 leading-tight">
+                        {isCancelled ? 'Round' : 'Game'} {roundNumber}
+                      </p>
                       <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                        vs {g.opponentName || 'Opponent'}, {g.date}
+                        vs {g.opponentName || 'Opponent'}, {dateText}
                       </p>
                     </div>
                   </div>
@@ -679,26 +709,28 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-xs">
                     <span className="text-gray-500 dark:text-slate-400">
-                      {g.formation} · {g.playerCount}p{g.absentCount ? ` · ${g.absentCount} absent` : ''}
+                      {metaText}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 font-semibold ${resultColorClass(getGameResultLabel(g))}`}>
-                      {getGameResultLabel(g)}
+                    <span className={`rounded-full px-2 py-0.5 font-semibold ${resultColorClass(label)}`}>
+                      {label}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEditGame(originalIndex)}
-                      className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => openDeletePrompt(originalIndex)}
-                      className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {!isCancelled && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEditGame(g.originalIndex)}
+                        className="text-xs font-semibold text-pitch-600 px-2.5 py-1 rounded-lg bg-pitch-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => openDeletePrompt(g.originalIndex)}
+                        className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             )})}

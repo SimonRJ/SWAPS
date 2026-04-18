@@ -368,6 +368,15 @@ export default function StatsTab({ data, onUpdate }) {
     const sickMins = p.minutesSickInjured || 0;
     const benchMins = p.minutesBench || 0;
     const saves = p.saves || 0;
+    const goals = goalsByPlayer[p.id] || 0;
+    const hasKeeperMinutes = (p.minutesGK || 0) > 0;
+    const summaryParts = [
+      `${total} min played`,
+      ...(benchMins > 0 ? [`${benchMins} min bench`] : []),
+      ...(sickMins > 0 ? [`${sickMins} min sick/injured`] : []),
+      `⚽ ${goals} goals`,
+      ...(hasKeeperMinutes ? [`🧤 ${saves} saves`] : []),
+    ];
     const maxMin = Math.max(p.minutesGK || 0, p.minutesDEF || 0, p.minutesMID || 0, p.minutesATK || 0, benchMins, sickMins, 1);
     return (
       <div className="pb-24 px-4 pt-4 max-w-lg md:max-w-3xl lg:max-w-4xl mx-auto space-y-4">
@@ -385,7 +394,7 @@ export default function StatsTab({ data, onUpdate }) {
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">{p.name}</h2>
               <p className="text-sm text-gray-500 dark:text-slate-400">
-                {total} min played{benchMins > 0 ? ` · ${benchMins} min bench` : ''}{sickMins > 0 ? ` · ${sickMins} min sick/injured` : ''}{saves > 0 ? ` · 🧤 ${saves} saves` : ''}
+                {summaryParts.join(' · ')}
               </p>
             </div>
           </div>
