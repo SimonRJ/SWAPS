@@ -493,7 +493,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
     setRestoringCancelledRound(null);
   }
 
-  function removeCancelledGame(round) {
+  function removeCancelledStatus(round) {
     if (!window.confirm(`Remove cancelled status for Round ${round}?`)) return;
     const updatedCancelled = getCancelledDetails(data)
       .filter(item => Number(item.round) !== Number(round))
@@ -781,7 +781,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                           Edit
                         </button>
                         <button
-                          onClick={() => removeCancelledGame(g.round ?? g.gameNumber)}
+                          onClick={() => removeCancelledStatus(g.round ?? g.gameNumber)}
                           className="text-xs font-semibold text-red-600 px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-900/30 dark:text-red-300"
                         >
                           Delete

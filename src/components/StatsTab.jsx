@@ -48,6 +48,12 @@ function getVenueBadgeClasses(venue) {
   return 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-200';
 }
 
+function getVenueFromHomeAway(value) {
+  if (value === 'AWAY') return 'away';
+  if (value === 'HOME') return 'home';
+  return '';
+}
+
 function resultColorClass(label) {
   if (label === 'Win') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
   if (label === 'Lose') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
@@ -393,11 +399,7 @@ export default function StatsTab({ data, onUpdate }) {
     });
   }
 
-  const roundVenue = roundDraft?.homeAway === 'AWAY'
-    ? 'away'
-    : roundDraft?.homeAway === 'HOME'
-      ? 'home'
-      : '';
+  const roundVenue = getVenueFromHomeAway(roundDraft?.homeAway);
   const roundDateLabel = formatRoundDateLabel(roundDraft?.date);
   const roundDateInputId = editingRound ? `remaining-round-date-${editingRound}` : 'remaining-round-date';
   const roundDateButtonText = roundDraft?.date ? roundDateLabel : 'Date';
