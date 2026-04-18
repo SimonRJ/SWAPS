@@ -945,7 +945,7 @@ export default function StatsTab({ data, onUpdate }) {
           <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Remaining Games</h2>
           {editingRound && roundDraft && (
             <div className="rounded-xl border border-pitch-200 bg-pitch-50 dark:border-emerald-800 dark:bg-emerald-900/30 p-4 space-y-4">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-base font-bold text-gray-900 dark:text-slate-100">Round {editingRound}</p>
@@ -956,13 +956,6 @@ export default function StatsTab({ data, onUpdate }) {
                   <p className="mt-1 text-xs font-medium text-gray-500 dark:text-slate-400">{roundDateLabel}</p>
                   <p className="mt-2 text-sm text-gray-600 dark:text-slate-300">Edit the details for this round.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={closeRoundEditor}
-                  className="rounded-full bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-slate-200 shadow-sm"
-                >
-                  Back
-                </button>
               </div>
 
               <div className="space-y-4">
