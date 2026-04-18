@@ -124,13 +124,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
   }), [lineupRequiredCounts, lineupSelectedCounts]);
   const lineupRemainingLabel = useMemo(() => (
     `Need ${lineupRemainingCounts.GK} GK, ${lineupRemainingCounts.DEF} DEF, ${lineupRemainingCounts.MID} MID, ${lineupRemainingCounts.ATK} ATK, and ${lineupRemainingCounts.SUB} Sub${lineupRemainingCounts.SUB === 1 ? '' : 's'}.`
-  ), [
-    lineupRemainingCounts.GK,
-    lineupRemainingCounts.DEF,
-    lineupRemainingCounts.MID,
-    lineupRemainingCounts.ATK,
-    lineupRemainingCounts.SUB,
-  ]);
+  ), [lineupRemainingCounts]);
   const canSelectLineupPosition = (position, playerId) => (
     lineupSelections[playerId] === position || lineupRemainingCounts[position] > 0
   );
