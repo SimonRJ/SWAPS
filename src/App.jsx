@@ -98,9 +98,21 @@ function sanitizePendingOptions(options) {
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
+function isNetworkError(error) {
+  const name = String(error?.name || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    name === 'typeerror'
+    || name === 'aborterror'
+    || message.includes('failed to fetch')
+    || message.includes('network')
+    || message.includes('load failed')
+  );
+}
+
 function isRetriableSyncError(error) {
   const status = Number(error?.status);
-  if (!Number.isFinite(status)) return true;
+  if (!Number.isFinite(status)) return isNetworkError(error);
   if (status === 408 || status === 429) return true;
   return status >= 500;
 }
@@ -410,9 +422,13 @@ export default function App() {
     }
   }, []);
 
+  const incrementRetryAttempt = useCallback(() => {
+    retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPTS);
+  }, []);
+
   const scheduleRetry = useCallback((delayOverride) => {
     if (retryTimeoutRef.current) return;
-    const attempt = retryAttemptRef.current;
+    const attempt = Math.min(retryAttemptRef.current, RETRY_MAX_ATTEMPTS);
     const baseDelay = Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * (2 ** attempt));
     const delay = Math.max(0, delayOverride ?? baseDelay);
     const jitter = Math.round(delay * RETRY_JITTER_RATIO * Math.random());
@@ -452,7 +468,7 @@ export default function App() {
     if (!pending || !activeSession || activeSession.viewOnly) return;
     if (pending.teamId && pending.teamId !== activeSession.teamId) return;
     if (isOffline()) {
-      retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPTS);
+      incrementRetryAttempt();
       scheduleRetry();
       return;
     }
@@ -463,14 +479,14 @@ export default function App() {
       setSyncError('');
     } catch (error) {
       if (isRetriableSyncError(error)) {
-        retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, RETRY_MAX_ATTEMPTS);
+        incrementRetryAttempt();
         scheduleRetry();
         setSyncError(SYNC_RETRY_MESSAGE);
       } else {
         setSyncError(error?.message || 'Could not sync latest change to Netlify. Refresh and try again.');
       }
     }
-  }, [clearPendingSaveState, queueSave, scheduleRetry, updateSessionFromSave]);
+  }, [clearPendingSaveState, incrementRetryAttempt, queueSave, scheduleRetry, updateSessionFromSave]);
 
   useEffect(() => {
     flushPendingSaveRef.current = flushPendingSave;
@@ -568,9 +584,10 @@ export default function App() {
         persistPendingSave(newData, options);
         scheduleRetry();
         setSyncError(SYNC_RETRY_MESSAGE);
+        const detailMessage = error?.message ? ` (${error.message})` : '';
         return {
           ok: false,
-          error: new Error(SYNC_RETRY_MESSAGE, { cause: error }),
+          error: new Error(`${SYNC_RETRY_MESSAGE}${detailMessage}`, { cause: error }),
         };
       }
       console.error(error);
