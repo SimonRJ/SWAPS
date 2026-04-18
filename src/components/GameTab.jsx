@@ -414,6 +414,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
         saves: (updated.saves || 0) - (original.saves || 0),
       };
     });
+    const startingBenchIds = Array.isArray(currentGame.startingBench)
+      ? currentGame.startingBench.filter(id => typeof id === 'string')
+      : [];
 
     const historyEntry = {
       gameNumber: currentGame.gameNumber,
@@ -436,12 +439,8 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId,
       absentPlayers: currentGame.absentPlayers || [],
       startingField: currentGame.startingField || [],
       // startingBench is an array of player ID strings (set in GameDaySetup)
-      startingBenchIds: Array.isArray(currentGame.startingBench)
-        ? currentGame.startingBench.filter(id => typeof id === 'string')
-        : [],
-      startingBench: Array.isArray(currentGame.startingBench)
-        ? currentGame.startingBench.filter(id => typeof id === 'string')
-        : [],
+      startingBenchIds,
+      startingBench: startingBenchIds,
       matchReport,
     };
 

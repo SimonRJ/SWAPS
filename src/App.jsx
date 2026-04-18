@@ -329,7 +329,9 @@ export default function App() {
       return saveTeamData(activeSession, newData, options);
     };
     const savePromise = saveQueueRef.current.then(runSave, runSave);
-    saveQueueRef.current = savePromise.catch(() => {});
+    saveQueueRef.current = savePromise.catch((error) => {
+      console.error(error);
+    });
     return savePromise;
   }, []);
 
