@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FOOTBALL_WEST_LOGO_URL } from '../utils/clubLogos.js';
 import { getFormationSlotXPercent, POSITION_Y_PERCENT } from '../utils/formations.js';
 import TeamAvatar from './TeamAvatar.jsx';
@@ -41,6 +41,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const { currentGame, players, team } = data;
   const { plan, availablePlayers } = currentGame;
   const opponentLogo = currentGame.opponentLogoUrl || '';
+  const planLength = plan.length;
 
   const [elapsedSeconds, setElapsedSeconds] = useState(currentGame.elapsedSeconds || 0);
   const [isPaused, setIsPaused] = useState(currentGame.isPaused || false);
@@ -81,7 +82,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const lastRemoteTickRef = useRef(currentGame.lastTickAtMs || 0);
   const onSwitchToGameRef = useRef(onSwitchToGame);
 
-  const gameDurationSeconds = team.gameDuration * 60;
+  const gameDurationSeconds = useMemo(() => team.gameDuration * 60, [team.gameDuration]);
   const subIntervalSeconds = 10 * 60;
 
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
@@ -110,7 +111,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
       const deltaSeconds = Math.max(0, Math.floor((now - remoteTick) / 1000));
       nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
     }
-    const maxBlockIndex = Math.max(plan.length - 1, 0);
+    const maxBlockIndex = Math.max(planLength - 1, 0);
     const derivedBlock = Math.min(Math.floor(nextElapsed / subIntervalSeconds), maxBlockIndex);
     lastRemoteTickRef.current = remoteTick;
     lastTickMsRef.current = now;
@@ -137,7 +138,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     );
     setShowGoalPicker(false);
     setShowResumeOptions(false);
-  }, [readOnly, currentGame, gameDurationSeconds, plan, subIntervalSeconds]);
+  }, [readOnly, currentGame, gameDurationSeconds, planLength, subIntervalSeconds]);
 
   // Use custom assignments if set, otherwise use plan
   const fieldAssignments = customField;
