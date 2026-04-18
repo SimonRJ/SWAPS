@@ -413,11 +413,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     }
     if (newEvents.length === 0) return;
     const latestEvent = newEvents[newEvents.length - 1];
-    const sameMinute = newEvents.every(event => event.minute === latestEvent.minute);
-    const allSubs = newEvents.every(event => event.type === 'sub');
-    const toastEvents = (newEvents.length > 1 && allSubs && sameMinute)
-      ? newEvents
-      : [latestEvent];
+    let toastEvents = [latestEvent];
+    if (newEvents.length > 1) {
+      const allSubs = newEvents.every(event => event.type === 'sub');
+      const sameMinute = newEvents.every(event => event.minute === latestEvent.minute);
+      if (allSubs && sameMinute) {
+        toastEvents = newEvents;
+      }
+    }
     lastToastEventIdRef.current = latestEvent.id;
     setLiveToast({ events: toastEvents });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
@@ -888,8 +891,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   }
   const toastEvents = liveToast?.events || [];
   const toastPrimaryEvent = toastEvents[0] || null;
-  const toastIsSubGroup = toastEvents.length > 0 && toastEvents.every(event => event.type === 'sub');
-  const showSubToastGroup = toastIsSubGroup && toastEvents.length > 1;
+  const showSubToastGroup = toastEvents.length > 1 && toastEvents.every(event => event.type === 'sub');
   const toastMinuteLabel = toastPrimaryEvent ? formatMinuteLabel(toastPrimaryEvent.minute) : '';
 
   // Render match summary
