@@ -540,7 +540,7 @@ export default function GameDaySetup({ data, onStartGame, onCancel, onUpdate, re
         ) : (
           <>
             <div className="card">
-              <div className="grid grid-cols-1 gap-3 mb-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 mb-3 md:grid-cols-3">
                 <button
                   onClick={() => {
                     clearPendingSetup();

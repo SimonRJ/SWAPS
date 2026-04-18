@@ -236,8 +236,11 @@ export function planGame(availablePlayers, formation, gameDuration, rotateGK, al
         break;
       }
     }
-    if (!rotateGK && resolvedGKId && !fieldIds.has(resolvedGKId)) {
-      valid = false;
+    if (!rotateGK && resolvedGKId) {
+      const fixedAssignment = startingField.find(entry => entry.playerId === resolvedGKId);
+      if (!fixedAssignment || fixedAssignment.position !== 'GK') {
+        valid = false;
+      }
     }
     if (valid) {
       const benchIds = Array.isArray(startingBench)
