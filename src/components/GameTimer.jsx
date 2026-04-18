@@ -101,7 +101,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const intervalRef = useRef(null);
   const elapsedRef = useRef(elapsedSeconds);
   const isPausedRef = useRef(isPaused);
+  const blockIndexRef = useRef(blockIndex);
+  const homeScoreRef = useRef(homeScore);
+  const awayScoreRef = useRef(awayScore);
+  const goalsRef = useRef(goals);
+  const gkSavesRef = useRef(gkSaves);
+  const playerTimersRef = useRef(playerTimers);
   const customFieldRef = useRef(customField);
+  const customBenchRef = useRef(customBench);
   const lastTickMsRef = useRef(currentGame.lastTickAtMs || 0);
   const readOnlySyncRef = useRef(null);
   const onSwitchToGameRef = useRef(onSwitchToGame);
@@ -110,7 +117,14 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  useEffect(() => { blockIndexRef.current = blockIndex; }, [blockIndex]);
+  useEffect(() => { homeScoreRef.current = homeScore; }, [homeScore]);
+  useEffect(() => { awayScoreRef.current = awayScore; }, [awayScore]);
+  useEffect(() => { goalsRef.current = goals; }, [goals]);
+  useEffect(() => { gkSavesRef.current = gkSaves; }, [gkSaves]);
+  useEffect(() => { playerTimersRef.current = playerTimers; }, [playerTimers]);
   useEffect(() => { customFieldRef.current = customField; }, [customField]);
+  useEffect(() => { customBenchRef.current = customBench; }, [customBench]);
   useEffect(() => { onSwitchToGameRef.current = onSwitchToGame; }, [onSwitchToGame]);
   useEffect(() => {
     if (!lastTickMsRef.current) lastTickMsRef.current = Date.now();
@@ -340,11 +354,23 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
 
   // Persist state periodically
   useEffect(() => {
-    const t = setTimeout(() => {
-      saveState(elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, customField, customBench);
+    if (readOnly) return undefined;
+    const interval = setInterval(() => {
+      saveState(
+        elapsedRef.current,
+        isPausedRef.current,
+        blockIndexRef.current,
+        homeScoreRef.current,
+        awayScoreRef.current,
+        goalsRef.current,
+        gkSavesRef.current,
+        playerTimersRef.current,
+        customFieldRef.current,
+        customBenchRef.current,
+      );
     }, 3000);
-    return () => clearTimeout(t);
-  }, [elapsedSeconds, isPaused, blockIndex, homeScore, awayScore, goals, gkSaves, playerTimers, saveState, customField, customBench]);
+    return () => clearInterval(interval);
+  }, [readOnly, saveState]);
 
   const gameOver = elapsedSeconds >= gameDurationSeconds;
 
