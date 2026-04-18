@@ -201,6 +201,40 @@ export default function App() {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
   }, []);
 
+  const fetchSessionData = useCallback(async () => {
+    if (!session) return null;
+    return session?.viewOnly
+      ? await viewTeamData(session.teamId)
+      : await loginWithSession(session);
+  }, [session]);
+
+  const finalizeSessionLogin = useCallback((loginData) => {
+    if (!loginData || !session) return;
+    setData(migrateData(loginData));
+    setLoggedIn(true);
+    setSyncError('');
+    setSessionError('');
+    try {
+      localStorage.setItem(LAST_TEAM_ID_KEY, session.teamId);
+    } catch {
+      // ignore
+    }
+  }, [session]);
+
+  const handleSessionRestoreFailure = useCallback((error) => {
+    const status = error?.status;
+    if (status === 401 || status === 404) {
+      setLoggedIn(false);
+      setData(null);
+      setSession(null);
+      setSyncError('');
+      setAuthScreen('login');
+      sessionStorage.removeItem(SESSION_KEY);
+    } else {
+      setSessionError(error?.message || 'Unable to load team data. Check your connection and try again.');
+    }
+  }, []);
+
   useEffect(() => {
     if (!session) {
       setCheckingSession(false);
@@ -212,30 +246,12 @@ export default function App() {
     setSessionError('');
     (async () => {
       try {
-        const loginData = session?.viewOnly
-          ? await viewTeamData(session.teamId)
-          : await loginWithSession(session);
+        const loginData = await fetchSessionData();
         if (cancelled) return;
-        setData(migrateData(loginData));
-        setLoggedIn(true);
-        try {
-          localStorage.setItem(LAST_TEAM_ID_KEY, session.teamId);
-        } catch {
-          // ignore
-        }
+        finalizeSessionLogin(loginData);
       } catch (error) {
         if (cancelled) return;
-        const status = error?.status;
-        if (status === 401 || status === 404) {
-          setLoggedIn(false);
-          setData(null);
-          setSession(null);
-          setSyncError('');
-          setAuthScreen('login');
-          sessionStorage.removeItem(SESSION_KEY);
-        } else {
-          setSessionError(error?.message || 'Unable to load team data. Check your connection and try again.');
-        }
+        handleSessionRestoreFailure(error);
       } finally {
         if (!cancelled) setCheckingSession(false);
       }
@@ -243,7 +259,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [fetchSessionData, finalizeSessionLogin, handleSessionRestoreFailure, session]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -341,33 +357,14 @@ export default function App() {
     setCheckingSession(true);
     setSessionError('');
     try {
-      const loginData = session?.viewOnly
-        ? await viewTeamData(session.teamId)
-        : await loginWithSession(session);
-      setData(migrateData(loginData));
-      setLoggedIn(true);
-      setSyncError('');
-      try {
-        localStorage.setItem(LAST_TEAM_ID_KEY, session.teamId);
-      } catch {
-        // ignore
-      }
+      const loginData = await fetchSessionData();
+      finalizeSessionLogin(loginData);
     } catch (error) {
-      const status = error?.status;
-      if (status === 401 || status === 404) {
-        setLoggedIn(false);
-        setData(null);
-        setSession(null);
-        setSyncError('');
-        setAuthScreen('login');
-        sessionStorage.removeItem(SESSION_KEY);
-      } else {
-        setSessionError(error?.message || 'Unable to load team data. Check your connection and try again.');
-      }
+      handleSessionRestoreFailure(error);
     } finally {
       setCheckingSession(false);
     }
-  }, [checkingSession, session]);
+  }, [checkingSession, fetchSessionData, finalizeSessionLogin, handleSessionRestoreFailure, session]);
 
   function handleLogout() {
     if (!isViewOnly && data?.currentGame) {

@@ -83,13 +83,8 @@ export default function Login({
     refreshTeamCodes();
   }, [refreshTeamCodes]);
 
-  useEffect(() => {
-    if (!initialTeamId) return;
-    setTeamId(current => current || normalizeTeamCode(initialTeamId));
-  }, [initialTeamId]);
-
   const availableTeamCodes = useMemo(() => {
-    const codes = new Set(teamCodes.map(code => normalizeTeamCode(code)));
+    const codes = new Set(teamCodes);
     const initial = normalizeTeamCode(initialTeamId);
     if (initial) codes.add(initial);
     if (teamId) codes.add(teamId);
