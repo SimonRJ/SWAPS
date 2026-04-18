@@ -294,7 +294,7 @@ export default function App() {
       } catch {
         // ignore view-only refresh errors
       }
-    }, 10000);
+    }, 3000);
     return () => {
       cancelled = true;
       clearInterval(interval);

@@ -81,6 +81,9 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   const lastRemoteTickRef = useRef(currentGame.lastTickAtMs || 0);
   const onSwitchToGameRef = useRef(onSwitchToGame);
 
+  const gameDurationSeconds = team.gameDuration * 60;
+  const subIntervalSeconds = 10 * 60;
+
   useEffect(() => { elapsedRef.current = elapsedSeconds; }, [elapsedSeconds]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
   useEffect(() => { customFieldRef.current = customField; }, [customField]);
@@ -99,11 +102,22 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
   useEffect(() => {
     if (!readOnly) return;
     const remoteTick = Number(currentGame.lastTickAtMs) || 0;
-    if (remoteTick && remoteTick <= lastRemoteTickRef.current) return;
+    const remoteElapsed = currentGame.elapsedSeconds || 0;
+    const remotePaused = Boolean(currentGame.isPaused);
+    const now = Date.now();
+    let nextElapsed = remoteElapsed;
+    if (!remotePaused && remoteTick) {
+      const deltaSeconds = Math.max(0, Math.floor((now - remoteTick) / 1000));
+      nextElapsed = Math.min(gameDurationSeconds, remoteElapsed + deltaSeconds);
+    }
+    const maxBlockIndex = Math.max(plan.length - 1, 0);
+    const derivedBlock = Math.min(Math.floor(nextElapsed / subIntervalSeconds), maxBlockIndex);
     lastRemoteTickRef.current = remoteTick;
-    setElapsedSeconds(currentGame.elapsedSeconds || 0);
-    setIsPaused(Boolean(currentGame.isPaused));
-    setBlockIndex(currentGame.blockIndex || 0);
+    lastTickMsRef.current = now;
+    elapsedRef.current = nextElapsed;
+    setElapsedSeconds(nextElapsed);
+    setIsPaused(remotePaused);
+    setBlockIndex(derivedBlock);
     setHomeScore(currentGame.homeScore || 0);
     setAwayScore(currentGame.awayScore || 0);
     setGoals(currentGame.goals || []);
@@ -123,11 +137,7 @@ export default function GameTimer({ data, onUpdate, onEndGame, onSwitchToGame, r
     );
     setShowGoalPicker(false);
     setShowResumeOptions(false);
-    lastTickMsRef.current = Date.now();
-  }, [readOnly, currentGame]);
-
-  const gameDurationSeconds = team.gameDuration * 60;
-  const subIntervalSeconds = 10 * 60;
+  }, [readOnly, currentGame, gameDurationSeconds, plan, subIntervalSeconds]);
 
   // Use custom assignments if set, otherwise use plan
   const fieldAssignments = customField;
