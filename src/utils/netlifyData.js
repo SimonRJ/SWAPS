@@ -64,6 +64,25 @@ export async function loginWithSession(session) {
   return result.data;
 }
 
+export async function viewTeamData(teamId) {
+  const result = await callTeamFunction({
+    action: 'view',
+    teamId,
+  });
+  return result.data;
+}
+
+export async function loginViewOnly(teamId) {
+  const data = await viewTeamData(teamId);
+  return {
+    data,
+    session: {
+      teamId,
+      viewOnly: true,
+    },
+  };
+}
+
 export async function saveTeamData(session, data, options = {}) {
   const adminCode = String(options?.adminCode || '').trim();
   const passcode = String(options?.passcode || '').trim();

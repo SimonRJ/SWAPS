@@ -17,6 +17,7 @@ export function createScheduleRound(round, partial = {}) {
     opponentName: partial.opponentName || '',
     opponentLogoUrl: partial.opponentLogoUrl || '',
     date: partial.date || '',
+    kickoffTime: partial.kickoffTime || '',
     location: partial.location || '',
     homeAway: normalizeHomeAway(partial.homeAway),
   };
@@ -140,15 +141,16 @@ export function migrateData(data) {
         round = Math.max(0, ...Array.from(usedRounds)) + 1;
       }
       usedRounds.add(round);
-      return {
-        round,
-        opponentName: '',
-        opponentLogoUrl: '',
-        date: '',
-        location: '',
-        homeAway: 'HOME',
-        cancelledDate: '',
-      };
+        return {
+          round,
+          opponentName: '',
+          opponentLogoUrl: '',
+          date: '',
+          kickoffTime: '',
+          location: '',
+          homeAway: 'HOME',
+          cancelledDate: '',
+        };
     });
   } else {
     migrated.cancelledGameDetails = migrated.cancelledGameDetails.map((item, idx) => ({
@@ -156,6 +158,7 @@ export function migrateData(data) {
       opponentName: item?.opponentName || '',
       opponentLogoUrl: item?.opponentLogoUrl || '',
       date: item?.date || '',
+      kickoffTime: item?.kickoffTime || '',
       location: item?.location || '',
       homeAway: normalizeHomeAway(item?.homeAway),
       cancelledDate: item?.cancelledDate || '',

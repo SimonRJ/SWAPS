@@ -16,6 +16,32 @@ function secondsToMinutes(seconds) {
   return Math.round((seconds || 0) / 60);
 }
 
+function formatRoundDateLabel(dateValue) {
+  if (!dateValue) return 'Date TBC';
+  const parsed = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatRoundTimeLabel(timeValue) {
+  if (!timeValue) return '';
+  const [hours, minutes] = String(timeValue).split(':');
+  const parsed = new Date();
+  parsed.setHours(Number(hours || 0), Number(minutes || 0), 0, 0);
+  if (Number.isNaN(parsed.getTime())) return timeValue;
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function formatRoundDateTimeLabel(dateValue, timeValue) {
+  const dateLabel = formatRoundDateLabel(dateValue);
+  if (!timeValue) return dateLabel;
+  return `${dateLabel} · ${formatRoundTimeLabel(timeValue)}`;
+}
+
 function resultColorClass(label) {
   if (label === 'Win') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
   if (label === 'Lose') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
@@ -127,7 +153,7 @@ function getKeeperCandidates(game, players) {
   return players.filter(player => keeperIds.has(player.id));
 }
 
-export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId }) {
+export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId, readOnly = false }) {
   const { currentGame, players, team } = data;
   const [setupMode, setSetupMode] = useState(false);
   const [editingGameIndex, setEditingGameIndex] = useState(null);
@@ -151,6 +177,12 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [setupMode, currentGame]);
+
+  useEffect(() => {
+    if (readOnly && setupMode) {
+      setSetupMode(false);
+    }
+  }, [readOnly, setupMode]);
 
   useEffect(() => {
     if (!editDraft) return undefined;
@@ -184,6 +216,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   }, [editDraft]);
 
   function handleStartGame({ availablePlayers, absentPlayers, absentMinutes, formation, plan, gameNumber, opponentName, opponentLogoUrl, startingField, startingBench }) {
+    if (readOnly) return;
     // Initialize per-player timers
     const playerTimers = {};
     for (const id of availablePlayers) {
@@ -216,6 +249,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   }
 
   function handleUpdateGame(updatedData) {
+    if (readOnly) return;
     onUpdate(updatedData);
   }
 
@@ -340,9 +374,10 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
     return (
       <GameTimer
         data={data}
-        onUpdate={handleUpdateGame}
+        onUpdate={readOnly ? () => {} : handleUpdateGame}
         onEndGame={handleEndGame}
         onSwitchToGame={onSwitchToGame}
+        readOnly={readOnly}
       />
     );
   }
@@ -352,13 +387,14 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
       <GameDaySetup
         data={data}
         onStartGame={handleStartGame}
-        onUpdate={onUpdate}
+        onUpdate={readOnly ? () => {} : onUpdate}
         onCancel={() => {
           if (data.pendingGameSetup) {
             onUpdate({ ...data, pendingGameSetup: null });
           }
           setSetupMode(false);
         }}
+        readOnly={readOnly}
       />
     );
   }
@@ -386,6 +422,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   ].sort((a, b) => (Number(a.gameNumber) || 0) - (Number(b.gameNumber) || 0));
 
   function handleCancelGame() {
+    if (readOnly) return;
     const round = getNextUnresolvedRound(data);
     const schedule = buildSeasonSchedule(team.gamesPerSeason, data.seasonSchedule);
     const scheduledRound = schedule.find(item => item.round === round) || createScheduleRound(round);
@@ -435,6 +472,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   }
 
   function openEditGame(originalIndex) {
+    if (readOnly) return;
     const history = data.gameHistory || [];
     const game = history[originalIndex];
     if (!game) return;
@@ -458,6 +496,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   }
 
   function openEditCancelledGame(game) {
+    if (readOnly) return;
     if (!game) return;
     const historyLength = (data.gameHistory || []).length;
     setRestoringCancelledRound(game.round);
@@ -494,6 +533,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   }
 
   function removeCancelledStatus(round) {
+    if (readOnly) return;
     if (!window.confirm(`Remove cancelled status for Round ${round}?`)) return;
     const updatedCancelled = getCancelledDetails(data)
       .filter(item => Number(item.round) !== Number(round))
@@ -506,6 +546,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
   }
 
   function openDeletePrompt(originalIndex) {
+    if (readOnly) return;
     setDeletePromptIndex(originalIndex);
     setDeleteAdminPassword('');
     setDeleteError('');
@@ -692,22 +733,27 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
         </p>
         <button
           onClick={() => {
+            if (readOnly) return;
             if (data.pendingGameSetup) {
               onUpdate({ ...data, pendingGameSetup: null });
             }
             setSetupMode(true);
           }}
-          disabled={!canStartGame}
-          className={`btn-primary w-full text-lg ${!canStartGame ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={!canStartGame || readOnly}
+          className={`btn-primary w-full text-lg ${(!canStartGame || readOnly) ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           🟢 Start New Game
         </button>
         <button
           onClick={handleCancelGame}
-          className="btn-secondary w-full text-sm"
+          disabled={readOnly}
+          className={`btn-secondary w-full text-sm ${readOnly ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           ❌ Record Cancelled Game
         </button>
+        {readOnly && (
+          <p className="text-xs text-gray-400 dark:text-slate-500">View-only mode: game controls are disabled.</p>
+        )}
         {!canStartGame && (
           <p className="text-xs text-gray-400 dark:text-slate-500">Add more players in the Team tab</p>
         )}
@@ -721,7 +767,9 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
               const isCancelled = g.historyType === 'cancelled';
               const label = isCancelled ? 'Cancelled' : getGameResultLabel(g);
               const fixtureType = g.homeAway === 'AWAY' ? 'Away' : 'Home';
-              const dateText = g.displayDate || g.date || 'Date TBC';
+              const dateText = g.cancelledDate
+                ? g.cancelledDate
+                : formatRoundDateTimeLabel(g.date || g.displayDate, g.kickoffTime);
               const roundNumber = g.gameNumber ?? g.round ?? '';
               const metaText = isCancelled
                 ? `${fixtureType} fixture`
@@ -772,7 +820,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {isCancelled ? (
+                    {!readOnly && (isCancelled ? (
                       <>
                         <button
                           onClick={() => openEditCancelledGame(g)}
@@ -802,7 +850,7 @@ export default function GameTab({ data, onUpdate, onSwitchToGame, sessionTeamId 
                           Delete
                         </button>
                       </>
-                    )}
+                    ))}
                   </div>
                 </div>
               </li>

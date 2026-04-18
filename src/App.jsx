@@ -10,7 +10,7 @@ import StatsTab from './components/StatsTab.jsx';
 import ClubLogo from './components/ClubLogo.jsx';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import { FOOTBALL_WEST_LOGO_URL } from './utils/clubLogos.js';
-import { loginWithSession, saveTeamData } from './utils/netlifyData.js';
+import { loginWithSession, saveTeamData, viewTeamData } from './utils/netlifyData.js';
 import { applyBlockMinutes } from './utils/subAlgorithm.js';
 
 const SESSION_KEY = 'soccerSubsSession';
@@ -193,6 +193,7 @@ export default function App() {
   const isDarkTheme = theme === 'dark';
   const isLiveGameScreen = activeTab === 'game' && Boolean(data?.currentGame);
   const hasLiveGame = Boolean(data?.currentGame);
+  const isViewOnly = Boolean(session?.viewOnly);
   const switchToGame = useCallback(() => setActiveTab('game'), []);
   const toggleTheme = useCallback(() => {
     setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
@@ -207,7 +208,9 @@ export default function App() {
     setCheckingSession(true);
     (async () => {
       try {
-        const loginData = await loginWithSession(session);
+        const loginData = session?.viewOnly
+          ? await viewTeamData(session.teamId)
+          : await loginWithSession(session);
         if (cancelled) return;
         setData(migrateData(loginData));
         setLoggedIn(true);
@@ -249,6 +252,12 @@ export default function App() {
   }, []);
 
   const handleUpdate = useCallback(async (newData, options = {}) => {
+    if (session?.viewOnly) {
+      return {
+        ok: false,
+        error: new Error('View-only mode.'),
+      };
+    }
     const optimistic = options?.optimistic !== false;
     if (optimistic) {
       setData(newData);
@@ -274,6 +283,23 @@ export default function App() {
       };
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!session?.viewOnly || !loggedIn) return undefined;
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const latest = await viewTeamData(session.teamId);
+        if (!cancelled) setData(migrateData(latest));
+      } catch {
+        // ignore view-only refresh errors
+      }
+    }, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [session, loggedIn]);
 
   function performLogout() {
     setLoggedIn(false);
@@ -379,6 +405,11 @@ export default function App() {
               name={data?.team?.name || 'Team'}
             />
             <span className="font-semibold text-sm tracking-tight">{data?.team?.name || 'Soccer Subs'}</span>
+            {isViewOnly && (
+              <span className="text-[10px] uppercase tracking-[0.16em] bg-white/15 px-2 py-0.5 rounded-full">
+                View Only
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle isDark={isDarkTheme} onToggle={toggleTheme} />
@@ -440,7 +471,7 @@ export default function App() {
           </div>
         )}
         {activeTab === 'team' && (
-          <TeamTab data={data} onUpdate={handleUpdate} />
+          <TeamTab data={data} onUpdate={handleUpdate} readOnly={isViewOnly} />
         )}
         {/* When a live game exists, keep GameTab mounted (hidden) so the timer
             and substitute countdown continue running across tab switches. */}
@@ -451,6 +482,7 @@ export default function App() {
               onUpdate={handleUpdate}
               onSwitchToGame={switchToGame}
               sessionTeamId={session?.teamId}
+              readOnly={isViewOnly}
             />
           </div>
         ) : (
@@ -459,11 +491,12 @@ export default function App() {
               data={data}
               onUpdate={handleUpdate}
               sessionTeamId={session?.teamId}
+              readOnly={isViewOnly}
             />
           )
         )}
         {activeTab === 'stats' && (
-          <StatsTab data={data} onUpdate={handleUpdate} />
+          <StatsTab data={data} onUpdate={handleUpdate} readOnly={isViewOnly} />
         )}
       </main>
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />

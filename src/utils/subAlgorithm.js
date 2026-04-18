@@ -178,7 +178,12 @@ function canSubOff(playerId, prevFieldMap, rotateGK) {
  * Returns array of blocks, each block = { onField: [{playerId, position}], onBench: [playerId] }
  */
 export function planGame(availablePlayers, formation, gameDuration, rotateGK, allPlayers, team, fixedGKPlayerId = null, options = {}) {
-  const { benchStartCounts = {}, benchProtectedIds = new Set() } = options;
+  const {
+    benchStartCounts = {},
+    benchProtectedIds = new Set(),
+    startingField = null,
+    startingBench = null,
+  } = options;
   const numBlocks = Math.floor(gameDuration / 10);
   const positions = formationToPositions(formation);
   const fieldCount = positions.length;
@@ -203,6 +208,60 @@ export function planGame(availablePlayers, formation, gameDuration, rotateGK, al
       (a, b) => (b.minutesGK || 0) - (a.minutesGK || 0),
     );
     resolvedGKId = sorted[0]?.id || null;
+  }
+
+  const availableIds = new Set(availablePlayers.map(player => player.id));
+  const requiredCounts = positions.reduce((counts, pos) => {
+    counts[pos] = (counts[pos] || 0) + 1;
+    return counts;
+  }, {});
+
+  let startingOverrideField = null;
+  let startingOverrideBenchIds = null;
+  if (Array.isArray(startingField) && startingField.length === fieldCount) {
+    const fieldIds = new Set();
+    const fieldCounts = {};
+    let valid = true;
+    for (const entry of startingField) {
+      if (!entry?.playerId || !entry?.position) { valid = false; break; }
+      if (!availableIds.has(entry.playerId)) { valid = false; break; }
+      if (!requiredCounts[entry.position]) { valid = false; break; }
+      if (fieldIds.has(entry.playerId)) { valid = false; break; }
+      fieldIds.add(entry.playerId);
+      fieldCounts[entry.position] = (fieldCounts[entry.position] || 0) + 1;
+    }
+    for (const [pos, count] of Object.entries(requiredCounts)) {
+      if ((fieldCounts[pos] || 0) !== count) {
+        valid = false;
+        break;
+      }
+    }
+    if (!rotateGK && fixedGKPlayerId) {
+      const fixedAssignment = startingField.find(entry => entry.playerId === fixedGKPlayerId);
+      if (!fixedAssignment || fixedAssignment.position !== 'GK') {
+        valid = false;
+      }
+    }
+    if (valid) {
+      const benchIds = Array.isArray(startingBench)
+        ? startingBench.filter(id => availableIds.has(id))
+        : availablePlayers.filter(player => !fieldIds.has(player.id)).map(player => player.id);
+      const uniqueBenchIds = Array.from(new Set(benchIds.filter(id => !fieldIds.has(id))));
+      if (uniqueBenchIds.length === benchSize) {
+        startingOverrideField = startingField.map(entry => ({
+          playerId: entry.playerId,
+          position: entry.position,
+        }));
+        startingOverrideBenchIds = uniqueBenchIds;
+      }
+    }
+  }
+
+  if (!rotateGK && startingOverrideField) {
+    const startingGK = startingOverrideField.find(entry => entry.position === 'GK');
+    if (startingGK) {
+      resolvedGKId = startingGK.playerId;
+    }
   }
 
   // Simulate season stats
@@ -240,6 +299,28 @@ export function planGame(availablePlayers, formation, gameDuration, rotateGK, al
     let newBench;
 
     if (block === 0) {
+      if (startingOverrideField && startingOverrideBenchIds) {
+        for (const { playerId, position } of startingOverrideField) {
+          const s = simStats[playerId];
+          if (position === 'GK') s.minutesGK += 10;
+          else if (position === 'DEF') s.minutesDEF += 10;
+          else if (position === 'MID') s.minutesMID += 10;
+          else if (position === 'ATK') s.minutesATK += 10;
+          consecutiveFieldBlocks[playerId] = 1;
+          totalFieldBlocks[playerId] = 1;
+        }
+        for (const benchId of startingOverrideBenchIds) {
+          benchBreaks[benchId] = 1;
+          lastBenchedBlock[benchId] = 0;
+          totalBenchStints[benchId] = 1;
+        }
+        blocks.push({
+          onField: startingOverrideField,
+          onBench: startingOverrideBenchIds,
+        });
+        continue;
+      }
+
       // First block: decide who starts on the field vs bench
       let gkCandidate = null;
       let sortPool = availablePlayers;

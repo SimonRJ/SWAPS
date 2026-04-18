@@ -77,6 +77,15 @@ function loadImageAsDataUrl(src) {
   });
 }
 
+function formatKickoffTime(timeValue) {
+  if (!timeValue) return '';
+  const [hours, minutes] = String(timeValue).split(':');
+  const parsed = new Date();
+  parsed.setHours(Number(hours || 0), Number(minutes || 0), 0, 0);
+  if (Number.isNaN(parsed.getTime())) return timeValue;
+  return parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
 export async function generateRoundPdf({
   roundNumber,
   roundInfo,
@@ -389,11 +398,13 @@ export async function generateRoundPdf({
 
     // Game date + home/away metadata in top-right of the banner
     const dateStr = roundInfo?.date || 'Date TBC';
+    const timeStr = formatKickoffTime(roundInfo?.kickoffTime || '');
+    const dateTimeStr = timeStr ? `${dateStr} · ${timeStr}` : dateStr;
     const homeAway = roundInfo?.homeAway === 'AWAY' ? 'AWAY' : 'HOME';
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     setText(C.white);
-    doc.text(dateStr, margin + contentW - 4, y + 10, { align: 'right' });
+    doc.text(dateTimeStr, margin + contentW - 4, y + 10, { align: 'right' });
     doc.setFontSize(9);
     setText([190, 200, 220]);
     doc.text(homeAway, margin + contentW - 4, y + 16, { align: 'right' });
